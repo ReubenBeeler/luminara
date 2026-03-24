@@ -1,0 +1,105 @@
+# Cornell Box — classic global illumination test scene
+# Uses triangles to form the box walls and two inner blocks
+
+[render]
+width = 600
+height = 600
+samples = 256
+max_depth = 50
+
+[camera]
+look_from = [278.0, 278.0, -800.0]
+look_at = [278.0, 278.0, 0.0]
+vfov = 40.0
+aperture = 0.0
+focus_dist = 1.0
+
+# Light (top, emissive)
+[[triangle]]
+v0 = [213.0, 554.0, 227.0]
+v1 = [343.0, 554.0, 227.0]
+v2 = [343.0, 554.0, 332.0]
+material = { type = "emissive", color = [1.0, 0.95, 0.85], intensity = 15.0 }
+
+[[triangle]]
+v0 = [213.0, 554.0, 227.0]
+v1 = [343.0, 554.0, 332.0]
+v2 = [213.0, 554.0, 332.0]
+material = { type = "emissive", color = [1.0, 0.95, 0.85], intensity = 15.0 }
+
+# Floor (white)
+[[triangle]]
+v0 = [0.0, 0.0, 0.0]
+v1 = [555.0, 0.0, 0.0]
+v2 = [555.0, 0.0, 555.0]
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
+
+[[triangle]]
+v0 = [0.0, 0.0, 0.0]
+v1 = [555.0, 0.0, 555.0]
+v2 = [0.0, 0.0, 555.0]
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
+
+# Ceiling (white)
+[[triangle]]
+v0 = [0.0, 555.0, 0.0]
+v1 = [0.0, 555.0, 555.0]
+v2 = [555.0, 555.0, 555.0]
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
+
+[[triangle]]
+v0 = [0.0, 555.0, 0.0]
+v1 = [555.0, 555.0, 555.0]
+v2 = [555.0, 555.0, 0.0]
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
+
+# Back wall (white)
+[[triangle]]
+v0 = [0.0, 0.0, 555.0]
+v1 = [555.0, 0.0, 555.0]
+v2 = [555.0, 555.0, 555.0]
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
+
+[[triangle]]
+v0 = [0.0, 0.0, 555.0]
+v1 = [555.0, 555.0, 555.0]
+v2 = [0.0, 555.0, 555.0]
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
+
+# Left wall (red)
+[[triangle]]
+v0 = [0.0, 0.0, 0.0]
+v1 = [0.0, 0.0, 555.0]
+v2 = [0.0, 555.0, 555.0]
+material = { type = "lambertian", color = [0.65, 0.05, 0.05] }
+
+[[triangle]]
+v0 = [0.0, 0.0, 0.0]
+v1 = [0.0, 555.0, 555.0]
+v2 = [0.0, 555.0, 0.0]
+material = { type = "lambertian", color = [0.65, 0.05, 0.05] }
+
+# Right wall (green)
+[[triangle]]
+v0 = [555.0, 0.0, 0.0]
+v1 = [555.0, 555.0, 0.0]
+v2 = [555.0, 555.0, 555.0]
+material = { type = "lambertian", color = [0.12, 0.45, 0.15] }
+
+[[triangle]]
+v0 = [555.0, 0.0, 0.0]
+v1 = [555.0, 555.0, 555.0]
+v2 = [555.0, 0.0, 555.0]
+material = { type = "lambertian", color = [0.12, 0.45, 0.15] }
+
+# Tall box (white) — simplified as a sphere for now
+[[sphere]]
+center = [368.0, 165.0, 295.0]
+radius = 100.0
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
+
+# Short box (white) — simplified as a sphere
+[[sphere]]
+center = [185.0, 82.5, 168.0]
+radius = 82.5
+material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
