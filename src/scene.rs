@@ -65,6 +65,7 @@ pub struct RenderSettings {
     pub height: Option<u32>,
     pub samples: Option<u32>,
     pub max_depth: Option<u32>,
+    pub seed: Option<u64>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -376,6 +377,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(d) = r.max_depth {
             render_config.max_depth = d;
+        }
+        if let Some(s) = r.seed {
+            render_config.seed = s;
         }
         if let Some(bg) = &r.background {
             render_config.background = match bg {
