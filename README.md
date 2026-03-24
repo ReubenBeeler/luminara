@@ -6,12 +6,13 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
-- **Geometry**: Spheres, infinite planes, triangles, and OBJ triangle meshes
+- **Geometry**: Spheres, infinite planes, triangles, cylinders, axis-aligned rectangles, boxes, and OBJ triangle meshes
 - **Materials**: Lambertian (diffuse), metallic (with configurable fuzz), dielectric (glass), and emissive (light sources)
-- **Textures**: Solid color and 3D checkerboard patterns, with UV mapping for spheres
+- **Textures**: Solid color, 3D checkerboard, Perlin marble, turbulence, and image textures (PNG/JPG)
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
-- **Rendering**: Multithreaded via Rayon, gamma-corrected output, anti-aliasing, progress indicator
+- **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator
 - **Acceleration**: BVH (bounding volume hierarchy) for O(log n) ray intersection
+- **Backgrounds**: Sky gradient, solid color, custom gradient, or black
 - **Output**: PNG images via the `image` crate
 - **Scenes**: Declarative TOML format, plus a built-in demo scene
 
@@ -95,13 +96,15 @@ offset = [0.0, 0.0, 0.0]
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
 | `material` | Material trait + Lambertian, Metal, Dielectric, Emissive |
-| `texture` | Texture trait + SolidColor, Checker |
+| `texture` | Texture trait + SolidColor, Checker, Marble, Turbulence, Image |
 | `sphere` | Sphere intersection with UV mapping |
 | `plane` | Infinite plane intersection |
 | `triangle` | Triangle intersection (Möller-Trumbore) |
+| `cylinder` | Finite Y-axis cylinder intersection |
+| `rect` | Axis-aligned rectangles (XY, XZ, YZ) and box builder |
 | `obj` | OBJ file loading with fan triangulation |
 | `camera` | Perspective camera with depth of field |
-| `render` | Multithreaded ray tracing engine with progress |
+| `render` | Stratified sampling, ACES tone mapping, progress |
 | `scene` | TOML scene loading, BVH construction, demo scene |
 
 ## Design decisions
@@ -109,21 +112,23 @@ offset = [0.0, 0.0, 0.0]
 - **Pure Rust, minimal dependencies**: Only `rand`, `rayon`, `image`, `toml`, and `serde`. No graphics API, no GPU — just math and parallelism.
 - **Trait-based extensibility**: `Hittable`, `Material`, and `Texture` traits make adding new geometry, materials, and textures straightforward.
 - **BVH acceleration**: Bounded objects are organized in a bounding volume hierarchy for logarithmic ray intersection. Unbounded objects (infinite planes) are tested separately.
-- **Physically-based**: Schlick's approximation for Fresnel, proper refraction via Snell's law, Lambertian scattering, gamma correction, emissive light transport.
+- **Physically-based**: Schlick's approximation for Fresnel, proper refraction via Snell's law, Lambertian scattering, emissive light transport.
+- **HDR pipeline**: ACES filmic tone mapping prevents harsh clamping of bright emissive surfaces. Stratified (jittered) sampling reduces noise.
 - **Deterministic per-row seeding**: Each row gets its own RNG seeded by row index, making renders reproducible regardless of thread scheduling.
 
 ## Included scenes
 
-- **showcase.toml**: Glass, metal, and matte spheres on a checkerboard ground with a glowing light sphere
-- **cornell.toml**: Classic Cornell Box with colored walls, area light, and two objects
+- **showcase.toml**: Glass, metal, marble, and matte spheres on a checkerboard ground with a glowing light
+- **cornell.toml**: Classic Cornell Box with colored walls, area light, and two boxes
+- **gallery.toml**: Feature showcase with all geometry types, textures, and multiple light sources
 
 ## What's next
 
-- Image textures (PNG/JPG mapped onto surfaces)
-- Perlin noise procedural textures
+- Normal mapping
 - Constructive solid geometry (CSG)
 - Importance sampling for faster convergence
 - HDR environment maps
+- Depth of field bokeh shapes
 
 ---
 
