@@ -131,16 +131,33 @@ pub fn render(
 
     eprintln!();
 
-    // Convert to RGBA bytes with gamma correction (gamma = 2.0).
+    // Convert to RGBA bytes with ACES tone mapping + gamma correction.
     let mut pixels = Vec::with_capacity(width * height * 4);
     for row in &rows {
         for color in row {
-            let r = (color.x.sqrt().clamp(0.0, 0.999) * 256.0) as u8;
-            let g = (color.y.sqrt().clamp(0.0, 0.999) * 256.0) as u8;
-            let b = (color.z.sqrt().clamp(0.0, 0.999) * 256.0) as u8;
+            let r = linear_to_srgb(aces_tonemap(color.x));
+            let g = linear_to_srgb(aces_tonemap(color.y));
+            let b = linear_to_srgb(aces_tonemap(color.z));
             pixels.extend_from_slice(&[r, g, b, 255]);
         }
     }
 
     pixels
+}
+
+/// ACES filmic tone mapping curve.
+/// Maps HDR values to [0, 1] with a pleasing S-curve.
+fn aces_tonemap(x: f64) -> f64 {
+    let x = x.max(0.0);
+    let a = 2.51;
+    let b = 0.03;
+    let c = 2.43;
+    let d = 0.59;
+    let e = 0.14;
+    ((x * (a * x + b)) / (x * (c * x + d) + e)).clamp(0.0, 1.0)
+}
+
+/// Convert linear [0,1] to sRGB byte with gamma 2.2.
+fn linear_to_srgb(x: f64) -> u8 {
+    (x.powf(1.0 / 2.2).clamp(0.0, 0.999) * 256.0) as u8
 }
