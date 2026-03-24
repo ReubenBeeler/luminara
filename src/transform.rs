@@ -106,7 +106,6 @@ impl Hittable for RotateY {
 }
 
 /// Uniformly scales an object around the origin.
-#[allow(dead_code)]
 pub struct Scale {
     inner: Box<dyn Hittable>,
     factor: f64,
@@ -114,7 +113,6 @@ pub struct Scale {
 }
 
 impl Scale {
-    #[allow(dead_code)]
     pub fn new(inner: Box<dyn Hittable>, factor: f64) -> Self {
         let factor = if factor.abs() < 1e-10 { 1.0 } else { factor };
         Self { inner, factor, inv_factor: 1.0 / factor }
@@ -154,6 +152,21 @@ mod tests {
         // Ray aimed at original position should miss
         let ray = Ray::new(Point3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0));
         assert!(translated.hit(&ray, 0.001, f64::INFINITY).is_none());
+    }
+
+    #[test]
+    fn test_scale() {
+        let sphere = Sphere::new(Point3::ZERO, 1.0, Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))));
+        let scaled = Scale::new(Box::new(sphere), 2.0);
+
+        // Ray should hit at scaled distance
+        let ray = Ray::new(Point3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0));
+        let hit = scaled.hit(&ray, 0.001, f64::INFINITY).unwrap();
+        assert!((hit.point.z - -2.0).abs() < 0.01);
+
+        // Bounding box should be doubled
+        let bb = scaled.bounding_box().unwrap();
+        assert!((bb.max.x - 2.0).abs() < 0.01);
     }
 
     #[test]
