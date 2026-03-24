@@ -54,6 +54,12 @@ impl Aabb {
         t_max > t_min
     }
 
+    /// Surface area of this AABB (used for SAH).
+    pub fn surface_area(&self) -> f64 {
+        let d = self.max - self.min;
+        2.0 * (d.x * d.y + d.y * d.z + d.z * d.x)
+    }
+
     /// Return the bounding box that encloses both boxes.
     pub fn surrounding(a: &Aabb, b: &Aabb) -> Aabb {
         Aabb {
