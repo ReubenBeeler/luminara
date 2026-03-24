@@ -5,22 +5,35 @@ use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
 
 /// An infinite plane defined by a point and a normal.
+/// UV coordinates are computed via planar projection.
 pub struct Plane {
     pub point: Point3,
     pub normal: Vec3,
+    u_axis: Vec3,
+    v_axis: Vec3,
     pub material: Box<dyn Material>,
 }
 
 impl Plane {
     pub fn new(point: Point3, normal: Vec3, material: Box<dyn Material>) -> Self {
         let normal = if normal.near_zero() {
-            Vec3::new(0.0, 1.0, 0.0) // Fallback to up vector
+            Vec3::new(0.0, 1.0, 0.0)
         } else {
             normal.unit()
         };
+        // Build a tangent frame for UV mapping
+        let up = if normal.y.abs() > 0.999 {
+            Vec3::new(1.0, 0.0, 0.0)
+        } else {
+            Vec3::new(0.0, 1.0, 0.0)
+        };
+        let u_axis = up.cross(normal).unit();
+        let v_axis = normal.cross(u_axis);
         Self {
             point,
             normal,
+            u_axis,
+            v_axis,
             material,
         }
     }
@@ -41,13 +54,16 @@ impl Hittable for Plane {
         }
 
         let point = ray.at(t);
+        let local = point - self.point;
+        let u = local.dot(self.u_axis).fract().abs();
+        let v = local.dot(self.v_axis).fract().abs();
         Some(HitRecord::new(
             ray,
             point,
             self.normal,
             t,
-            0.0,
-            0.0,
+            u,
+            v,
             self.material.as_ref(),
         ))
     }
@@ -87,6 +103,16 @@ mod tests {
     fn plane_no_bounding_box() {
         let plane = Plane::new(Point3::ZERO, Vec3::new(0.0, 1.0, 0.0), test_mat());
         assert!(plane.bounding_box().is_none());
+    }
+
+    #[test]
+    fn plane_uv_coordinates() {
+        let plane = Plane::new(Point3::ZERO, Vec3::new(0.0, 1.0, 0.0), test_mat());
+        let ray = Ray::new(Point3::new(0.3, 5.0, 0.7), Vec3::new(0.0, -1.0, 0.0));
+        let hit = plane.hit(&ray, 0.001, f64::INFINITY).unwrap();
+        // UV should be in [0, 1]
+        assert!(hit.u >= 0.0 && hit.u <= 1.0, "u={}", hit.u);
+        assert!(hit.v >= 0.0 && hit.v <= 1.0, "v={}", hit.v);
     }
 
     #[test]
