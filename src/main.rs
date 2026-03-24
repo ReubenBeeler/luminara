@@ -46,9 +46,20 @@ fn main() {
 
     let (mut render_config, camera, world) = match &cli.scene {
         Some(path) => {
-            let content = std::fs::read_to_string(path)
-                .unwrap_or_else(|e| panic!("Failed to read scene file '{}': {}", path, e));
-            scene::load_scene(&content).unwrap_or_else(|e| panic!("Scene error: {}", e))
+            let content = match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Error: cannot read scene file '{}': {}", path, e);
+                    std::process::exit(1);
+                }
+            };
+            match scene::load_scene(&content) {
+                Ok(scene) => scene,
+                Err(e) => {
+                    eprintln!("Error: invalid scene '{}': {}", path, e);
+                    std::process::exit(1);
+                }
+            }
         }
         None => {
             eprintln!("No scene file provided, rendering demo scene...");
