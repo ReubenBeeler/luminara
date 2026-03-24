@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 use rand::Rng;
@@ -29,6 +30,13 @@ pub enum Background {
         sun_intensity: f64,
         sky_color: Color,
     },
+    /// Environment map (equirectangular HDR image)
+    EnvMap {
+        pixels: Arc<Vec<f32>>,
+        width: u32,
+        height: u32,
+        intensity: f64,
+    },
 }
 
 impl Background {
@@ -44,6 +52,28 @@ impl Background {
                 let unit_dir = ray.direction.unit();
                 let t = 0.5 * (unit_dir.y + 1.0);
                 *bottom * (1.0 - t) + *top * t
+            }
+            Background::EnvMap { pixels, width, height, intensity } => {
+                let unit_dir = ray.direction.unit();
+                // Equirectangular mapping: direction -> (u, v)
+                let theta = (-unit_dir.y).acos();
+                let phi = (-unit_dir.z).atan2(unit_dir.x) + std::f64::consts::PI;
+                let u = phi / (2.0 * std::f64::consts::PI);
+                let v = theta / std::f64::consts::PI;
+
+                let i = ((u * *width as f64) as u32).min(width - 1);
+                let j = ((v * *height as f64) as u32).min(height - 1);
+                let idx = (j * width + i) as usize * 3;
+
+                if idx + 2 < pixels.len() {
+                    Color::new(
+                        pixels[idx] as f64 * intensity,
+                        pixels[idx + 1] as f64 * intensity,
+                        pixels[idx + 2] as f64 * intensity,
+                    )
+                } else {
+                    Color::ZERO
+                }
             }
             Background::Sun { direction, sun_color, sun_intensity, sky_color } => {
                 let unit_dir = ray.direction.unit();
@@ -199,6 +229,23 @@ pub fn render(
     }
 
     pixels
+}
+
+impl Background {
+    /// Load an environment map from an image file (HDR, PNG, JPG).
+    pub fn load_env_map(path: &str, intensity: f64) -> Result<Self, String> {
+        let img = image::open(path).map_err(|e| format!("Failed to load env map '{path}': {e}"))?;
+        let rgb = img.to_rgb32f();
+        let width = rgb.width();
+        let height = rgb.height();
+        let pixels: Vec<f32> = rgb.into_raw();
+        Ok(Background::EnvMap {
+            pixels: Arc::new(pixels),
+            width,
+            height,
+            intensity,
+        })
+    }
 }
 
 /// ACES filmic tone mapping curve.

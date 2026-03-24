@@ -104,6 +104,11 @@ pub enum BackgroundDesc {
         intensity: Option<f64>,
         sky_color: Option<[f64; 3]>,
     },
+    #[serde(alias = "env_map")]
+    EnvMap {
+        file: String,
+        intensity: Option<f64>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -487,6 +492,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
                         sun_intensity: intensity.unwrap_or(20.0),
                         sky_color: sky_color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(0.5, 0.7, 1.0)),
                     }
+                }
+                BackgroundDesc::EnvMap { file, intensity } => {
+                    Background::load_env_map(file, intensity.unwrap_or(1.0))?
                 }
             };
         }
