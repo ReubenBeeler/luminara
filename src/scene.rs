@@ -84,6 +84,8 @@ pub enum BackgroundDesc {
     Gradient { bottom: [f64; 3], top: [f64; 3] },
     #[serde(alias = "black")]
     Black,
+    #[serde(alias = "sunset")]
+    Sunset,
     #[serde(alias = "sun")]
     Sun {
         direction: [f64; 3],
@@ -410,6 +412,12 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
                     top: Color::new(top[0], top[1], top[2]),
                 },
                 BackgroundDesc::Black => Background::Solid(Color::ZERO),
+                BackgroundDesc::Sunset => Background::Sun {
+                    direction: Vec3::new(0.3, 0.15, -1.0),
+                    sun_color: Color::new(1.0, 0.6, 0.2),
+                    sun_intensity: 30.0,
+                    sky_color: Color::new(0.8, 0.4, 0.2),
+                },
                 BackgroundDesc::Sun { direction, sun_color, intensity, sky_color } => {
                     Background::Sun {
                         direction: arr_to_vec3(*direction),
