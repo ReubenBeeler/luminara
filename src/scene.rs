@@ -5,7 +5,7 @@ use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::{Checker, Marble, Turbulence};
+use crate::texture::{Checker, ImageTexture, Marble, Turbulence};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect};
@@ -149,6 +149,10 @@ pub enum MaterialDesc {
     Turbulence {
         color: [f64; 3],
         scale: Option<f64>,
+    },
+    #[serde(alias = "image")]
+    Image {
+        file: String,
     },
 }
 
@@ -366,6 +370,11 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color[0], color[1], color[2]),
                 scale.unwrap_or(4.0),
             ))))
+        }
+        MaterialDesc::Image { file } => {
+            let tex = ImageTexture::load(file)
+                .unwrap_or_else(|e| panic!("Failed to load image texture: {e}"));
+            Box::new(Lambertian::with_texture(Box::new(tex)))
         }
     }
 }

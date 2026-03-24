@@ -195,6 +195,43 @@ impl Texture for Turbulence {
     }
 }
 
+/// Image texture — loads a PNG/JPG and maps via UV coordinates.
+pub struct ImageTexture {
+    pixels: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+impl ImageTexture {
+    pub fn load(path: &str) -> Result<Self, String> {
+        let img = image::open(path).map_err(|e| format!("Failed to load image '{}': {e}", path))?;
+        let rgb = img.to_rgb8();
+        let (width, height) = rgb.dimensions();
+        Ok(Self {
+            pixels: rgb.into_raw(),
+            width,
+            height,
+        })
+    }
+}
+
+impl Texture for ImageTexture {
+    fn value(&self, u: f64, v: f64, _point: &Point3) -> Color {
+        let u = u.clamp(0.0, 1.0);
+        let v = 1.0 - v.clamp(0.0, 1.0); // Flip V to match image coords
+
+        let i = ((u * self.width as f64) as u32).min(self.width - 1);
+        let j = ((v * self.height as f64) as u32).min(self.height - 1);
+
+        let idx = (j * self.width + i) as usize * 3;
+        let r = self.pixels[idx] as f64 / 255.0;
+        let g = self.pixels[idx + 1] as f64 / 255.0;
+        let b = self.pixels[idx + 2] as f64 / 255.0;
+
+        Color::new(r, g, b)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
