@@ -1,0 +1,85 @@
+# Motion blur demo scene
+# Demonstrates moving spheres creating motion blur trails
+
+[render]
+width = 800
+height = 450
+samples = 128
+max_depth = 50
+seed = 42
+
+[render.background]
+type = "sky"
+
+[camera]
+look_from = [13.0, 2.0, 3.0]
+look_at = [0.0, 0.5, 0.0]
+vfov = 20.0
+aperture = 0.1
+focus_dist = 10.0
+
+# Ground
+[[sphere]]
+center = [0.0, -1000.0, 0.0]
+radius = 1000.0
+[sphere.material]
+type = "checker"
+color1 = [0.2, 0.3, 0.1]
+color2 = [0.9, 0.9, 0.9]
+scale = 0.5
+
+# Static glass sphere
+[[sphere]]
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+[sphere.material]
+type = "glass"
+
+# Moving red sphere
+[[moving_sphere]]
+center0 = [-4.0, 0.5, 0.0]
+center1 = [-4.0, 1.2, 0.0]
+radius = 0.5
+[moving_sphere.material]
+type = "lambertian"
+color = [0.8, 0.2, 0.1]
+
+# Moving blue sphere
+[[moving_sphere]]
+center0 = [2.0, 0.5, -1.0]
+center1 = [3.0, 0.5, -1.0]
+radius = 0.5
+[moving_sphere.material]
+type = "lambertian"
+color = [0.1, 0.2, 0.8]
+
+# Moving gold metal sphere
+[[moving_sphere]]
+center0 = [4.0, 0.5, 1.0]
+center1 = [4.0, 1.5, 1.0]
+radius = 0.5
+[moving_sphere.material]
+type = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.1
+
+# Static metal sphere
+[[sphere]]
+center = [4.0, 1.0, 0.0]
+radius = 1.0
+[sphere.material]
+type = "metal"
+color = [0.7, 0.6, 0.5]
+fuzz = 0.0
+
+# Quad ground tile (demo)
+[[quad]]
+q = [-2.0, 0.001, -2.0]
+u = [4.0, 0.0, 0.0]
+v = [0.0, 0.0, 4.0]
+[quad.material]
+type = "grid"
+line_color = [0.3, 0.3, 0.3]
+bg_color = [0.6, 0.6, 0.6]
+scale = 1.0
+line_width = 0.02
