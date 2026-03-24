@@ -130,15 +130,20 @@ color = [0.8, 0.8, 0.8]
 | `aabb` | Axis-aligned bounding boxes |
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
-| `material` | Material trait + Lambertian, Metal, Dielectric, Emissive |
-| `texture` | Texture trait + SolidColor, Checker, Stripe, Gradient, Marble, Turbulence, Image |
+| `material` | Material trait + Lambertian, Metal, Dielectric, Emissive, Blend |
+| `texture` | Texture trait + 12 procedural/image textures |
 | `sphere` | Sphere intersection with UV mapping |
+| `ellipsoid` | Ellipsoid with 3-axis radii |
+| `torus` | Torus via SDF ray marching |
 | `plane` | Infinite plane intersection |
 | `disk` | Finite circular plane |
 | `triangle` | Triangle intersection (Möller-Trumbore) |
 | `cylinder` | Finite Y-axis cylinder |
 | `cone` | Finite Y-axis cone |
+| `capsule` | Rounded cylinder (cylinder + hemispheres) |
 | `rect` | Axis-aligned rectangles (XY, XZ, YZ) and box builder |
+| `transform` | Translate, RotateY, Scale wrappers |
+| `bump` | Perlin noise bump mapping |
 | `constant_medium` | Volumetric fog/smoke with isotropic scattering |
 | `obj` | OBJ file loading with fan triangulation |
 | `camera` | Perspective camera with depth of field |
