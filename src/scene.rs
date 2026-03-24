@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 use crate::aabb::Aabb;
+use crate::annulus::Annulus;
 use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::bump::BumpMap;
@@ -56,6 +57,8 @@ pub struct SceneFile {
     pub cone: Vec<ConeDesc>,
     #[serde(default)]
     pub cylinder: Vec<CylinderDesc>,
+    #[serde(default)]
+    pub annulus: Vec<AnnulusDesc>,
     #[serde(default)]
     pub disk: Vec<DiskDesc>,
     #[serde(default)]
@@ -151,6 +154,15 @@ pub struct MeshDesc {
     pub material: MaterialDesc,
     pub scale: Option<f64>,
     pub offset: Option<[f64; 3]>,
+}
+
+#[derive(Deserialize)]
+pub struct AnnulusDesc {
+    pub center: [f64; 3],
+    pub normal: [f64; 3],
+    pub inner_radius: f64,
+    pub outer_radius: f64,
+    pub material: MaterialDesc,
 }
 
 #[derive(Deserialize)]
@@ -586,6 +598,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             c.radius,
             center.y,
             center.y + c.height,
+            mat,
+        )));
+    }
+
+    for a in &scene.annulus {
+        let mat = build_material(&a.material);
+        world.add(Box::new(Annulus::new(
+            arr_to_vec3(a.center),
+            arr_to_vec3(a.normal),
+            a.inner_radius,
+            a.outer_radius,
             mat,
         )));
     }

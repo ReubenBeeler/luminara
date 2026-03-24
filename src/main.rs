@@ -1,4 +1,5 @@
 mod aabb;
+mod annulus;
 mod bump;
 mod bvh;
 mod camera;
