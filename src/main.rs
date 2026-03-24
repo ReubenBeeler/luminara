@@ -78,18 +78,37 @@ fn main() {
     let mrays_per_sec = total_rays as f64 / secs / 1_000_000.0;
     eprintln!("Rendered in {secs:.2}s ({mrays_per_sec:.1} Mrays/s)");
 
-    // Save as PNG
+    // Save output
     let out = cli.output.unwrap_or_else(|| PathBuf::from("output.png"));
-    image::save_buffer(
-        &out,
-        &pixels,
-        render_config.width,
-        render_config.height,
-        image::ColorType::Rgba8,
-    )
-    .unwrap_or_else(|e| panic!("Failed to save image: {}", e));
+    let out_str = out.to_string_lossy();
 
-    eprintln!("Saved to {}", out.display());
+    if out_str == "-" || out_str.ends_with(".ppm") {
+        // Write PPM to stdout or file
+        use std::io::Write;
+        let w = render_config.width;
+        let h = render_config.height;
+        let mut ppm = format!("P3\n{w} {h}\n255\n");
+        for chunk in pixels.chunks(4) {
+            ppm.push_str(&format!("{} {} {}\n", chunk[0], chunk[1], chunk[2]));
+        }
+        if out_str == "-" {
+            std::io::stdout().write_all(ppm.as_bytes()).unwrap();
+            eprintln!("Written to stdout (PPM)");
+        } else {
+            std::fs::write(&out, ppm).unwrap_or_else(|e| panic!("Failed to write: {e}"));
+            eprintln!("Saved to {}", out.display());
+        }
+    } else {
+        image::save_buffer(
+            &out,
+            &pixels,
+            render_config.width,
+            render_config.height,
+            image::ColorType::Rgba8,
+        )
+        .unwrap_or_else(|e| panic!("Failed to save image: {}", e));
+        eprintln!("Saved to {}", out.display());
+    }
 }
 
 fn parse_args(args: &[String]) -> CliArgs {
