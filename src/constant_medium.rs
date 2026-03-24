@@ -103,3 +103,36 @@ impl rand::RngCore for IsotropicRng<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::material::Lambertian;
+    use crate::sphere::Sphere;
+    use crate::vec3::Point3;
+
+    #[test]
+    fn constant_medium_has_boundary_bbox() {
+        let boundary = Box::new(Sphere::new(
+            Point3::ZERO, 1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        ));
+        let medium = ConstantMedium::new(boundary, 0.5, Color::new(1.0, 1.0, 1.0));
+        let bb = medium.bounding_box().unwrap();
+        assert!((bb.min.x - -1.0).abs() < 1e-4);
+        assert!((bb.max.x - 1.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn constant_medium_ray_through() {
+        let boundary = Box::new(Sphere::new(
+            Point3::ZERO, 5.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        ));
+        // Very high density — should almost always scatter
+        let medium = ConstantMedium::new(boundary, 100.0, Color::new(1.0, 1.0, 1.0));
+        let ray = Ray::new(Point3::new(0.0, 0.0, -10.0), Vec3::new(0.0, 0.0, 1.0));
+        let hit = medium.hit(&ray, 0.001, f64::INFINITY);
+        assert!(hit.is_some());
+    }
+}

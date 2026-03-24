@@ -48,3 +48,37 @@ impl Hittable for BumpMap {
         self.inner.bounding_box()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::material::Lambertian;
+    use crate::sphere::Sphere;
+    use crate::vec3::{Color, Point3};
+
+    #[test]
+    fn bump_map_perturbs_normal() {
+        let sphere = Box::new(Sphere::new(
+            Point3::ZERO, 1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        ));
+        let bumped = BumpMap::new(sphere, 1.0, 4.0);
+        let ray = Ray::new(Point3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0));
+        let hit = bumped.hit(&ray, 0.001, f64::INFINITY).unwrap();
+        // Normal should still be roughly unit length and pointing outward
+        let len = hit.normal.length();
+        assert!((len - 1.0).abs() < 0.01, "Normal should be unit, got {len}");
+    }
+
+    #[test]
+    fn bump_map_preserves_bbox() {
+        let sphere = Box::new(Sphere::new(
+            Point3::ZERO, 1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        ));
+        let orig_bb = sphere.bounding_box();
+        let bumped = BumpMap::new(sphere, 1.0, 4.0);
+        let bump_bb = bumped.bounding_box();
+        assert_eq!(orig_bb.is_some(), bump_bb.is_some());
+    }
+}

@@ -56,3 +56,43 @@ impl Hittable for Plane {
         None // Infinite planes have no finite bounding box
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::material::Lambertian;
+    use crate::vec3::Color;
+
+    fn test_mat() -> Box<dyn Material> {
+        Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)))
+    }
+
+    #[test]
+    fn plane_hit_from_above() {
+        let plane = Plane::new(Point3::ZERO, Vec3::new(0.0, 1.0, 0.0), test_mat());
+        let ray = Ray::new(Point3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let hit = plane.hit(&ray, 0.001, f64::INFINITY);
+        assert!(hit.is_some());
+        assert!((hit.unwrap().t - 5.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn plane_miss_parallel() {
+        let plane = Plane::new(Point3::ZERO, Vec3::new(0.0, 1.0, 0.0), test_mat());
+        let ray = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(1.0, 0.0, 0.0));
+        assert!(plane.hit(&ray, 0.001, f64::INFINITY).is_none());
+    }
+
+    #[test]
+    fn plane_no_bounding_box() {
+        let plane = Plane::new(Point3::ZERO, Vec3::new(0.0, 1.0, 0.0), test_mat());
+        assert!(plane.bounding_box().is_none());
+    }
+
+    #[test]
+    fn plane_zero_normal_fallback() {
+        let plane = Plane::new(Point3::ZERO, Vec3::ZERO, test_mat());
+        // Should fallback to up normal
+        assert!((plane.normal.y - 1.0).abs() < 1e-6);
+    }
+}
