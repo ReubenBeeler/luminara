@@ -4,7 +4,7 @@ use crate::aabb::Aabb;
 use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Dielectric, Lambertian, Metal};
+use crate::material::{Dielectric, Emissive, Lambertian, Metal};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::render::RenderConfig;
@@ -64,6 +64,8 @@ pub enum MaterialDesc {
     Metal { color: [f64; 3], fuzz: Option<f64> },
     #[serde(alias = "dielectric")]
     Dielectric { refraction_index: f64 },
+    #[serde(alias = "emissive")]
+    Emissive { color: [f64; 3], intensity: Option<f64> },
 }
 
 /// A scene world that uses BVH for bounded objects and linear scan for unbounded ones.
@@ -205,6 +207,12 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
         )),
         MaterialDesc::Dielectric { refraction_index } => {
             Box::new(Dielectric::new(*refraction_index))
+        }
+        MaterialDesc::Emissive { color, intensity } => {
+            Box::new(Emissive::new(
+                Color::new(color[0], color[1], color[2]),
+                intensity.unwrap_or(1.0),
+            ))
         }
     }
 }

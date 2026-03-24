@@ -35,12 +35,14 @@ fn ray_color(ray: &Ray, world: &dyn Hittable, rng: &mut dyn RngCore, depth: u32)
 
     // 0.001 to avoid shadow acne
     if let Some(hit) = world.hit(ray, 0.001, f64::INFINITY) {
+        let emitted = hit.material.emitted();
         if let Some(scatter) = hit.material.scatter(ray, &hit, rng) {
-            return scatter
-                .attenuation
-                .hadamard(ray_color(&scatter.ray, world, rng, depth - 1));
+            return emitted
+                + scatter
+                    .attenuation
+                    .hadamard(ray_color(&scatter.ray, world, rng, depth - 1));
         }
-        return Color::ZERO;
+        return emitted;
     }
 
     // Sky gradient

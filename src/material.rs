@@ -13,6 +13,11 @@ pub struct Scatter {
 /// Trait for materials that interact with light.
 pub trait Material: Send + Sync {
     fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter>;
+
+    /// Light emitted by this material. Defaults to black (no emission).
+    fn emitted(&self) -> Color {
+        Color::ZERO
+    }
 }
 
 /// Workaround to use `dyn Rng` — we define our own trait object-safe RNG trait.
@@ -126,6 +131,29 @@ impl Material for Dielectric {
             ray: Ray::new(hit.point, direction),
             attenuation: Color::new(1.0, 1.0, 1.0),
         })
+    }
+}
+
+// --- Emissive (light source) ---
+
+pub struct Emissive {
+    pub color: Color,
+    pub intensity: f64,
+}
+
+impl Emissive {
+    pub fn new(color: Color, intensity: f64) -> Self {
+        Self { color, intensity }
+    }
+}
+
+impl Material for Emissive {
+    fn scatter(&self, _ray: &Ray, _hit: &HitRecord, _rng: &mut dyn RngCore) -> Option<Scatter> {
+        None // Lights don't scatter
+    }
+
+    fn emitted(&self) -> Color {
+        self.color * self.intensity
     }
 }
 
