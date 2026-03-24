@@ -5,7 +5,7 @@ use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::Checker;
+use crate::texture::{Checker, Marble, Turbulence};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::render::RenderConfig;
@@ -93,6 +93,16 @@ pub enum MaterialDesc {
     Checker {
         color1: [f64; 3],
         color2: [f64; 3],
+        scale: Option<f64>,
+    },
+    #[serde(alias = "marble")]
+    Marble {
+        color: [f64; 3],
+        scale: Option<f64>,
+    },
+    #[serde(alias = "turbulence")]
+    Turbulence {
+        color: [f64; 3],
         scale: Option<f64>,
     },
 }
@@ -270,6 +280,18 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color1[0], color1[1], color1[2]),
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
+            ))))
+        }
+        MaterialDesc::Marble { color, scale } => {
+            Box::new(Lambertian::with_texture(Box::new(Marble::new(
+                Color::new(color[0], color[1], color[2]),
+                scale.unwrap_or(4.0),
+            ))))
+        }
+        MaterialDesc::Turbulence { color, scale } => {
+            Box::new(Lambertian::with_texture(Box::new(Turbulence::new(
+                Color::new(color[0], color[1], color[2]),
+                scale.unwrap_or(4.0),
             ))))
         }
     }

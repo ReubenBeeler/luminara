@@ -1,4 +1,4 @@
-use crate::vec3::{Color, Point3};
+use crate::vec3::{Color, Point3, Vec3};
 
 /// Trait for procedural and sampled textures.
 pub trait Texture: Send + Sync {
@@ -49,6 +49,153 @@ impl Texture for Checker {
     }
 }
 
+/// Perlin noise generator.
+pub struct Perlin {
+    ranvec: [Vec3; 256],
+    perm_x: [usize; 256],
+    perm_y: [usize; 256],
+    perm_z: [usize; 256],
+}
+
+impl Perlin {
+    pub fn new() -> Self {
+        use rand::Rng;
+        let mut rng = rand::rng();
+
+        let mut ranvec = [Vec3::ZERO; 256];
+        for v in &mut ranvec {
+            *v = Vec3::random_range(&mut rng, -1.0, 1.0).unit();
+        }
+
+        Self {
+            ranvec,
+            perm_x: Self::generate_perm(&mut rng),
+            perm_y: Self::generate_perm(&mut rng),
+            perm_z: Self::generate_perm(&mut rng),
+        }
+    }
+
+    fn generate_perm(rng: &mut impl rand::Rng) -> [usize; 256] {
+        let mut perm = [0usize; 256];
+        for (i, p) in perm.iter_mut().enumerate() {
+            *p = i;
+        }
+        for i in (1..256).rev() {
+            let target = rng.random_range(0..=i);
+            perm.swap(i, target);
+        }
+        perm
+    }
+
+    pub fn noise(&self, p: &Point3) -> f64 {
+        let u = p.x - p.x.floor();
+        let v = p.y - p.y.floor();
+        let w = p.z - p.z.floor();
+
+        let i = p.x.floor() as i64;
+        let j = p.y.floor() as i64;
+        let k = p.z.floor() as i64;
+
+        let mut c = [[[Vec3::ZERO; 2]; 2]; 2];
+        for di in 0..2i64 {
+            for dj in 0..2i64 {
+                for dk in 0..2i64 {
+                    let idx = self.perm_x[((i + di) & 255) as usize]
+                        ^ self.perm_y[((j + dj) & 255) as usize]
+                        ^ self.perm_z[((k + dk) & 255) as usize];
+                    c[di as usize][dj as usize][dk as usize] = self.ranvec[idx];
+                }
+            }
+        }
+
+        Self::trilinear_interp(&c, u, v, w)
+    }
+
+    fn trilinear_interp(c: &[[[Vec3; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
+        // Hermite cubic for smoothing
+        let uu = u * u * (3.0 - 2.0 * u);
+        let vv = v * v * (3.0 - 2.0 * v);
+        let ww = w * w * (3.0 - 2.0 * w);
+
+        let mut accum = 0.0;
+        for i in 0..2 {
+            for j in 0..2 {
+                for k in 0..2 {
+                    let weight = Vec3::new(u - i as f64, v - j as f64, w - k as f64);
+                    accum += (i as f64 * uu + (1 - i) as f64 * (1.0 - uu))
+                        * (j as f64 * vv + (1 - j) as f64 * (1.0 - vv))
+                        * (k as f64 * ww + (1 - k) as f64 * (1.0 - ww))
+                        * c[i][j][k].dot(weight);
+                }
+            }
+        }
+        accum
+    }
+
+    /// Turbulence — sum of absolute noise at multiple frequencies.
+    pub fn turb(&self, p: &Point3, depth: u32) -> f64 {
+        let mut accum = 0.0;
+        let mut temp_p = *p;
+        let mut weight = 1.0;
+
+        for _ in 0..depth {
+            accum += weight * self.noise(&temp_p);
+            weight *= 0.5;
+            temp_p = temp_p * 2.0;
+        }
+
+        accum.abs()
+    }
+}
+
+/// Marble-like texture using Perlin noise turbulence.
+pub struct Marble {
+    perlin: Perlin,
+    scale: f64,
+    color: Color,
+}
+
+impl Marble {
+    pub fn new(color: Color, scale: f64) -> Self {
+        Self {
+            perlin: Perlin::new(),
+            scale,
+            color,
+        }
+    }
+}
+
+impl Texture for Marble {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        // Marble: sine with turbulence perturbation
+        let noise = 0.5 * (1.0 + (self.scale * point.z + 10.0 * self.perlin.turb(point, 7)).sin());
+        self.color * noise
+    }
+}
+
+/// Turbulent Perlin noise texture.
+pub struct Turbulence {
+    perlin: Perlin,
+    scale: f64,
+    color: Color,
+}
+
+impl Turbulence {
+    pub fn new(color: Color, scale: f64) -> Self {
+        Self {
+            perlin: Perlin::new(),
+            scale,
+            color,
+        }
+    }
+}
+
+impl Texture for Turbulence {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        self.color * self.perlin.turb(&(*point * self.scale), 7)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,5 +214,22 @@ mod tests {
         let c2 = tex.value(0.0, 0.0, &Point3::new(1.5, 0.5, 0.5));
         assert_eq!(c1, Color::new(1.0, 1.0, 1.0)); // even (0+0+0)
         assert_eq!(c2, Color::new(0.0, 0.0, 0.0)); // odd (1+0+0)
+    }
+
+    #[test]
+    fn test_perlin_bounded() {
+        let perlin = Perlin::new();
+        for i in 0..100 {
+            let p = Point3::new(i as f64 * 0.1, i as f64 * 0.2, i as f64 * 0.3);
+            let n = perlin.noise(&p);
+            assert!(n >= -1.0 && n <= 1.0, "Perlin noise out of range: {n}");
+        }
+    }
+
+    #[test]
+    fn test_marble_positive() {
+        let marble = Marble::new(Color::new(1.0, 1.0, 1.0), 4.0);
+        let c = marble.value(0.0, 0.0, &Point3::new(1.0, 2.0, 3.0));
+        assert!(c.x >= 0.0 && c.x <= 1.0);
     }
 }
