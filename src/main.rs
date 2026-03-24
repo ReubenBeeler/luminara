@@ -72,7 +72,11 @@ fn main() {
     let pixels = render::render(&render_config, &camera, &world);
 
     let elapsed = start.elapsed();
-    eprintln!("Rendered in {:.2}s", elapsed.as_secs_f64());
+    let secs = elapsed.as_secs_f64();
+    let sqrt_spp = (render_config.samples_per_pixel as f64).sqrt().ceil() as u64;
+    let total_rays = render_config.width as u64 * render_config.height as u64 * sqrt_spp * sqrt_spp;
+    let mrays_per_sec = total_rays as f64 / secs / 1_000_000.0;
+    eprintln!("Rendered in {secs:.2}s ({mrays_per_sec:.1} Mrays/s)");
 
     // Save as PNG
     let out = cli.output.unwrap_or_else(|| PathBuf::from("output.png"));
