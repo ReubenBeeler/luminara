@@ -1,0 +1,123 @@
+# Everything scene — demonstrates every feature in Luminara
+
+[render]
+width = 960
+height = 540
+samples = 64
+max_depth = 50
+background = { type = "sun", direction = [1.0, 0.8, -0.5], intensity = 20.0, sky_color = [0.4, 0.6, 1.0] }
+
+[camera]
+look_from = [8.0, 4.0, 10.0]
+look_at = [0.0, 1.0, 0.0]
+vfov = 40.0
+aperture = 0.05
+focus_dist = 12.0
+
+# Grid ground plane
+[[plane]]
+point = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+material = { type = "grid", line_color = [0.3, 0.3, 0.3], bg_color = [0.85, 0.85, 0.85], scale = 1.0, line_width = 0.03 }
+
+# Glass sphere with roughness (frosted)
+[[sphere]]
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+material = { type = "dielectric", refraction_index = 1.5, roughness = 0.05 }
+
+# Tinted glass sphere
+[[sphere]]
+center = [-2.5, 0.7, 1.5]
+radius = 0.7
+material = { type = "dielectric", refraction_index = 1.5, tint = [0.8, 0.4, 1.0] }
+
+# Metal sphere
+[[sphere]]
+center = [2.5, 0.8, 0.0]
+radius = 0.8
+material = { type = "metal", color = [0.95, 0.85, 0.65], fuzz = 0.0 }
+
+# Marble sphere
+[[sphere]]
+center = [-1.0, 0.5, -2.0]
+radius = 0.5
+material = { type = "marble", color = [0.85, 0.85, 0.9], scale = 6.0 }
+
+# Turbulence sphere
+[[sphere]]
+center = [1.5, 0.4, 3.0]
+radius = 0.4
+material = { type = "turbulence", color = [0.8, 0.5, 0.3], scale = 8.0 }
+
+# Dots sphere
+[[sphere]]
+center = [3.5, 0.5, 2.0]
+radius = 0.5
+material = { type = "dots", dot_color = [1.0, 0.0, 0.0], bg_color = [1.0, 1.0, 1.0], scale = 0.3, radius = 0.2 }
+
+# UV checker sphere (globe)
+[[sphere]]
+center = [-3.5, 0.6, -0.5]
+radius = 0.6
+material = { type = "uv_checker", color1 = [0.0, 0.3, 0.8], color2 = [0.9, 0.9, 0.2], frequency = 16.0 }
+
+# Stripe cylinder
+[[cylinder]]
+center = [4.5, 0.0, -1.0]
+radius = 0.2
+height = 2.5
+material = { type = "stripe", color1 = [0.9, 0.1, 0.1], color2 = [0.9, 0.9, 0.9], scale = 0.3, axis = "y" }
+
+# Gradient cone
+[[cone]]
+center = [-4.0, 0.0, 1.0]
+radius = 0.6
+height = 1.5
+material = { type = "gradient_tex", color1 = [0.2, 0.6, 0.2], color2 = [0.9, 0.9, 0.1], axis = "y", min = 0.0, max = 1.5 }
+
+# Capsule
+[[capsule]]
+center = [1.0, 0.0, -3.0]
+radius = 0.3
+height = 1.0
+material = { type = "lambertian", color = [0.6, 0.3, 0.7] }
+
+# Ellipsoid
+[[ellipsoid]]
+center = [-2.0, 0.5, 3.0]
+radii = [0.8, 0.4, 0.6]
+material = { type = "metal", color = [0.7, 0.7, 0.9], fuzz = 0.15 }
+
+# Disk
+[[disk]]
+center = [3.0, 0.01, 3.0]
+normal = [0.0, 1.0, 0.0]
+radius = 1.0
+material = { type = "checker", color1 = [0.9, 0.5, 0.1], color2 = [0.1, 0.1, 0.1], scale = 0.25 }
+
+# Box
+[[box]]
+min = [4.0, 0.0, -3.5]
+max = [5.0, 1.2, -2.5]
+material = { type = "lambertian", color = [0.9, 0.8, 0.7] }
+
+# Fog volume
+[[fog]]
+center = [-1.0, 1.5, 1.0]
+radius = 2.0
+density = 0.3
+color = [0.95, 0.95, 1.0]
+
+# Triangle
+[[triangle]]
+v0 = [5.0, 0.0, 1.0]
+v1 = [6.0, 0.0, 1.0]
+v2 = [5.5, 2.0, 1.0]
+material = { type = "emissive", color = [1.0, 0.8, 0.4], intensity = 5.0 }
+
+# Emissive light
+[[sphere]]
+center = [0.0, 6.0, -2.0]
+radius = 1.0
+material = { type = "emissive", color = [1.0, 0.98, 0.9], intensity = 8.0 }
