@@ -31,6 +31,7 @@ struct CliArgs {
     height: Option<u32>,
     samples: Option<u32>,
     max_depth: Option<u32>,
+    threads: Option<usize>,
 }
 
 fn main() {
@@ -63,6 +64,12 @@ fn main() {
     }
     if let Some(d) = cli.max_depth {
         render_config.max_depth = d;
+    }
+    if let Some(t) = cli.threads {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(t)
+            .build_global()
+            .ok();
     }
 
     eprintln!(
@@ -120,6 +127,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         height: None,
         samples: None,
         max_depth: None,
+        threads: None,
     };
     let mut i = 1;
 
@@ -149,6 +157,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.samples = args[i].parse().ok();
                 }
             }
+            "-t" | "--threads" => {
+                i += 1;
+                if i < args.len() {
+                    cli.threads = args[i].parse().ok();
+                }
+            }
             "-d" | "--depth" => {
                 i += 1;
                 if i < args.len() {
@@ -164,6 +178,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --height      Override render height");
                 eprintln!("  -s, --samples     Override samples per pixel");
                 eprintln!("  -d, --depth       Override max ray bounce depth");
+                eprintln!("  -t, --threads     Number of render threads (default: all cores)");
                 eprintln!("  -h, --help        Show this help");
                 std::process::exit(0);
             }
