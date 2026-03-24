@@ -105,6 +105,156 @@ impl Hittable for RotateY {
     }
 }
 
+/// Rotates an object around the X axis.
+pub struct RotateX {
+    inner: Box<dyn Hittable>,
+    sin_theta: f64,
+    cos_theta: f64,
+    bbox: Option<Aabb>,
+}
+
+impl RotateX {
+    pub fn new(inner: Box<dyn Hittable>, angle_degrees: f64) -> Self {
+        let radians = angle_degrees.to_radians();
+        let sin_theta = radians.sin();
+        let cos_theta = radians.cos();
+
+        let bbox = inner.bounding_box().map(|bb| {
+            let mut min = Vec3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
+            let mut max = Vec3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+
+            for i in 0..2 {
+                for j in 0..2 {
+                    for k in 0..2 {
+                        let x = i as f64 * bb.max.x + (1 - i) as f64 * bb.min.x;
+                        let y = j as f64 * bb.max.y + (1 - j) as f64 * bb.min.y;
+                        let z = k as f64 * bb.max.z + (1 - k) as f64 * bb.min.z;
+
+                        let new_y = cos_theta * y - sin_theta * z;
+                        let new_z = sin_theta * y + cos_theta * z;
+
+                        min = min.min(Vec3::new(x, new_y, new_z));
+                        max = max.max(Vec3::new(x, new_y, new_z));
+                    }
+                }
+            }
+            Aabb::new(min, max)
+        });
+
+        Self { inner, sin_theta, cos_theta, bbox }
+    }
+}
+
+impl Hittable for RotateX {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
+        let origin = Vec3::new(
+            ray.origin.x,
+            self.cos_theta * ray.origin.y + self.sin_theta * ray.origin.z,
+            -self.sin_theta * ray.origin.y + self.cos_theta * ray.origin.z,
+        );
+        let direction = Vec3::new(
+            ray.direction.x,
+            self.cos_theta * ray.direction.y + self.sin_theta * ray.direction.z,
+            -self.sin_theta * ray.direction.y + self.cos_theta * ray.direction.z,
+        );
+
+        let rotated_ray = Ray::with_time(origin, direction, ray.time);
+        let mut hit = self.inner.hit(&rotated_ray, t_min, t_max)?;
+
+        hit.point = Vec3::new(
+            hit.point.x,
+            self.cos_theta * hit.point.y - self.sin_theta * hit.point.z,
+            self.sin_theta * hit.point.y + self.cos_theta * hit.point.z,
+        );
+        hit.normal = Vec3::new(
+            hit.normal.x,
+            self.cos_theta * hit.normal.y - self.sin_theta * hit.normal.z,
+            self.sin_theta * hit.normal.y + self.cos_theta * hit.normal.z,
+        );
+
+        Some(hit)
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        self.bbox
+    }
+}
+
+/// Rotates an object around the Z axis.
+pub struct RotateZ {
+    inner: Box<dyn Hittable>,
+    sin_theta: f64,
+    cos_theta: f64,
+    bbox: Option<Aabb>,
+}
+
+impl RotateZ {
+    pub fn new(inner: Box<dyn Hittable>, angle_degrees: f64) -> Self {
+        let radians = angle_degrees.to_radians();
+        let sin_theta = radians.sin();
+        let cos_theta = radians.cos();
+
+        let bbox = inner.bounding_box().map(|bb| {
+            let mut min = Vec3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
+            let mut max = Vec3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+
+            for i in 0..2 {
+                for j in 0..2 {
+                    for k in 0..2 {
+                        let x = i as f64 * bb.max.x + (1 - i) as f64 * bb.min.x;
+                        let y = j as f64 * bb.max.y + (1 - j) as f64 * bb.min.y;
+                        let z = k as f64 * bb.max.z + (1 - k) as f64 * bb.min.z;
+
+                        let new_x = cos_theta * x - sin_theta * y;
+                        let new_y = sin_theta * x + cos_theta * y;
+
+                        min = min.min(Vec3::new(new_x, new_y, z));
+                        max = max.max(Vec3::new(new_x, new_y, z));
+                    }
+                }
+            }
+            Aabb::new(min, max)
+        });
+
+        Self { inner, sin_theta, cos_theta, bbox }
+    }
+}
+
+impl Hittable for RotateZ {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
+        let origin = Vec3::new(
+            self.cos_theta * ray.origin.x + self.sin_theta * ray.origin.y,
+            -self.sin_theta * ray.origin.x + self.cos_theta * ray.origin.y,
+            ray.origin.z,
+        );
+        let direction = Vec3::new(
+            self.cos_theta * ray.direction.x + self.sin_theta * ray.direction.y,
+            -self.sin_theta * ray.direction.x + self.cos_theta * ray.direction.y,
+            ray.direction.z,
+        );
+
+        let rotated_ray = Ray::with_time(origin, direction, ray.time);
+        let mut hit = self.inner.hit(&rotated_ray, t_min, t_max)?;
+
+        hit.point = Vec3::new(
+            self.cos_theta * hit.point.x - self.sin_theta * hit.point.y,
+            self.sin_theta * hit.point.x + self.cos_theta * hit.point.y,
+            hit.point.z,
+        );
+        hit.normal = Vec3::new(
+            self.cos_theta * hit.normal.x - self.sin_theta * hit.normal.y,
+            self.sin_theta * hit.normal.x + self.cos_theta * hit.normal.y,
+            hit.normal.z,
+        );
+
+        Some(hit)
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        self.bbox
+    }
+}
+
 /// Uniformly scales an object around the origin.
 pub struct Scale {
     inner: Box<dyn Hittable>,
@@ -176,6 +326,26 @@ mod tests {
 
         // After 90° rotation, sphere at (2,0,0) should be at (0,0,-2)
         let ray = Ray::new(Point3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0));
+        assert!(rotated.hit(&ray, 0.001, f64::INFINITY).is_some());
+    }
+
+    #[test]
+    fn test_rotate_x() {
+        let sphere = Sphere::new(Point3::new(0.0, 2.0, 0.0), 0.5, Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))));
+        let rotated = RotateX::new(Box::new(sphere), 90.0);
+
+        // After 90° X rotation, sphere at (0,2,0) should be at (0,0,2)
+        let ray = Ray::new(Point3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0));
+        assert!(rotated.hit(&ray, 0.001, f64::INFINITY).is_some());
+    }
+
+    #[test]
+    fn test_rotate_z() {
+        let sphere = Sphere::new(Point3::new(2.0, 0.0, 0.0), 0.5, Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))));
+        let rotated = RotateZ::new(Box::new(sphere), 90.0);
+
+        // After 90° Z rotation, sphere at (2,0,0) should be at (0,2,0)
+        let ray = Ray::new(Point3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
         assert!(rotated.hit(&ray, 0.001, f64::INFINITY).is_some());
     }
 }

@@ -5,7 +5,7 @@ use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::bump::BumpMap;
 use crate::capsule::Capsule;
-use crate::transform::{RotateY, Scale, Translate};
+use crate::transform::{RotateX, RotateY, RotateZ, Scale, Translate};
 use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
@@ -210,7 +210,9 @@ pub struct BoxDesc {
     pub min: [f64; 3],
     pub max: [f64; 3],
     pub material: MaterialDesc,
+    pub rotate_x: Option<f64>,
     pub rotate_y: Option<f64>,
+    pub rotate_z: Option<f64>,
     pub translate: Option<[f64; 3]>,
     pub scale: Option<f64>,
 }
@@ -628,8 +630,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             || build_material(&b.material),
         );
 
-        if b.rotate_y.is_some() || b.translate.is_some() || b.scale.is_some() {
-            // Wrap all sides into a HittableList, then transform
+        let has_transform = b.rotate_x.is_some() || b.rotate_y.is_some()
+            || b.rotate_z.is_some() || b.translate.is_some() || b.scale.is_some();
+        if has_transform {
             let mut box_list = HittableList::new();
             for side in sides {
                 box_list.add(side);
@@ -638,8 +641,14 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             if let Some(factor) = b.scale {
                 obj = Box::new(Scale::new(obj, factor));
             }
+            if let Some(angle) = b.rotate_x {
+                obj = Box::new(RotateX::new(obj, angle));
+            }
             if let Some(angle) = b.rotate_y {
                 obj = Box::new(RotateY::new(obj, angle));
+            }
+            if let Some(angle) = b.rotate_z {
+                obj = Box::new(RotateZ::new(obj, angle));
             }
             if let Some(offset) = b.translate {
                 obj = Box::new(Translate::new(obj, arr_to_vec3(offset)));
