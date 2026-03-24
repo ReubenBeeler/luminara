@@ -7,13 +7,13 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
 - **Geometry**: Spheres, infinite planes, triangles, cylinders, cones, disks, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic (with configurable fuzz), dielectric (glass with optional tint), emissive (light sources)
-- **Textures**: Solid color, 3D checkerboard, stripes, gradient, Perlin marble, turbulence, and image textures (PNG/JPG)
+- **Materials**: Lambertian (diffuse), metallic (with configurable fuzz), dielectric (glass with tint and roughness), emissive (light sources)
+- **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, Perlin marble, turbulence, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator
-- **Acceleration**: BVH (bounding volume hierarchy) for O(log n) ray intersection
-- **Backgrounds**: Sky gradient, solid color, custom gradient, or black
+- **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
+- **Backgrounds**: Sky gradient, sun+sky with directional sun disk, solid color, custom gradient, or black
 - **Output**: PNG images via the `image` crate
 - **Scenes**: Declarative TOML format, plus a built-in demo scene
 
@@ -110,7 +110,7 @@ color = [0.8, 0.8, 0.8]
 |------|-----------|
 | `lambertian` | `color` |
 | `metal` | `color`, `fuzz` (optional, 0.0-1.0) |
-| `dielectric` | `refraction_index`, `tint` (optional) |
+| `dielectric` | `refraction_index`, `tint` (optional), `roughness` (optional, 0.0-1.0) |
 | `emissive` | `color`, `intensity` (optional, default 1.0) |
 | `checker` | `color1`, `color2`, `scale` (optional) |
 | `stripe` | `color1`, `color2`, `scale` (optional), `axis` (optional, x/y/z) |
@@ -118,6 +118,7 @@ color = [0.8, 0.8, 0.8]
 | `marble` | `color`, `scale` (optional) |
 | `turbulence` | `color`, `scale` (optional) |
 | `image` | `file` (path to PNG/JPG) |
+| `uv_checker` | `color1`, `color2`, `frequency` (optional) |
 
 ## Architecture
 
@@ -157,7 +158,8 @@ color = [0.8, 0.8, 0.8]
 
 - **showcase.toml**: Glass, metal, marble, and matte spheres on a checkerboard ground with emissive light
 - **cornell.toml**: Classic Cornell Box with colored walls, area light, and two boxes
-- **gallery.toml**: Feature showcase with all geometry types, textures, tinted glass, and multiple lights
+- **gallery.toml**: Feature showcase with all geometry types, textures, fog, tinted glass, and multiple lights
+- **outdoor.toml**: Sunlit outdoor scene with frosted glass, UV globe, cylinder, and cone
 
 ## What's next
 
