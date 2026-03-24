@@ -7,6 +7,7 @@ use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
 use crate::disk::Disk;
+use crate::ellipsoid::Ellipsoid;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, GradientTexture, ImageTexture, Marble, Stripe, Turbulence, UvChecker};
@@ -33,6 +34,8 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    pub ellipsoid: Vec<EllipsoidDesc>,
     #[serde(default)]
     pub fog: Vec<FogDesc>,
     #[serde(default)]
@@ -126,6 +129,13 @@ pub struct DiskDesc {
     pub center: [f64; 3],
     pub normal: [f64; 3],
     pub radius: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct EllipsoidDesc {
+    pub center: [f64; 3],
+    pub radii: [f64; 3],
     pub material: MaterialDesc,
 }
 
@@ -386,6 +396,11 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(p.normal),
             mat,
         )));
+    }
+
+    for e in &scene.ellipsoid {
+        let mat = build_material(&e.material);
+        world.add(Box::new(Ellipsoid::new(arr_to_vec3(e.center), arr_to_vec3(e.radii), mat)));
     }
 
     for f in &scene.fog {

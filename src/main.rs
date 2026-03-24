@@ -5,6 +5,7 @@ mod cone;
 mod constant_medium;
 mod cylinder;
 mod disk;
+mod ellipsoid;
 mod hit;
 mod material;
 mod obj;
