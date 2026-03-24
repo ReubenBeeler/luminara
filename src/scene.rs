@@ -1,9 +1,12 @@
 use serde::Deserialize;
 
+use crate::aabb::Aabb;
+use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
-use crate::hit::HittableList;
+use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Lambertian, Metal};
 use crate::plane::Plane;
+use crate::ray::Ray;
 use crate::render::RenderConfig;
 use crate::sphere::Sphere;
 use crate::vec3::{Color, Point3, Vec3};
@@ -63,12 +66,70 @@ pub enum MaterialDesc {
     Dielectric { refraction_index: f64 },
 }
 
+/// A scene world that uses BVH for bounded objects and linear scan for unbounded ones.
+pub struct SceneWorld {
+    bvh: Option<Box<dyn Hittable>>,
+    unbounded: Vec<Box<dyn Hittable>>,
+}
+
+impl SceneWorld {
+    /// Build a SceneWorld from a HittableList, partitioning objects into
+    /// bounded (accelerated via BVH) and unbounded (tested linearly).
+    pub fn from_list(list: HittableList) -> Self {
+        let mut bounded = Vec::new();
+        let mut unbounded = Vec::new();
+
+        for obj in list.objects {
+            if obj.bounding_box().is_some() {
+                bounded.push(obj);
+            } else {
+                unbounded.push(obj);
+            }
+        }
+
+        let bvh = if bounded.is_empty() {
+            None
+        } else {
+            Some(BvhNode::build(bounded))
+        };
+
+        Self { bvh, unbounded }
+    }
+}
+
+impl Hittable for SceneWorld {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
+        let mut closest = t_max;
+        let mut best_hit = None;
+
+        if let Some(ref bvh) = self.bvh {
+            if let Some(hit) = bvh.hit(ray, t_min, closest) {
+                closest = hit.t;
+                best_hit = Some(hit);
+            }
+        }
+
+        for obj in &self.unbounded {
+            if let Some(hit) = obj.hit(ray, t_min, closest) {
+                closest = hit.t;
+                best_hit = Some(hit);
+            }
+        }
+
+        best_hit
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        self.bvh.as_ref().and_then(|b| b.bounding_box())
+    }
+}
+
 fn arr_to_vec3(a: [f64; 3]) -> Vec3 {
     Vec3::new(a[0], a[1], a[2])
 }
 
 /// Load a scene from a TOML string.
-pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, HittableList), String> {
+pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), String> {
     let scene: SceneFile = toml::from_str(toml_str).map_err(|e| format!("TOML parse error: {e}"))?;
 
     // Render config
@@ -130,7 +191,7 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, HittableList)
         )));
     }
 
-    Ok((render_config, camera, world))
+    Ok((render_config, camera, SceneWorld::from_list(world)))
 }
 
 fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
@@ -149,7 +210,7 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
 }
 
 /// Build the classic "random spheres" demo scene.
-pub fn demo_scene() -> (RenderConfig, Camera, HittableList) {
+pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
     let render_config = RenderConfig {
         width: 800,
         height: 450,
@@ -222,5 +283,5 @@ pub fn demo_scene() -> (RenderConfig, Camera, HittableList) {
         }
     }
 
-    (render_config, camera, world)
+    (render_config, camera, SceneWorld::from_list(world))
 }

@@ -1,3 +1,4 @@
+use crate::aabb::Aabb;
 use crate::hit::{HitRecord, Hittable};
 use crate::material::Material;
 use crate::ray::Ray;
@@ -42,5 +43,9 @@ impl Hittable for Plane {
             t,
             self.material.as_ref(),
         ))
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        None // Infinite planes have no finite bounding box
     }
 }

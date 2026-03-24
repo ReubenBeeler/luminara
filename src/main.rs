@@ -1,3 +1,5 @@
+mod aabb;
+mod bvh;
 mod camera;
 mod hit;
 mod material;

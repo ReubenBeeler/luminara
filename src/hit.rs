@@ -1,3 +1,4 @@
+use crate::aabb::Aabb;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
@@ -39,6 +40,10 @@ impl<'a> HitRecord<'a> {
 /// Trait for anything a ray can intersect.
 pub trait Hittable: Send + Sync {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>>;
+
+    /// Return the axis-aligned bounding box for this object.
+    /// Returns None for unbounded objects (e.g. infinite planes).
+    fn bounding_box(&self) -> Option<Aabb>;
 }
 
 /// A list of hittable objects.
@@ -71,5 +76,22 @@ impl Hittable for HittableList {
         }
 
         best_hit
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        if self.objects.is_empty() {
+            return None;
+        }
+
+        let mut result: Option<Aabb> = None;
+        for object in &self.objects {
+            if let Some(bbox) = object.bounding_box() {
+                result = Some(match result {
+                    Some(existing) => Aabb::surrounding(&existing, &bbox),
+                    None => bbox,
+                });
+            }
+        }
+        result
     }
 }
