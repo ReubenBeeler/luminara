@@ -8,7 +8,7 @@ use crate::cylinder::Cylinder;
 use crate::disk::Disk;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::{Checker, ImageTexture, Marble, Stripe, Turbulence};
+use crate::texture::{Checker, GradientTexture, ImageTexture, Marble, Stripe, Turbulence};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
@@ -199,6 +199,14 @@ pub enum MaterialDesc {
     #[serde(alias = "image")]
     Image {
         file: String,
+    },
+    #[serde(alias = "gradient_tex")]
+    GradientTex {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        axis: Option<String>,
+        min: Option<f64>,
+        max: Option<f64>,
     },
     #[serde(alias = "stripe")]
     Stripe {
@@ -480,6 +488,20 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                     ImageTexture::fallback()
                 });
             Box::new(Lambertian::with_texture(Box::new(tex)))
+        }
+        MaterialDesc::GradientTex { color1, color2, axis, min, max } => {
+            let axis_idx = match axis.as_deref() {
+                Some("x" | "X") => 0,
+                Some("y" | "Y") => 1,
+                _ => 2,
+            };
+            Box::new(Lambertian::with_texture(Box::new(GradientTexture::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                axis_idx,
+                min.unwrap_or(0.0),
+                max.unwrap_or(1.0),
+            ))))
         }
         MaterialDesc::Stripe { color1, color2, scale, axis } => {
             let axis_idx = match axis.as_deref() {

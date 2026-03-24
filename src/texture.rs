@@ -78,6 +78,39 @@ impl Texture for Stripe {
     }
 }
 
+/// Gradient texture — blends between two colors along an axis.
+pub struct GradientTexture {
+    pub color1: Color,
+    pub color2: Color,
+    pub axis: usize,
+    pub min_val: f64,
+    pub max_val: f64,
+}
+
+impl GradientTexture {
+    pub fn new(color1: Color, color2: Color, axis: usize, min_val: f64, max_val: f64) -> Self {
+        let range = max_val - min_val;
+        let (min_val, max_val) = if range.abs() < 1e-10 {
+            (min_val, min_val + 1.0)
+        } else {
+            (min_val, max_val)
+        };
+        Self { color1, color2, axis: axis.min(2), min_val, max_val }
+    }
+}
+
+impl Texture for GradientTexture {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let val = match self.axis {
+            0 => point.x,
+            1 => point.y,
+            _ => point.z,
+        };
+        let t = ((val - self.min_val) / (self.max_val - self.min_val)).clamp(0.0, 1.0);
+        self.color1 * (1.0 - t) + self.color2 * t
+    }
+}
+
 /// Perlin noise generator.
 pub struct Perlin {
     ranvec: [Vec3; 256],
