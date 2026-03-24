@@ -213,7 +213,13 @@ fn aces_tonemap(x: f64) -> f64 {
     ((x * (a * x + b)) / (x * (c * x + d) + e)).clamp(0.0, 1.0)
 }
 
-/// Convert linear [0,1] to sRGB byte with gamma 2.2.
+/// Convert linear [0,1] to sRGB byte using the official piecewise transfer function.
 fn linear_to_srgb(x: f64) -> u8 {
-    (x.powf(1.0 / 2.2).clamp(0.0, 0.999) * 256.0) as u8
+    let x = x.clamp(0.0, 1.0);
+    let s = if x <= 0.0031308 {
+        12.92 * x
+    } else {
+        1.055 * x.powf(1.0 / 2.4) - 0.055
+    };
+    (s.clamp(0.0, 0.999) * 256.0) as u8
 }
