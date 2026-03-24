@@ -8,6 +8,7 @@ mod ray;
 mod render;
 mod scene;
 mod sphere;
+mod triangle;
 mod vec3;
 
 use std::path::PathBuf;

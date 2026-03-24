@@ -9,6 +9,7 @@ use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::render::RenderConfig;
 use crate::sphere::Sphere;
+use crate::triangle::Triangle;
 use crate::vec3::{Color, Point3, Vec3};
 
 // --- TOML scene description types ---
@@ -21,6 +22,8 @@ pub struct SceneFile {
     pub sphere: Vec<SphereDesc>,
     #[serde(default)]
     pub plane: Vec<PlaneDesc>,
+    #[serde(default)]
+    pub triangle: Vec<TriangleDesc>,
 }
 
 #[derive(Deserialize)]
@@ -52,6 +55,14 @@ pub struct SphereDesc {
 pub struct PlaneDesc {
     pub point: [f64; 3],
     pub normal: [f64; 3],
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct TriangleDesc {
+    pub v0: [f64; 3],
+    pub v1: [f64; 3],
+    pub v2: [f64; 3],
     pub material: MaterialDesc,
 }
 
@@ -189,6 +200,16 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         world.add(Box::new(Plane::new(
             arr_to_vec3(p.point),
             arr_to_vec3(p.normal),
+            mat,
+        )));
+    }
+
+    for t in &scene.triangle {
+        let mat = build_material(&t.material);
+        world.add(Box::new(Triangle::new(
+            arr_to_vec3(t.v0),
+            arr_to_vec3(t.v1),
+            arr_to_vec3(t.v2),
             mat,
         )));
     }
