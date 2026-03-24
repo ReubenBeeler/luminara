@@ -193,7 +193,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.width = args[i].parse().ok();
                 }
             }
-            "--height" => {
+            "-H" | "--height" => {
                 i += 1;
                 if i < args.len() {
                     cli.height = args[i].parse().ok();
@@ -237,12 +237,16 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("Usage: luminara [scene.toml] [options]");
                 eprintln!();
                 eprintln!("  scene.toml        Scene description file (optional, uses demo scene if omitted)");
-                eprintln!("  -o, --output      Output file path (default: output.png)");
+                eprintln!("  -o, --output      Output file path (default: output.png, '-' for stdout PPM)");
                 eprintln!("  -w, --width       Override render width");
-                eprintln!("      --height      Override render height");
+                eprintln!("  -H, --height      Override render height");
                 eprintln!("  -s, --samples     Override samples per pixel");
                 eprintln!("  -d, --depth       Override max ray bounce depth");
                 eprintln!("  -t, --threads     Number of render threads (default: all cores)");
+                eprintln!("      --seed        Set RNG seed for deterministic rendering");
+                eprintln!("  -q, --quiet       Suppress progress output");
+                eprintln!("      --info        Show scene info without rendering");
+                eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
                 std::process::exit(0);
             }
