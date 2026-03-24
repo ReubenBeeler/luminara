@@ -67,6 +67,63 @@ impl Hittable for Sphere {
     }
 }
 
+/// A sphere that moves linearly between two centers over time [0, 1].
+pub struct MovingSphere {
+    pub center0: Point3,
+    pub center1: Point3,
+    pub radius: f64,
+    pub material: Box<dyn Material>,
+}
+
+impl MovingSphere {
+    pub fn new(center0: Point3, center1: Point3, radius: f64, material: Box<dyn Material>) -> Self {
+        Self { center0, center1, radius, material }
+    }
+
+    fn center_at(&self, time: f64) -> Point3 {
+        self.center0 + (self.center1 - self.center0) * time
+    }
+}
+
+impl Hittable for MovingSphere {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
+        let center = self.center_at(ray.time);
+        let oc = ray.origin - center;
+        let a = ray.direction.length_squared();
+        let half_b = oc.dot(ray.direction);
+        let c = oc.length_squared() - self.radius * self.radius;
+        let discriminant = half_b * half_b - a * c;
+
+        if discriminant < 0.0 {
+            return None;
+        }
+
+        let sqrtd = discriminant.sqrt();
+        let mut root = (-half_b - sqrtd) / a;
+        if root < t_min || root > t_max {
+            root = (-half_b + sqrtd) / a;
+            if root < t_min || root > t_max {
+                return None;
+            }
+        }
+
+        let point = ray.at(root);
+        let outward_normal = (point - center) / self.radius;
+        let theta = (-outward_normal.y).acos();
+        let phi = (-outward_normal.z).atan2(outward_normal.x) + std::f64::consts::PI;
+        let u = phi / (2.0 * std::f64::consts::PI);
+        let v = theta / std::f64::consts::PI;
+        Some(HitRecord::new(ray, point, outward_normal, root, u, v, self.material.as_ref()))
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        let r = Vec3::new(self.radius, self.radius, self.radius);
+        let box0 = Aabb::new(self.center0 - r, self.center0 + r);
+        let box1 = Aabb::new(self.center1 - r, self.center1 + r);
+        Some(Aabb::surrounding(&box0, &box1))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,6 +190,49 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn moving_sphere_at_time_zero() {
+        let ms = MovingSphere::new(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(10.0, 0.0, 0.0),
+            1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        );
+        // At time=0, center is at origin
+        let ray = Ray::with_time(Point3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0), 0.0);
+        assert!(ms.hit(&ray, 0.001, f64::INFINITY).is_some());
+    }
+
+    #[test]
+    fn moving_sphere_at_time_one() {
+        let ms = MovingSphere::new(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(10.0, 0.0, 0.0),
+            1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        );
+        // At time=1, center is at (10,0,0)
+        let ray = Ray::with_time(Point3::new(10.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0), 1.0);
+        assert!(ms.hit(&ray, 0.001, f64::INFINITY).is_some());
+        // Should miss at origin at time=1
+        let ray2 = Ray::with_time(Point3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0), 1.0);
+        assert!(ray2.origin.x.abs() < 0.001); // just verifying
+        assert!(ms.hit(&ray2, 0.001, f64::INFINITY).is_none());
+    }
+
+    #[test]
+    fn moving_sphere_bbox_encompasses_both() {
+        let ms = MovingSphere::new(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(10.0, 0.0, 0.0),
+            1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        );
+        let bb = ms.bounding_box().unwrap();
+        assert!(bb.min.x <= -1.0);
+        assert!(bb.max.x >= 11.0);
     }
 
     #[test]

@@ -19,7 +19,7 @@ use crate::quad::Quad;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
 use crate::render::{Background, RenderConfig};
-use crate::sphere::Sphere;
+use crate::sphere::{MovingSphere, Sphere};
 use crate::obj;
 use crate::torus::Torus;
 use crate::triangle::Triangle;
@@ -33,6 +33,8 @@ pub struct SceneFile {
     pub camera: Option<CameraSettings>,
     #[serde(default)]
     pub sphere: Vec<SphereDesc>,
+    #[serde(default)]
+    pub moving_sphere: Vec<MovingSphereDesc>,
     #[serde(default)]
     pub plane: Vec<PlaneDesc>,
     #[serde(default)]
@@ -115,6 +117,14 @@ pub struct SphereDesc {
     pub material: MaterialDesc,
     pub bump_strength: Option<f64>,
     pub bump_scale: Option<f64>,
+}
+
+#[derive(Deserialize)]
+pub struct MovingSphereDesc {
+    pub center0: [f64; 3],
+    pub center1: [f64; 3],
+    pub radius: f64,
+    pub material: MaterialDesc,
 }
 
 #[derive(Deserialize)]
@@ -491,6 +501,16 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         } else {
             world.add(sphere);
         }
+    }
+
+    for ms in &scene.moving_sphere {
+        let mat = build_material(&ms.material);
+        world.add(Box::new(MovingSphere::new(
+            arr_to_vec3(ms.center0),
+            arr_to_vec3(ms.center1),
+            ms.radius,
+            mat,
+        )));
     }
 
     for p in &scene.plane {

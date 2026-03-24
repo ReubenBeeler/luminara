@@ -67,11 +67,12 @@ impl Camera {
     pub fn get_ray(&self, s: f64, t: f64, rng: &mut impl Rng) -> Ray {
         let rd = Vec3::random_in_unit_disk(rng) * self.lens_radius;
         let offset = self.u * rd.x + self.v * rd.y;
-        Ray::new(
+        Ray::with_time(
             self.origin + offset,
             self.lower_left_corner + self.horizontal * s + self.vertical * t
                 - self.origin
                 - offset,
+            rng.random::<f64>(),
         )
     }
 }
