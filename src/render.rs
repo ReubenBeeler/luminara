@@ -72,6 +72,7 @@ pub struct RenderConfig {
     pub samples_per_pixel: u32,
     pub max_depth: u32,
     pub background: Background,
+    pub seed: u64,
 }
 
 impl Default for RenderConfig {
@@ -82,6 +83,7 @@ impl Default for RenderConfig {
             samples_per_pixel: 100,
             max_depth: 50,
             background: Background::default(),
+            seed: 31337,
         }
     }
 }
@@ -123,7 +125,7 @@ pub fn render(
     let rows: Vec<Vec<Color>> = (0..height)
         .into_par_iter()
         .map(|j| {
-            let mut rng = SmallRng::seed_from_u64(j as u64 * 31337);
+            let mut rng = SmallRng::seed_from_u64(j as u64 * config.seed);
             let y = (height - 1 - j) as f64;
 
             let row: Vec<Color> = (0..width)

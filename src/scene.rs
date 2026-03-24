@@ -694,6 +694,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         samples_per_pixel: 64,
         max_depth: 50,
         background: Background::default(),
+        seed: 31337,
     };
 
     let cam_config = CameraConfig {
