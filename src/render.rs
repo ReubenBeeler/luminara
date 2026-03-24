@@ -101,10 +101,16 @@ fn ray_color(ray: &Ray, world: &dyn Hittable, bg: &Background, rng: &mut dyn Rng
     if let Some(hit) = world.hit(ray, 0.001, f64::INFINITY) {
         let emitted = hit.material.emitted();
         if let Some(scatter) = hit.material.scatter(ray, &hit, rng) {
-            return emitted
+            let result = emitted
                 + scatter
                     .attenuation
                     .hadamard(ray_color(&scatter.ray, world, bg, rng, depth - 1));
+            // Guard against NaN propagation from degenerate geometry or materials
+            return if result.x.is_nan() || result.y.is_nan() || result.z.is_nan() {
+                Color::ZERO
+            } else {
+                result
+            };
         }
         return emitted;
     }
