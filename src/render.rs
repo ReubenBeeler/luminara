@@ -21,6 +21,13 @@ pub enum Background {
     Solid(Color),
     /// Custom gradient from bottom to top
     Gradient { bottom: Color, top: Color },
+    /// Physical sky with sun
+    Sun {
+        direction: crate::vec3::Vec3,
+        sun_color: Color,
+        sun_intensity: f64,
+        sky_color: Color,
+    },
 }
 
 impl Background {
@@ -36,6 +43,24 @@ impl Background {
                 let unit_dir = ray.direction.unit();
                 let t = 0.5 * (unit_dir.y + 1.0);
                 *bottom * (1.0 - t) + *top * t
+            }
+            Background::Sun { direction, sun_color, sun_intensity, sky_color } => {
+                let unit_dir = ray.direction.unit();
+                let t = 0.5 * (unit_dir.y + 1.0);
+                let sky = Color::new(1.0, 1.0, 1.0) * (1.0 - t) + *sky_color * t;
+
+                // Sun disk
+                let sun_dot = unit_dir.dot(direction.unit());
+                if sun_dot > 0.9995 {
+                    // Sharp sun disk
+                    *sun_color * *sun_intensity
+                } else if sun_dot > 0.995 {
+                    // Sun glow halo
+                    let glow = (sun_dot - 0.995) / (0.9995 - 0.995);
+                    sky + *sun_color * (*sun_intensity * 0.3 * glow)
+                } else {
+                    sky
+                }
             }
         }
     }

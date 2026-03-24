@@ -72,6 +72,13 @@ pub enum BackgroundDesc {
     Gradient { bottom: [f64; 3], top: [f64; 3] },
     #[serde(alias = "black")]
     Black,
+    #[serde(alias = "sun")]
+    Sun {
+        direction: [f64; 3],
+        sun_color: Option<[f64; 3]>,
+        intensity: Option<f64>,
+        sky_color: Option<[f64; 3]>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -325,6 +332,14 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
                     top: Color::new(top[0], top[1], top[2]),
                 },
                 BackgroundDesc::Black => Background::Solid(Color::ZERO),
+                BackgroundDesc::Sun { direction, sun_color, intensity, sky_color } => {
+                    Background::Sun {
+                        direction: arr_to_vec3(*direction),
+                        sun_color: sun_color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(1.0, 0.95, 0.85)),
+                        sun_intensity: intensity.unwrap_or(20.0),
+                        sky_color: sky_color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(0.5, 0.7, 1.0)),
+                    }
+                }
             };
         }
     }
