@@ -4,6 +4,7 @@ use crate::aabb::Aabb;
 use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::cone::Cone;
+use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
 use crate::disk::Disk;
 use crate::hit::{HitRecord, Hittable, HittableList};
@@ -32,6 +33,8 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    pub fog: Vec<FogDesc>,
     #[serde(default)]
     pub cone: Vec<ConeDesc>,
     #[serde(default)]
@@ -117,6 +120,14 @@ pub struct DiskDesc {
     pub normal: [f64; 3],
     pub radius: f64,
     pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct FogDesc {
+    pub center: [f64; 3],
+    pub radius: f64,
+    pub density: f64,
+    pub color: [f64; 3],
 }
 
 #[derive(Deserialize)]
@@ -352,6 +363,19 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(p.point),
             arr_to_vec3(p.normal),
             mat,
+        )));
+    }
+
+    for f in &scene.fog {
+        let boundary = Box::new(Sphere::new(
+            arr_to_vec3(f.center),
+            f.radius,
+            Box::new(Lambertian::new(Color::ZERO)), // dummy material
+        ));
+        world.add(Box::new(ConstantMedium::new(
+            boundary,
+            f.density,
+            Color::new(f.color[0], f.color[1], f.color[2]),
         )));
     }
 

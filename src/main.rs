@@ -2,6 +2,7 @@ mod aabb;
 mod bvh;
 mod camera;
 mod cone;
+mod constant_medium;
 mod cylinder;
 mod disk;
 mod hit;
