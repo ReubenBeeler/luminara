@@ -57,14 +57,14 @@ z = [0.0, 555.0]
 k = 555.0
 material = { type = "lambertian", color = [0.12, 0.45, 0.15] }
 
-# Tall box (approximated as sphere)
-[[sphere]]
-center = [368.0, 165.0, 295.0]
-radius = 100.0
+# Tall box
+[[box]]
+min = [265.0, 0.0, 295.0]
+max = [430.0, 330.0, 460.0]
 material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
 
-# Short box (approximated as sphere)
-[[sphere]]
-center = [185.0, 82.5, 168.0]
-radius = 82.5
+# Short box
+[[box]]
+min = [130.0, 0.0, 65.0]
+max = [295.0, 165.0, 230.0]
 material = { type = "lambertian", color = [0.73, 0.73, 0.73] }

@@ -125,7 +125,6 @@ impl Hittable for YzRect {
 }
 
 /// An axis-aligned box made of 6 rectangles.
-#[allow(dead_code)]
 pub fn make_box(
     p_min: Point3,
     p_max: Point3,

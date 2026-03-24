@@ -8,7 +8,7 @@ use crate::material::{Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, ImageTexture, Marble, Turbulence};
 use crate::plane::Plane;
 use crate::ray::Ray;
-use crate::rect::{XyRect, XzRect, YzRect};
+use crate::rect::{XyRect, XzRect, YzRect, make_box};
 use crate::render::{Background, RenderConfig};
 use crate::sphere::Sphere;
 use crate::obj;
@@ -29,6 +29,9 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    #[serde(rename = "box")]
+    pub aabb_box: Vec<BoxDesc>,
     #[serde(default)]
     pub rect_xy: Vec<RectXyDesc>,
     #[serde(default)]
@@ -97,6 +100,13 @@ pub struct MeshDesc {
     pub material: MaterialDesc,
     pub scale: Option<f64>,
     pub offset: Option<[f64; 3]>,
+}
+
+#[derive(Deserialize)]
+pub struct BoxDesc {
+    pub min: [f64; 3],
+    pub max: [f64; 3],
+    pub material: MaterialDesc,
 }
 
 #[derive(Deserialize)]
@@ -313,6 +323,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         let mesh_list = obj::load_obj(&content, mat, scale, offset)?;
         for obj in mesh_list.objects {
             world.add(obj);
+        }
+    }
+
+    for b in &scene.aabb_box {
+        let sides = make_box(
+            arr_to_vec3(b.min),
+            arr_to_vec3(b.max),
+            || build_material(&b.material),
+        );
+        for side in sides {
+            world.add(side);
         }
     }
 
