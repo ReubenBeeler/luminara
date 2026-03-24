@@ -8,6 +8,7 @@ mod constant_medium;
 mod cylinder;
 mod disk;
 mod ellipsoid;
+mod hemisphere;
 mod hit;
 mod material;
 mod obj;

@@ -11,6 +11,7 @@ use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
 use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
+use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Wood};
@@ -47,6 +48,8 @@ pub struct SceneFile {
     pub capsule: Vec<CapsuleDesc>,
     #[serde(default)]
     pub ellipsoid: Vec<EllipsoidDesc>,
+    #[serde(default)]
+    pub hemisphere: Vec<HemisphereDesc>,
     #[serde(default)]
     pub fog: Vec<FogDesc>,
     #[serde(default)]
@@ -178,6 +181,13 @@ pub struct CapsuleDesc {
 pub struct EllipsoidDesc {
     pub center: [f64; 3],
     pub radii: [f64; 3],
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct HemisphereDesc {
+    pub center: [f64; 3],
+    pub radius: f64,
     pub material: MaterialDesc,
 }
 
@@ -542,6 +552,11 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     for e in &scene.ellipsoid {
         let mat = build_material(&e.material);
         world.add(Box::new(Ellipsoid::new(arr_to_vec3(e.center), arr_to_vec3(e.radii), mat)));
+    }
+
+    for h in &scene.hemisphere {
+        let mat = build_material(&h.material);
+        world.add(Box::new(Hemisphere::new(arr_to_vec3(h.center), h.radius, mat)));
     }
 
     for f in &scene.fog {
