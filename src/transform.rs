@@ -19,7 +19,7 @@ impl Hittable for Translate {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
         let moved_ray = Ray::new(ray.origin - self.offset, ray.direction);
         let mut hit = self.inner.hit(&moved_ray, t_min, t_max)?;
-        hit.point = hit.point + self.offset;
+        hit.point += self.offset;
         Some(hit)
     }
 
@@ -106,6 +106,7 @@ impl Hittable for RotateY {
 }
 
 /// Uniformly scales an object around the origin.
+#[allow(dead_code)]
 pub struct Scale {
     inner: Box<dyn Hittable>,
     factor: f64,
@@ -113,6 +114,7 @@ pub struct Scale {
 }
 
 impl Scale {
+    #[allow(dead_code)]
     pub fn new(inner: Box<dyn Hittable>, factor: f64) -> Self {
         let factor = if factor.abs() < 1e-10 { 1.0 } else { factor };
         Self { inner, factor, inv_factor: 1.0 / factor }
@@ -123,7 +125,7 @@ impl Hittable for Scale {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
         let scaled_ray = Ray::new(ray.origin * self.inv_factor, ray.direction * self.inv_factor);
         let mut hit = self.inner.hit(&scaled_ray, t_min, t_max)?;
-        hit.point = hit.point * self.factor;
+        hit.point *= self.factor;
         hit.t *= self.factor;
         Some(hit)
     }

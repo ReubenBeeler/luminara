@@ -6,14 +6,15 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
-- **Geometry**: Spheres, ellipsoids, infinite planes, disks, triangles, cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic (with configurable fuzz), dielectric (glass with tint and roughness), emissive (light sources)
-- **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, Perlin marble, turbulence, and image textures (PNG/JPG)
+- **Geometry**: Spheres, ellipsoids, tori, infinite planes, disks, triangles, cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
+- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with tint and roughness), emissive (lights), blend (mix two materials)
+- **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
-- **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator
+- **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator, Mrays/s stats
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **Backgrounds**: Sky gradient, sun+sky with directional sun disk, solid color, custom gradient, or black
+- **Transforms**: Translate, rotate (Y-axis), uniform scale
 - **Output**: PNG images, PPM format, or stdout piping (`-o -`)
 - **Scenes**: Declarative TOML format, plus a built-in demo scene
 
