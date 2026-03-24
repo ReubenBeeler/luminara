@@ -97,6 +97,15 @@ impl Background {
     }
 }
 
+/// Tone mapping algorithm selection.
+#[derive(Default, Clone, Copy)]
+pub enum ToneMap {
+    #[default]
+    Aces,
+    Reinhard,
+    None,
+}
+
 pub struct RenderConfig {
     pub width: u32,
     pub height: u32,
@@ -106,6 +115,7 @@ pub struct RenderConfig {
     pub seed: u64,
     pub quiet: bool,
     pub exposure: f64,
+    pub tone_map: ToneMap,
 }
 
 impl Default for RenderConfig {
@@ -119,6 +129,7 @@ impl Default for RenderConfig {
             seed: 31337,
             quiet: false,
             exposure: 1.0,
+            tone_map: ToneMap::default(),
         }
     }
 }
@@ -219,14 +230,19 @@ pub fn render(
         eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
     }
 
-    // Convert to RGBA bytes with exposure, ACES tone mapping + gamma correction.
+    // Convert to RGBA bytes with exposure, tone mapping + gamma correction.
     let exposure = config.exposure;
+    let tone_fn: fn(f64) -> f64 = match config.tone_map {
+        ToneMap::Aces => aces_tonemap,
+        ToneMap::Reinhard => reinhard_tonemap,
+        ToneMap::None => |x: f64| x.clamp(0.0, 1.0),
+    };
     let mut pixels = Vec::with_capacity(width * height * 4);
     for row in &rows {
         for color in row {
-            let r = linear_to_srgb(aces_tonemap(color.x * exposure));
-            let g = linear_to_srgb(aces_tonemap(color.y * exposure));
-            let b = linear_to_srgb(aces_tonemap(color.z * exposure));
+            let r = linear_to_srgb(tone_fn(color.x * exposure));
+            let g = linear_to_srgb(tone_fn(color.y * exposure));
+            let b = linear_to_srgb(tone_fn(color.z * exposure));
             pixels.extend_from_slice(&[r, g, b, 255]);
         }
     }
@@ -261,6 +277,12 @@ fn aces_tonemap(x: f64) -> f64 {
     let d = 0.59;
     let e = 0.14;
     ((x * (a * x + b)) / (x * (c * x + d) + e)).clamp(0.0, 1.0)
+}
+
+/// Reinhard tone mapping: simple x / (1 + x) curve.
+fn reinhard_tonemap(x: f64) -> f64 {
+    let x = x.max(0.0);
+    x / (1.0 + x)
 }
 
 /// Convert linear [0,1] to sRGB byte using the official piecewise transfer function.
@@ -299,6 +321,21 @@ mod tests {
             let x = i as f64 * 0.1;
             let y = aces_tonemap(x);
             assert!(y >= prev, "ACES should be monotonically increasing");
+            prev = y;
+        }
+    }
+
+    #[test]
+    fn reinhard_tonemap_basic() {
+        assert_eq!(reinhard_tonemap(0.0), 0.0);
+        assert!((reinhard_tonemap(1.0) - 0.5).abs() < 1e-6);
+        // Monotonic
+        let mut prev = 0.0;
+        for i in 1..50 {
+            let x = i as f64;
+            let y = reinhard_tonemap(x);
+            assert!(y > prev);
+            assert!(y < 1.0);
             prev = y;
         }
     }

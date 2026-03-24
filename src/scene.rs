@@ -903,6 +903,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         seed: 31337,
         quiet: false,
         exposure: 1.0,
+        tone_map: crate::render::ToneMap::default(),
     };
 
     let cam_config = CameraConfig {
