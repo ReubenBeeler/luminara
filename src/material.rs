@@ -16,7 +16,7 @@ pub trait Material: Send + Sync {
     fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter>;
 
     /// Light emitted by this material. Defaults to black (no emission).
-    fn emitted(&self) -> Color {
+    fn emitted(&self, _u: f64, _v: f64, _point: &crate::vec3::Point3) -> Color {
         Color::ZERO
     }
 
@@ -187,13 +187,20 @@ impl Material for Dielectric {
 // --- Emissive (light source) ---
 
 pub struct Emissive {
-    pub color: Color,
+    pub texture: Box<dyn Texture>,
     pub intensity: f64,
 }
 
 impl Emissive {
     pub fn new(color: Color, intensity: f64) -> Self {
-        Self { color, intensity }
+        Self {
+            texture: Box::new(SolidColor::new(color)),
+            intensity,
+        }
+    }
+
+    pub fn with_texture(texture: Box<dyn Texture>, intensity: f64) -> Self {
+        Self { texture, intensity }
     }
 }
 
@@ -202,8 +209,8 @@ impl Material for Emissive {
         None // Lights don't scatter
     }
 
-    fn emitted(&self) -> Color {
-        self.color * self.intensity
+    fn emitted(&self, u: f64, v: f64, point: &crate::vec3::Point3) -> Color {
+        self.texture.value(u, v, point) * self.intensity
     }
 }
 
@@ -231,9 +238,9 @@ impl Material for Blend {
         }
     }
 
-    fn emitted(&self) -> Color {
+    fn emitted(&self, u: f64, v: f64, point: &crate::vec3::Point3) -> Color {
         // Blend emissions by ratio
-        self.mat_a.emitted() * self.ratio + self.mat_b.emitted() * (1.0 - self.ratio)
+        self.mat_a.emitted(u, v, point) * self.ratio + self.mat_b.emitted(u, v, point) * (1.0 - self.ratio)
     }
 }
 
@@ -395,7 +402,8 @@ mod tests {
     #[test]
     fn emissive_emits_correct_color() {
         let mat = Emissive::new(Color::new(1.0, 0.5, 0.0), 3.0);
-        let emitted = mat.emitted();
+        let p = Point3::new(0.0, 0.0, 0.0);
+        let emitted = mat.emitted(0.5, 0.5, &p);
         assert!((emitted.x - 3.0).abs() < 1e-6);
         assert!((emitted.y - 1.5).abs() < 1e-6);
         assert!((emitted.z - 0.0).abs() < 1e-6);
@@ -404,7 +412,8 @@ mod tests {
     #[test]
     fn lambertian_emits_black() {
         let mat = Lambertian::new(Color::new(0.5, 0.5, 0.5));
-        let emitted = mat.emitted();
+        let p = Point3::new(0.0, 0.0, 0.0);
+        let emitted = mat.emitted(0.5, 0.5, &p);
         assert!((emitted.x).abs() < 1e-6);
         assert!((emitted.y).abs() < 1e-6);
         assert!((emitted.z).abs() < 1e-6);
@@ -451,5 +460,33 @@ mod tests {
         }
         assert!(got_red, "Blend should sometimes pick material A (red)");
         assert!(got_blue, "Blend should sometimes pick material B (blue)");
+    }
+
+    #[test]
+    fn emissive_with_texture() {
+        use crate::texture::Checker;
+        let tex = Checker::new(Color::new(1.0, 0.0, 0.0), Color::new(0.0, 1.0, 0.0), 1.0);
+        let mat = Emissive::with_texture(Box::new(tex), 5.0);
+        let p = Point3::new(0.0, 0.0, 0.0);
+        let emitted = mat.emitted(0.5, 0.5, &p);
+        // Should emit non-zero and be scaled by intensity
+        let luminance = emitted.x + emitted.y + emitted.z;
+        assert!(luminance > 0.0, "Textured emissive should emit light");
+        assert!((emitted.x / 5.0 + emitted.y / 5.0).abs() < 1.01, "Should be one of the checker colors scaled by 5");
+    }
+
+    #[test]
+    fn specular_flag_correct() {
+        let lamb = Lambertian::new(Color::new(0.5, 0.5, 0.5));
+        assert!(!lamb.is_specular(), "Lambertian should not be specular");
+
+        let metal = Metal::new(Color::new(0.9, 0.9, 0.9), 0.0);
+        assert!(metal.is_specular(), "Metal should be specular");
+
+        let glass = Dielectric::new(1.5);
+        assert!(glass.is_specular(), "Dielectric should be specular");
+
+        let light = Emissive::new(Color::new(1.0, 1.0, 1.0), 1.0);
+        assert!(!light.is_specular(), "Emissive should not be specular");
     }
 }

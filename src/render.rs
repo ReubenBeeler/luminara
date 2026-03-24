@@ -266,7 +266,7 @@ fn ray_color(
 
     // 0.001 to avoid shadow acne
     if let Some(hit) = world.hit(ray, 0.001, f64::INFINITY) {
-        let emitted = hit.material.emitted();
+        let emitted = hit.material.emitted(hit.u, hit.v, &hit.point);
         if let Some(scatter) = hit.material.scatter(ray, &hit, rng) {
             // For diffuse materials, add direct light sampling (NEE)
             let direct = if !hit.material.is_specular() && !lights.is_empty() {

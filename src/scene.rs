@@ -307,7 +307,11 @@ pub enum MaterialDesc {
         roughness: Option<f64>,
     },
     #[serde(alias = "emissive")]
-    Emissive { color: [f64; 3], intensity: Option<f64> },
+    Emissive {
+        color: [f64; 3],
+        intensity: Option<f64>,
+        texture: Option<String>,
+    },
     #[serde(alias = "checker")]
     Checker {
         color1: [f64; 3],
@@ -801,11 +805,18 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Box::new(Dielectric::new(*refraction_index))
             }
         }
-        MaterialDesc::Emissive { color, intensity } => {
-            Box::new(Emissive::new(
-                Color::new(color[0], color[1], color[2]),
-                intensity.unwrap_or(1.0),
-            ))
+        MaterialDesc::Emissive { color, intensity, texture } => {
+            let int = intensity.unwrap_or(1.0);
+            if let Some(file) = texture {
+                let tex = ImageTexture::load(file)
+                    .unwrap_or_else(|e| panic!("Failed to load emissive texture '{file}': {e}"));
+                Box::new(Emissive::with_texture(Box::new(tex), int))
+            } else {
+                Box::new(Emissive::new(
+                    Color::new(color[0], color[1], color[2]),
+                    int,
+                ))
+            }
         }
         MaterialDesc::Checker { color1, color2, scale } => {
             Box::new(Lambertian::with_texture(Box::new(Checker::new(
