@@ -400,6 +400,93 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_simple_scene() {
+        let toml = r#"
+[render]
+width = 400
+height = 200
+samples = 16
+max_depth = 10
+
+[camera]
+look_from = [0.0, 1.0, 5.0]
+look_at = [0.0, 0.0, 0.0]
+vfov = 60.0
+
+[[sphere]]
+center = [0.0, 0.0, 0.0]
+radius = 1.0
+[sphere.material]
+type = "lambertian"
+color = [0.8, 0.2, 0.1]
+
+[[sphere]]
+center = [2.0, 0.0, 0.0]
+radius = 0.5
+[sphere.material]
+type = "metal"
+color = [0.9, 0.9, 0.9]
+fuzz = 0.1
+"#;
+        let (render_config, _camera, _world) = load_scene(toml).unwrap();
+        assert_eq!(render_config.width, 400);
+        assert_eq!(render_config.height, 200);
+        assert_eq!(render_config.samples_per_pixel, 16);
+        assert_eq!(render_config.max_depth, 10);
+    }
+
+    #[test]
+    fn materials_created_from_toml() {
+        let toml = r#"
+[[sphere]]
+center = [0.0, 0.0, 0.0]
+radius = 1.0
+[sphere.material]
+type = "dielectric"
+refraction_index = 1.5
+
+[[sphere]]
+center = [3.0, 0.0, 0.0]
+radius = 1.0
+[sphere.material]
+type = "emissive"
+color = [1.0, 1.0, 1.0]
+intensity = 5.0
+"#;
+        let result = load_scene(toml);
+        assert!(result.is_ok(), "Scene should parse: {:?}", result.err());
+    }
+
+    #[test]
+    fn invalid_toml_returns_error() {
+        let bad_toml = "this is {{{{ not valid TOML at all";
+        let result = load_scene(bad_toml);
+        assert!(result.is_err());
+        match result {
+            Err(e) => assert!(e.contains("TOML parse error"), "Error was: {e}"),
+            Ok(_) => panic!("Expected error"),
+        }
+    }
+
+    #[test]
+    fn missing_material_type_returns_error() {
+        let toml = r#"
+[[sphere]]
+center = [0.0, 0.0, 0.0]
+radius = 1.0
+[sphere.material]
+color = [1.0, 0.0, 0.0]
+"#;
+        let result = load_scene(toml);
+        assert!(result.is_err());
+    }
+}
+
 /// Build the classic "random spheres" demo scene.
 pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
     let render_config = RenderConfig {

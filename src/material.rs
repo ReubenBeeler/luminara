@@ -182,3 +182,158 @@ impl rand::RngCore for RngAdapter<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hit::HitRecord;
+    use crate::ray::Ray;
+    use crate::vec3::{Color, Point3, Vec3};
+    use rand::SeedableRng;
+    use rand::rngs::SmallRng;
+
+    /// Helper: build a HitRecord for a surface at the origin with normal pointing up (+Y),
+    /// hit by a downward ray.
+    fn make_hit_record(material: &dyn Material) -> HitRecord<'_> {
+        let ray = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let point = Point3::new(0.0, 0.0, 0.0);
+        let outward_normal = Vec3::new(0.0, 1.0, 0.0);
+        HitRecord::new(&ray, point, outward_normal, 1.0, 0.5, 0.5, material)
+    }
+
+    #[test]
+    fn lambertian_scatter_in_correct_hemisphere() {
+        let mat = Lambertian::new(Color::new(0.8, 0.2, 0.2));
+        let hit = make_hit_record(&mat);
+        let incoming_ray = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        for _ in 0..100 {
+            let scatter = mat.scatter(&incoming_ray, &hit, &mut rng).unwrap();
+            // Scattered ray direction should be in the same hemisphere as the normal
+            assert!(
+                scatter.ray.direction.dot(Vec3::new(0.0, 1.0, 0.0)) >= 0.0,
+                "Lambertian scatter went below surface: {:?}",
+                scatter.ray.direction
+            );
+            // Attenuation should match albedo
+            assert!((scatter.attenuation.x - 0.8).abs() < 1e-6);
+            assert!((scatter.attenuation.y - 0.2).abs() < 1e-6);
+            assert!((scatter.attenuation.z - 0.2).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn metal_reflection_direction() {
+        let mat = Metal::new(Color::new(0.9, 0.9, 0.9), 0.0);
+        let hit = make_hit_record(&mat);
+        // Incoming ray at 45 degrees
+        let incoming_ray = Ray::new(
+            Point3::new(-1.0, 1.0, 0.0),
+            Vec3::new(1.0, -1.0, 0.0).unit(),
+        );
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let scatter = mat.scatter(&incoming_ray, &hit, &mut rng).unwrap();
+        // With zero fuzz, reflected direction should be (1, 1, 0) normalized
+        let expected = Vec3::new(1.0, 1.0, 0.0).unit();
+        let dir = scatter.ray.direction.unit();
+        assert!(
+            (dir.x - expected.x).abs() < 1e-6
+                && (dir.y - expected.y).abs() < 1e-6
+                && (dir.z - expected.z).abs() < 1e-6,
+            "Metal reflection incorrect: got {:?}, expected {:?}",
+            dir,
+            expected
+        );
+    }
+
+    #[test]
+    fn metal_reflection_absorbed_when_below_surface() {
+        // With high fuzz and a grazing angle, scatter can go below surface -> None
+        let mat = Metal::new(Color::new(0.9, 0.9, 0.9), 1.0);
+        // Ray nearly parallel to surface
+        let incoming_ray = Ray::new(
+            Point3::new(-1.0, 0.01, 0.0),
+            Vec3::new(1.0, -0.01, 0.0).unit(),
+        );
+        let mat_for_hit = Lambertian::new(Color::new(0.5, 0.5, 0.5));
+        let hit = make_hit_record(&mat_for_hit);
+        let mut rng = SmallRng::seed_from_u64(42);
+        // Run many times; at least some should be None (absorbed)
+        let mut got_none = false;
+        for _ in 0..200 {
+            if mat.scatter(&incoming_ray, &hit, &mut rng).is_none() {
+                got_none = true;
+                break;
+            }
+        }
+        assert!(got_none, "Expected at least one absorbed scatter with high fuzz at grazing angle");
+    }
+
+    #[test]
+    fn dielectric_produces_scatter() {
+        let mat = Dielectric::new(1.5);
+        let hit = make_hit_record(&mat);
+        let incoming_ray = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        for _ in 0..100 {
+            let scatter = mat.scatter(&incoming_ray, &hit, &mut rng).unwrap();
+            // Attenuation is always white
+            assert!((scatter.attenuation.x - 1.0).abs() < 1e-6);
+            assert!((scatter.attenuation.y - 1.0).abs() < 1e-6);
+            assert!((scatter.attenuation.z - 1.0).abs() < 1e-6);
+            // Direction should be non-zero
+            assert!(scatter.ray.direction.length() > 1e-6);
+        }
+    }
+
+    #[test]
+    fn dielectric_total_internal_reflection() {
+        // High eta_ratio with steep angle should cause total internal reflection
+        let mat = Dielectric::new(2.5);
+        // Simulate hitting from inside (front_face = false)
+        let incoming_ray = Ray::new(
+            Point3::new(0.0, -1.0, 0.0),
+            Vec3::new(0.8, 0.6, 0.0).unit(), // steep angle from inside
+        );
+        let point = Point3::new(0.0, 0.0, 0.0);
+        let outward_normal = Vec3::new(0.0, 1.0, 0.0);
+        let mat_ref: &dyn Material = &mat;
+        let hit = HitRecord::new(&incoming_ray, point, outward_normal, 1.0, 0.5, 0.5, mat_ref);
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        // Should always produce a scatter (dielectric always returns Some)
+        let scatter = mat.scatter(&incoming_ray, &hit, &mut rng).unwrap();
+        assert!(scatter.ray.direction.length() > 1e-6);
+    }
+
+    #[test]
+    fn emissive_does_not_scatter() {
+        let mat = Emissive::new(Color::new(1.0, 0.8, 0.6), 2.0);
+        let hit = make_hit_record(&mat);
+        let incoming_ray = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        assert!(mat.scatter(&incoming_ray, &hit, &mut rng).is_none());
+    }
+
+    #[test]
+    fn emissive_emits_correct_color() {
+        let mat = Emissive::new(Color::new(1.0, 0.5, 0.0), 3.0);
+        let emitted = mat.emitted();
+        assert!((emitted.x - 3.0).abs() < 1e-6);
+        assert!((emitted.y - 1.5).abs() < 1e-6);
+        assert!((emitted.z - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn lambertian_emits_black() {
+        let mat = Lambertian::new(Color::new(0.5, 0.5, 0.5));
+        let emitted = mat.emitted();
+        assert!((emitted.x).abs() < 1e-6);
+        assert!((emitted.y).abs() < 1e-6);
+        assert!((emitted.z).abs() < 1e-6);
+    }
+}

@@ -66,3 +66,80 @@ impl Hittable for Sphere {
         Some(Aabb::new(self.center - r, self.center + r))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::material::Lambertian;
+    use crate::vec3::Color;
+
+    fn test_sphere() -> Sphere {
+        Sphere::new(
+            Point3::new(1.0, 2.0, 3.0),
+            0.5,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        )
+    }
+
+    #[test]
+    fn bounding_box_is_correct() {
+        let sphere = test_sphere();
+        let bbox = sphere.bounding_box().unwrap();
+        // min should be center - radius
+        assert!((bbox.min.x - 0.5).abs() < 1e-6);
+        assert!((bbox.min.y - 1.5).abs() < 1e-6);
+        assert!((bbox.min.z - 2.5).abs() < 1e-6);
+        // max should be center + radius
+        assert!((bbox.max.x - 1.5).abs() < 1e-6);
+        assert!((bbox.max.y - 2.5).abs() < 1e-6);
+        assert!((bbox.max.z - 3.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn uv_coordinates_in_unit_range() {
+        let sphere = Sphere::new(
+            Point3::new(0.0, 0.0, 0.0),
+            1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        );
+
+        // Test rays from multiple directions to sample different UV points
+        let directions = [
+            Vec3::new(0.0, 0.0, -1.0),  // front
+            Vec3::new(0.0, 0.0, 1.0),   // back
+            Vec3::new(1.0, 0.0, 0.0),   // right
+            Vec3::new(-1.0, 0.0, 0.0),  // left
+            Vec3::new(0.0, 1.0, 0.0),   // top (nearly)
+            Vec3::new(0.0, -1.0, 0.0),  // bottom (nearly)
+            Vec3::new(1.0, 1.0, 1.0),   // diagonal
+            Vec3::new(-1.0, -1.0, -1.0),
+        ];
+
+        for dir in &directions {
+            let origin = Point3::new(0.0, 0.0, 0.0) - *dir * 3.0;
+            let ray = Ray::new(origin, *dir);
+            if let Some(hit) = sphere.hit(&ray, 0.001, f64::INFINITY) {
+                assert!(
+                    hit.u >= 0.0 && hit.u <= 1.0,
+                    "u={} out of [0,1] for dir {:?}",
+                    hit.u,
+                    dir
+                );
+                assert!(
+                    hit.v >= 0.0 && hit.v <= 1.0,
+                    "v={} out of [0,1] for dir {:?}",
+                    hit.v,
+                    dir
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sphere_hit_returns_none_for_miss() {
+        let sphere = test_sphere();
+        // Ray that misses entirely
+        let ray = Ray::new(Point3::new(100.0, 100.0, 100.0), Vec3::new(0.0, 0.0, -1.0));
+        assert!(sphere.hit(&ray, 0.001, f64::INFINITY).is_none());
+    }
+}

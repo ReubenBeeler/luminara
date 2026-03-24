@@ -75,3 +75,78 @@ impl Camera {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+    use rand::rngs::SmallRng;
+
+    #[test]
+    fn camera_ray_through_center() {
+        // Zero aperture camera looking along -Z
+        let config = CameraConfig {
+            look_from: Point3::new(0.0, 0.0, 0.0),
+            look_at: Point3::new(0.0, 0.0, -1.0),
+            vup: Vec3::new(0.0, 1.0, 0.0),
+            vfov_degrees: 90.0,
+            aspect_ratio: 2.0,
+            aperture: 0.0,
+            focus_dist: 1.0,
+        };
+        let camera = Camera::new(config);
+        let mut rng = SmallRng::seed_from_u64(0);
+
+        // Ray through center (s=0.5, t=0.5) should go roughly along -Z
+        let ray = camera.get_ray(0.5, 0.5, &mut rng);
+        let dir = ray.direction.unit();
+        assert!(
+            (dir.x).abs() < 1e-6,
+            "Center ray x should be ~0, got {}",
+            dir.x
+        );
+        assert!(
+            (dir.y).abs() < 1e-6,
+            "Center ray y should be ~0, got {}",
+            dir.y
+        );
+        assert!(
+            dir.z < 0.0,
+            "Center ray should go in -Z direction, got {}",
+            dir.z
+        );
+
+        // Ray through bottom-left corner (s=0, t=0) should go left and down
+        let ray_bl = camera.get_ray(0.0, 0.0, &mut rng);
+        let dir_bl = ray_bl.direction.unit();
+        assert!(dir_bl.x < 0.0, "Bottom-left ray should go left");
+        assert!(dir_bl.y < 0.0, "Bottom-left ray should go down");
+
+        // Ray through top-right (s=1, t=1) should go right and up
+        let ray_tr = camera.get_ray(1.0, 1.0, &mut rng);
+        let dir_tr = ray_tr.direction.unit();
+        assert!(dir_tr.x > 0.0, "Top-right ray should go right");
+        assert!(dir_tr.y > 0.0, "Top-right ray should go up");
+    }
+
+    #[test]
+    fn camera_ray_origin_with_zero_aperture() {
+        let config = CameraConfig {
+            look_from: Point3::new(1.0, 2.0, 3.0),
+            look_at: Point3::new(0.0, 0.0, 0.0),
+            vup: Vec3::new(0.0, 1.0, 0.0),
+            vfov_degrees: 40.0,
+            aspect_ratio: 1.0,
+            aperture: 0.0,
+            focus_dist: 1.0,
+        };
+        let camera = Camera::new(config);
+        let mut rng = SmallRng::seed_from_u64(99);
+
+        let ray = camera.get_ray(0.5, 0.5, &mut rng);
+        // With zero aperture, origin should be exactly look_from
+        assert!((ray.origin.x - 1.0).abs() < 1e-6);
+        assert!((ray.origin.y - 2.0).abs() < 1e-6);
+        assert!((ray.origin.z - 3.0).abs() < 1e-6);
+    }
+}
