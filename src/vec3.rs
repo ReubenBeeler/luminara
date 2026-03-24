@@ -297,6 +297,40 @@ mod tests {
     }
 
     #[test]
+    fn test_random_in_unit_sphere() {
+        let mut rng = rand::rng();
+        for _ in 0..100 {
+            let v = Vec3::random_in_unit_sphere(&mut rng);
+            assert!(v.length_squared() <= 1.0, "point outside unit sphere: {:?}", v);
+        }
+    }
+
+    #[test]
+    fn test_random_unit_vector() {
+        let mut rng = rand::rng();
+        for _ in 0..100 {
+            let v = Vec3::random_unit_vector(&mut rng);
+            assert!((v.length() - 1.0).abs() < 1e-6, "not unit length: {}", v.length());
+        }
+    }
+
+    #[test]
+    fn test_random_in_unit_disk() {
+        let mut rng = rand::rng();
+        for _ in 0..100 {
+            let v = Vec3::random_in_unit_disk(&mut rng);
+            assert!(v.x * v.x + v.y * v.y <= 1.0);
+            assert_eq!(v.z, 0.0);
+        }
+    }
+
+    #[test]
+    fn test_neg() {
+        let v = Vec3::new(1.0, -2.0, 3.0);
+        assert_eq!(-v, Vec3::new(-1.0, 2.0, -3.0));
+    }
+
+    #[test]
     fn test_min_max() {
         let a = Vec3::new(1.0, 5.0, 3.0);
         let b = Vec3::new(4.0, 2.0, 6.0);
