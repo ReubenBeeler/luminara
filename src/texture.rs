@@ -111,6 +111,30 @@ impl Texture for GradientTexture {
     }
 }
 
+/// Wood-grain rings in the XZ plane.
+pub struct Rings {
+    pub color1: Color,
+    pub color2: Color,
+    pub scale: f64,
+}
+
+impl Rings {
+    pub fn new(color1: Color, color2: Color, scale: f64) -> Self {
+        Self { color1, color2, scale: if scale.abs() < 1e-10 { 1.0 } else { scale } }
+    }
+}
+
+impl Texture for Rings {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let dist = (point.x * point.x + point.z * point.z).sqrt() * self.scale;
+        if (dist.floor() as i64) % 2 == 0 {
+            self.color1
+        } else {
+            self.color2
+        }
+    }
+}
+
 /// 3D polka-dot pattern.
 pub struct Dots {
     pub dot_color: Color,
