@@ -38,6 +38,7 @@ struct CliArgs {
     max_depth: Option<u32>,
     threads: Option<usize>,
     seed: Option<u64>,
+    exposure: Option<f64>,
     quiet: bool,
     info_only: bool,
 }
@@ -86,6 +87,9 @@ fn main() {
     }
     if let Some(s) = cli.seed {
         render_config.seed = s;
+    }
+    if let Some(e) = cli.exposure {
+        render_config.exposure = e;
     }
     render_config.quiet = cli.quiet;
     if let Some(t) = cli.threads {
@@ -180,6 +184,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         max_depth: None,
         threads: None,
         seed: None,
+        exposure: None,
         quiet: false,
         info_only: false,
     };
@@ -223,6 +228,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.seed = args[i].parse().ok();
                 }
             }
+            "-e" | "--exposure" => {
+                i += 1;
+                if i < args.len() {
+                    cli.exposure = args[i].parse().ok();
+                }
+            }
             "-t" | "--threads" => {
                 i += 1;
                 if i < args.len() {
@@ -250,6 +261,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -d, --depth       Override max ray bounce depth");
                 eprintln!("  -t, --threads     Number of render threads (default: all cores)");
                 eprintln!("      --seed        Set RNG seed for deterministic rendering");
+                eprintln!("  -e, --exposure    Exposure multiplier (default: 1.0)");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
                 eprintln!("  -V, --version     Show version");
