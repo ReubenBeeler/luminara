@@ -18,6 +18,7 @@ mod render;
 mod scene;
 mod sphere;
 mod texture;
+mod torus;
 mod transform;
 mod triangle;
 mod vec3;

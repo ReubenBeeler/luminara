@@ -20,6 +20,7 @@ use crate::rect::{XyRect, XzRect, YzRect, make_box};
 use crate::render::{Background, RenderConfig};
 use crate::sphere::Sphere;
 use crate::obj;
+use crate::torus::Torus;
 use crate::triangle::Triangle;
 use crate::vec3::{Color, Point3, Vec3};
 
@@ -37,6 +38,8 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    pub torus: Vec<TorusDesc>,
     #[serde(default)]
     pub capsule: Vec<CapsuleDesc>,
     #[serde(default)]
@@ -137,6 +140,14 @@ pub struct DiskDesc {
     pub center: [f64; 3],
     pub normal: [f64; 3],
     pub radius: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct TorusDesc {
+    pub center: [f64; 3],
+    pub major_radius: f64,
+    pub minor_radius: f64,
     pub material: MaterialDesc,
 }
 
@@ -455,6 +466,11 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(p.normal),
             mat,
         )));
+    }
+
+    for t in &scene.torus {
+        let mat = build_material(&t.material);
+        world.add(Box::new(Torus::new(arr_to_vec3(t.center), t.major_radius, t.minor_radius, mat)));
     }
 
     for c in &scene.capsule {
