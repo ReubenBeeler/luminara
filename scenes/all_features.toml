@@ -1,0 +1,190 @@
+# All-features demo scene
+# Exercises every geometry type, material, texture, and feature
+
+[render]
+width = 800
+height = 600
+samples = 64
+max_depth = 50
+seed = 42
+
+[render.background]
+type = "sunset"
+
+[camera]
+look_from = [8.0, 4.0, 12.0]
+look_at = [0.0, 1.0, 0.0]
+vfov = 35.0
+aperture = 0.05
+focus_dist = 14.0
+
+# Ground plane with checker texture
+[[plane]]
+point = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+[plane.material]
+type = "checker"
+color1 = [0.9, 0.9, 0.9]
+color2 = [0.3, 0.3, 0.3]
+scale = 1.0
+
+# Glass sphere with Beer's Law tint
+[[sphere]]
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+[sphere.material]
+type = "dielectric"
+refraction_index = 1.5
+tint = [0.8, 0.95, 0.8]
+
+# Marble sphere
+[[sphere]]
+center = [-3.0, 0.7, 1.0]
+radius = 0.7
+[sphere.material]
+type = "marble"
+color = [0.85, 0.85, 0.9]
+scale = 4.0
+
+# Voronoi texture sphere
+[[sphere]]
+center = [3.0, 0.8, 0.0]
+radius = 0.8
+[sphere.material]
+type = "voronoi"
+color1 = [0.8, 0.4, 0.1]
+color2 = [0.2, 0.1, 0.05]
+scale = 0.5
+
+# Moving sphere (motion blur)
+[[moving_sphere]]
+center0 = [1.5, 0.4, 3.0]
+center1 = [1.5, 1.2, 3.0]
+radius = 0.4
+[moving_sphere.material]
+type = "lambertian"
+color = [0.8, 0.2, 0.1]
+
+# Metallic sphere
+[[sphere]]
+center = [-1.5, 0.5, 3.0]
+radius = 0.5
+[sphere.material]
+type = "metal"
+color = [0.9, 0.8, 0.6]
+fuzz = 0.05
+
+# Hemisphere dome
+[[hemisphere]]
+center = [4.0, 0.0, -2.0]
+radius = 1.0
+[hemisphere.material]
+type = "grid"
+line_color = [0.1, 0.1, 0.8]
+bg_color = [0.7, 0.7, 0.9]
+scale = 0.3
+
+# Quad (parallelogram) on the ground
+[[quad]]
+q = [-4.0, 0.01, -4.0]
+u = [3.0, 0.0, 0.0]
+v = [0.0, 0.0, 3.0]
+[quad.material]
+type = "dots"
+dot_color = [0.9, 0.1, 0.1]
+bg_color = [0.9, 0.9, 0.8]
+scale = 1.0
+
+# Annulus (ring)
+[[annulus]]
+center = [0.0, 2.5, 0.0]
+normal = [0.0, 1.0, 0.0]
+inner_radius = 0.3
+outer_radius = 0.8
+[annulus.material]
+type = "metal"
+color = [0.95, 0.85, 0.3]
+fuzz = 0.0
+
+# Cylinder
+[[cylinder]]
+center = [-5.0, 0.0, -1.0]
+radius = 0.4
+height = 2.0
+[cylinder.material]
+type = "wood"
+color1 = [0.6, 0.3, 0.1]
+color2 = [0.4, 0.2, 0.05]
+scale = 2.0
+
+# Cone
+[[cone]]
+center = [5.0, 0.0, -1.0]
+radius = 0.6
+height = 1.5
+[cone.material]
+type = "stripe"
+color1 = [1.0, 0.0, 0.0]
+color2 = [1.0, 1.0, 1.0]
+scale = 0.2
+axis = "y"
+
+# Disk
+[[disk]]
+center = [0.0, 3.5, 0.0]
+normal = [0.0, -1.0, 0.0]
+radius = 1.5
+[disk.material]
+type = "emissive"
+color = [1.0, 0.95, 0.85]
+intensity = 8.0
+
+# Torus
+[[torus]]
+center = [2.0, 0.5, -3.0]
+major_radius = 0.5
+minor_radius = 0.15
+[torus.material]
+type = "rings"
+color1 = [0.1, 0.5, 0.1]
+color2 = [0.8, 0.9, 0.8]
+scale = 0.5
+
+# Ellipsoid
+[[ellipsoid]]
+center = [-2.0, 0.5, -3.0]
+radii = [0.8, 0.4, 0.6]
+[ellipsoid.material]
+type = "turbulence"
+color = [0.6, 0.6, 0.8]
+scale = 3.0
+
+# Fog sphere
+[[fog]]
+center = [0.0, 1.0, -5.0]
+radius = 2.0
+density = 0.3
+color = [0.8, 0.8, 0.9]
+
+# Rotated box
+[[box]]
+min = [-0.5, 0.0, -0.5]
+max = [0.5, 1.0, 0.5]
+rotate_y = 30.0
+translate = [-4.0, 0.0, 3.0]
+[box.material]
+type = "uv_checker"
+color1 = [0.8, 0.8, 0.2]
+color2 = [0.2, 0.2, 0.8]
+frequency = 5.0
+
+# Capsule
+[[capsule]]
+center = [6.0, 0.0, 2.0]
+radius = 0.3
+height = 1.5
+[capsule.material]
+type = "gradient_tex"
+color1 = [0.2, 0.2, 0.8]
+color2 = [0.8, 0.2, 0.2]
+axis = "y"
