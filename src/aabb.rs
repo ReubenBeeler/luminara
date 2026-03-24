@@ -90,6 +90,21 @@ mod tests {
     }
 
     #[test]
+    fn test_surface_area() {
+        // 2x2x2 cube: surface area = 6 * 4 = 24
+        let bb = Aabb::new(Point3::new(-1.0, -1.0, -1.0), Point3::new(1.0, 1.0, 1.0));
+        assert!((bb.surface_area() - 24.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_aabb_hit_negative_direction() {
+        let bb = Aabb::new(Point3::new(-1.0, -1.0, -1.0), Point3::new(1.0, 1.0, 1.0));
+        // Ray from +z going in -z direction
+        let ray = Ray::new(Point3::new(0.0, 0.0, 5.0), Vec3::new(0.0, 0.0, -1.0));
+        assert!(bb.hit(&ray, 0.001, f64::INFINITY));
+    }
+
+    #[test]
     fn test_surrounding() {
         let a = Aabb::new(Point3::new(-1.0, -1.0, -1.0), Point3::new(0.0, 0.0, 0.0));
         let b = Aabb::new(Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 1.0, 1.0));
