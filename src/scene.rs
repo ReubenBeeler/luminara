@@ -12,7 +12,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker};
+use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Wood};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
@@ -242,6 +242,12 @@ pub enum MaterialDesc {
     #[serde(alias = "image")]
     Image {
         file: String,
+    },
+    #[serde(alias = "wood")]
+    Wood {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
     },
     #[serde(alias = "rings")]
     Rings {
@@ -607,6 +613,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                     ImageTexture::fallback()
                 });
             Box::new(Lambertian::with_texture(Box::new(tex)))
+        }
+        MaterialDesc::Wood { color1, color2, scale } => {
+            Box::new(Lambertian::with_texture(Box::new(Wood::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                scale.unwrap_or(4.0),
+            ))))
         }
         MaterialDesc::Rings { color1, color2, scale } => {
             Box::new(Lambertian::with_texture(Box::new(Rings::new(

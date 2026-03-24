@@ -135,6 +135,34 @@ impl Texture for Rings {
     }
 }
 
+/// Wood texture — Perlin-perturbed concentric rings.
+pub struct Wood {
+    color1: Color,
+    color2: Color,
+    scale: f64,
+    perlin: Perlin,
+}
+
+impl Wood {
+    pub fn new(color1: Color, color2: Color, scale: f64) -> Self {
+        Self {
+            color1,
+            color2,
+            scale: if scale.abs() < 1e-10 { 4.0 } else { scale },
+            perlin: Perlin::new(),
+        }
+    }
+}
+
+impl Texture for Wood {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let dist = (point.x * point.x + point.z * point.z).sqrt() * self.scale;
+        let noise = self.perlin.turb(point, 4) * 10.0;
+        let ring = ((dist + noise).sin() * 0.5 + 0.5).clamp(0.0, 1.0);
+        self.color1 * ring + self.color2 * (1.0 - ring)
+    }
+}
+
 /// 3D polka-dot pattern.
 pub struct Dots {
     pub dot_color: Color,
