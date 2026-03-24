@@ -36,6 +36,7 @@ struct CliArgs {
     threads: Option<usize>,
     seed: Option<u64>,
     quiet: bool,
+    info_only: bool,
 }
 
 fn main() {
@@ -89,6 +90,19 @@ fn main() {
             .num_threads(t)
             .build_global()
             .ok();
+    }
+
+    if cli.info_only {
+        let sqrt_spp = (render_config.samples_per_pixel as f64).sqrt().ceil() as u64;
+        let actual_spp = sqrt_spp * sqrt_spp;
+        let total_rays = render_config.width as u64 * render_config.height as u64 * actual_spp;
+        eprintln!("Scene: {}", cli.scene.as_deref().unwrap_or("demo"));
+        eprintln!("Resolution: {}x{}", render_config.width, render_config.height);
+        eprintln!("Samples: {} ({}x{} stratified = {})", render_config.samples_per_pixel, sqrt_spp, sqrt_spp, actual_spp);
+        eprintln!("Max depth: {}", render_config.max_depth);
+        eprintln!("Total primary rays: {}", total_rays);
+        eprintln!("Seed: {}", render_config.seed);
+        std::process::exit(0);
     }
 
     // Validate render config
@@ -159,6 +173,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         threads: None,
         seed: None,
         quiet: false,
+        info_only: false,
     };
     let mut i = 1;
 
@@ -190,6 +205,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-q" | "--quiet" => {
                 cli.quiet = true;
+            }
+            "--info" => {
+                cli.info_only = true;
             }
             "--seed" => {
                 i += 1;
