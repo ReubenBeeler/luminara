@@ -111,6 +111,41 @@ impl Texture for GradientTexture {
     }
 }
 
+/// 3D grid pattern with thin lines.
+pub struct Grid {
+    pub line_color: Color,
+    pub bg_color: Color,
+    pub scale: f64,
+    pub line_width: f64,
+}
+
+impl Grid {
+    pub fn new(line_color: Color, bg_color: Color, scale: f64, line_width: f64) -> Self {
+        Self {
+            line_color,
+            bg_color,
+            scale: if scale.abs() < 1e-10 { 1.0 } else { scale },
+            line_width: line_width.clamp(0.01, 0.5),
+        }
+    }
+}
+
+impl Texture for Grid {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let inv = 1.0 / self.scale;
+        let fx = (point.x * inv).fract().abs();
+        let fy = (point.y * inv).fract().abs();
+        let fz = (point.z * inv).fract().abs();
+
+        let hw = self.line_width * 0.5;
+        if fx < hw || fx > 1.0 - hw || fy < hw || fy > 1.0 - hw || fz < hw || fz > 1.0 - hw {
+            self.line_color
+        } else {
+            self.bg_color
+        }
+    }
+}
+
 /// UV-based checkerboard that uses texture coordinates instead of world position.
 pub struct UvChecker {
     pub even: Color,

@@ -11,7 +11,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::{Checker, GradientTexture, ImageTexture, Marble, Stripe, Turbulence, UvChecker};
+use crate::texture::{Checker, GradientTexture, Grid, ImageTexture, Marble, Stripe, Turbulence, UvChecker};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
@@ -239,6 +239,13 @@ pub enum MaterialDesc {
     #[serde(alias = "image")]
     Image {
         file: String,
+    },
+    #[serde(alias = "grid")]
+    Grid {
+        line_color: [f64; 3],
+        bg_color: [f64; 3],
+        scale: Option<f64>,
+        line_width: Option<f64>,
     },
     #[serde(alias = "uv_checker")]
     UvChecker {
@@ -572,6 +579,14 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                     ImageTexture::fallback()
                 });
             Box::new(Lambertian::with_texture(Box::new(tex)))
+        }
+        MaterialDesc::Grid { line_color, bg_color, scale, line_width } => {
+            Box::new(Lambertian::with_texture(Box::new(Grid::new(
+                Color::new(line_color[0], line_color[1], line_color[2]),
+                Color::new(bg_color[0], bg_color[1], bg_color[2]),
+                scale.unwrap_or(1.0),
+                line_width.unwrap_or(0.05),
+            ))))
         }
         MaterialDesc::UvChecker { color1, color2, frequency } => {
             Box::new(Lambertian::with_texture(Box::new(UvChecker::new(
