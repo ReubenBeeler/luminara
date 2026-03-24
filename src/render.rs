@@ -103,16 +103,22 @@ pub fn render(
             let mut rng = SmallRng::seed_from_u64(j as u64 * 31337);
             let y = (height - 1 - j) as f64;
 
+            // Stratified sampling: divide samples into a sqrt_spp x sqrt_spp grid
+            let sqrt_spp = (config.samples_per_pixel as f64).sqrt().ceil() as u32;
+            let actual_spp = sqrt_spp * sqrt_spp;
+
             let row: Vec<Color> = (0..width)
                 .map(|i| {
                     let mut color = Color::ZERO;
-                    for _ in 0..config.samples_per_pixel {
-                        let u = (i as f64 + rng.random::<f64>()) / (width - 1) as f64;
-                        let v = (y + rng.random::<f64>()) / (height - 1) as f64;
-                        let ray = camera.get_ray(u, v, &mut rng);
-                        color += ray_color(&ray, world, &config.background, &mut rng, config.max_depth);
+                    for sy in 0..sqrt_spp {
+                        for sx in 0..sqrt_spp {
+                            let u = (i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (width - 1) as f64;
+                            let v = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (height - 1) as f64;
+                            let ray = camera.get_ray(u, v, &mut rng);
+                            color += ray_color(&ray, world, &config.background, &mut rng, config.max_depth);
+                        }
                     }
-                    color / config.samples_per_pixel as f64
+                    color / actual_spp as f64
                 })
                 .collect();
 
