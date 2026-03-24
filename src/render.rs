@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
 
 use rand::Rng;
 use rand::SeedableRng;
@@ -123,6 +124,7 @@ pub fn render(
     let rows_done = AtomicUsize::new(0);
     let sqrt_spp = (config.samples_per_pixel as f64).sqrt().ceil() as u32;
     let actual_spp = sqrt_spp * sqrt_spp;
+    let start_time = Instant::now();
 
     let rows: Vec<Vec<Color>> = (0..height)
         .into_par_iter()
@@ -150,7 +152,14 @@ pub fn render(
                 #[allow(clippy::manual_is_multiple_of)]
                 if done % 20 == 0 || done == height {
                     let pct = done * 100 / height;
-                    eprint!("\rProgress: {pct:3}% [{done}/{height} rows]");
+                    let elapsed = start_time.elapsed().as_secs_f64();
+                    let eta = if done < height {
+                        let remaining = elapsed / done as f64 * (height - done) as f64;
+                        format!(" ETA {:.0}s", remaining)
+                    } else {
+                        String::new()
+                    };
+                    eprint!("\rProgress: {pct:3}% [{done}/{height} rows]{eta}   ");
                 }
             }
 
