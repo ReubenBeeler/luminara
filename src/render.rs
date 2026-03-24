@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use rand::Rng;
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
@@ -60,14 +62,15 @@ pub fn render(
     let width = config.width as usize;
     let height = config.height as usize;
 
+    let rows_done = AtomicUsize::new(0);
+
     let rows: Vec<Vec<Color>> = (0..height)
         .into_par_iter()
         .map(|j| {
-            // Each thread gets its own RNG seeded from row index.
             let mut rng = SmallRng::seed_from_u64(j as u64 * 31337);
             let y = (height - 1 - j) as f64;
 
-            (0..width)
+            let row: Vec<Color> = (0..width)
                 .map(|i| {
                     let mut color = Color::ZERO;
                     for _ in 0..config.samples_per_pixel {
@@ -78,9 +81,19 @@ pub fn render(
                     }
                     color / config.samples_per_pixel as f64
                 })
-                .collect()
+                .collect();
+
+            let done = rows_done.fetch_add(1, Ordering::Relaxed) + 1;
+            if done % 20 == 0 || done == height {
+                let pct = done * 100 / height;
+                eprint!("\rProgress: {pct:3}% [{done}/{height} rows]");
+            }
+
+            row
         })
         .collect();
+
+    eprintln!();
 
     // Convert to RGBA bytes with gamma correction (gamma = 2.0).
     let mut pixels = Vec::with_capacity(width * height * 4);
