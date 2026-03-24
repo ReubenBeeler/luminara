@@ -11,7 +11,14 @@ use crate::camera::Camera;
 use crate::hit::Hittable;
 use crate::material::RngCore;
 use crate::ray::Ray;
-use crate::vec3::Color;
+use crate::vec3::{Color, Point3, Vec3};
+
+/// Information about a light source for direct light sampling (NEE).
+pub struct LightInfo {
+    pub center: Point3,
+    pub radius: f64,
+    pub emission: Color,
+}
 
 /// Background environment for rays that miss all objects.
 #[derive(Default)]
@@ -169,8 +176,90 @@ impl Default for RenderConfig {
     }
 }
 
+/// Sample direct illumination from a random light source (Next Event Estimation).
+fn sample_direct_light(
+    hit_point: &Point3,
+    normal: &Vec3,
+    albedo: &Color,
+    lights: &[LightInfo],
+    world: &dyn Hittable,
+    rng: &mut dyn RngCore,
+) -> Color {
+    if lights.is_empty() {
+        return Color::ZERO;
+    }
+
+    // Pick a random light
+    let light_idx = (rng.next_f64() * lights.len() as f64) as usize;
+    let light_idx = light_idx.min(lights.len() - 1);
+    let light = &lights[light_idx];
+
+    // Sample a random point on the light sphere using rejection sampling
+    let mut lx;
+    let mut ly;
+    let mut lz;
+    loop {
+        lx = rng.next_f64() * 2.0 - 1.0;
+        ly = rng.next_f64() * 2.0 - 1.0;
+        lz = rng.next_f64() * 2.0 - 1.0;
+        if lx * lx + ly * ly + lz * lz < 1.0 {
+            break;
+        }
+    }
+    let len = (lx * lx + ly * ly + lz * lz).sqrt();
+    let light_point = Point3::new(
+        light.center.x + light.radius * lx / len,
+        light.center.y + light.radius * ly / len,
+        light.center.z + light.radius * lz / len,
+    );
+
+    let to_light = light_point - *hit_point;
+    let dist_sq = to_light.length_squared();
+    let dist = dist_sq.sqrt();
+    let dir = to_light / dist;
+
+    // Cosine at the shading point
+    let cos_theta = normal.dot(dir);
+    if cos_theta <= 0.0 {
+        return Color::ZERO;
+    }
+
+    // Cosine at the light surface (light normal points outward from center)
+    let light_normal = (light_point - light.center) / light.radius;
+    let cos_theta_light = (-dir).dot(light_normal);
+    if cos_theta_light <= 0.0 {
+        return Color::ZERO; // Back face of light
+    }
+
+    // Shadow ray: check if path to light is unoccluded
+    let shadow_ray = crate::ray::Ray::new(*hit_point, dir);
+    if let Some(shadow_hit) = world.hit(&shadow_ray, 0.001, dist - 0.001) {
+        // Something blocks the light
+        let _ = shadow_hit;
+        return Color::ZERO;
+    }
+
+    // Light area: 4 * pi * r^2
+    let area = 4.0 * std::f64::consts::PI * light.radius * light.radius;
+
+    // Lambertian BRDF = albedo / pi
+    // Monte Carlo estimate: emission * (albedo/pi) * cos_theta * cos_theta_light * area / dist^2 * N_lights
+    let contribution = light.emission.hadamard(*albedo)
+        * (cos_theta * cos_theta_light * area * lights.len() as f64
+            / (std::f64::consts::PI * dist_sq));
+
+    contribution
+}
+
 /// Trace a single ray through the scene.
-fn ray_color(ray: &Ray, world: &dyn Hittable, bg: &Background, rng: &mut dyn RngCore, depth: u32) -> Color {
+fn ray_color(
+    ray: &Ray,
+    world: &dyn Hittable,
+    lights: &[LightInfo],
+    bg: &Background,
+    rng: &mut dyn RngCore,
+    depth: u32,
+) -> Color {
     if depth == 0 {
         return Color::ZERO;
     }
@@ -179,10 +268,24 @@ fn ray_color(ray: &Ray, world: &dyn Hittable, bg: &Background, rng: &mut dyn Rng
     if let Some(hit) = world.hit(ray, 0.001, f64::INFINITY) {
         let emitted = hit.material.emitted();
         if let Some(scatter) = hit.material.scatter(ray, &hit, rng) {
-            let result = emitted
-                + scatter
-                    .attenuation
-                    .hadamard(ray_color(&scatter.ray, world, bg, rng, depth - 1));
+            // For diffuse materials, add direct light sampling (NEE)
+            let direct = if !hit.material.is_specular() && !lights.is_empty() {
+                sample_direct_light(
+                    &hit.point,
+                    &hit.normal,
+                    &scatter.attenuation,
+                    lights,
+                    world,
+                    rng,
+                )
+            } else {
+                Color::ZERO
+            };
+
+            let indirect = scatter
+                .attenuation
+                .hadamard(ray_color(&scatter.ray, world, lights, bg, rng, depth - 1));
+            let result = emitted + direct + indirect;
             // Guard against NaN propagation from degenerate geometry or materials
             return if result.x.is_nan() || result.y.is_nan() || result.z.is_nan() {
                 Color::ZERO
@@ -201,6 +304,7 @@ pub fn render(
     config: &RenderConfig,
     camera: &Camera,
     world: &dyn Hittable,
+    lights: &[LightInfo],
 ) -> Vec<u8> {
     let width = config.width as usize;
     let height = config.height as usize;
@@ -224,7 +328,7 @@ pub fn render(
                             let u = (i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (width - 1) as f64;
                             let v = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (height - 1) as f64;
                             let ray = camera.get_ray(u, v, &mut rng);
-                            let sample = ray_color(&ray, world, &config.background, &mut rng, config.max_depth);
+                            let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth);
                             // Clamp per-sample luminance to prevent firefly artifacts
                             let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
                             if luminance > 100.0 {
@@ -399,5 +503,113 @@ mod tests {
     #[test]
     fn srgb_clamps_negative() {
         assert_eq!(linear_to_srgb(-1.0), 0);
+    }
+
+    #[test]
+    fn nee_direct_light_nonzero() {
+        use crate::material::{Lambertian, RngCore};
+        use crate::vec3::{Color, Point3, Vec3};
+        use crate::sphere::Sphere;
+        use crate::hit::HittableList;
+        use rand::SeedableRng;
+        use rand::rngs::SmallRng;
+
+        // Build a simple scene: ground plane (sphere) + light above
+        let mut world = HittableList::new();
+        world.add(Box::new(Sphere::new(
+            Point3::new(0.0, -1000.0, 0.0),
+            1000.0,
+            Box::new(Lambertian::new(Color::new(0.8, 0.8, 0.8))),
+        )));
+        world.add(Box::new(Sphere::new(
+            Point3::new(0.0, 5.0, 0.0),
+            1.0,
+            Box::new(crate::material::Emissive::new(Color::new(1.0, 1.0, 1.0), 10.0)),
+        )));
+
+        let lights = vec![LightInfo {
+            center: Point3::new(0.0, 5.0, 0.0),
+            radius: 1.0,
+            emission: Color::new(10.0, 10.0, 10.0),
+        }];
+
+        let mut rng = SmallRng::seed_from_u64(42);
+        let hit_point = Point3::new(0.0, 0.0, 0.0);
+        let normal = Vec3::new(0.0, 1.0, 0.0);
+        let albedo = Color::new(0.8, 0.8, 0.8);
+
+        // Sample many times; average should be positive
+        let mut total = Color::ZERO;
+        let n = 1000;
+        for _ in 0..n {
+            total += sample_direct_light(&hit_point, &normal, &albedo, &lights, &world, &mut rng);
+        }
+        let avg = total / n as f64;
+        assert!(avg.x > 0.0, "Direct light sampling should produce positive value, got {}", avg.x);
+        assert!(avg.y > 0.0, "Direct light sampling should produce positive value, got {}", avg.y);
+    }
+
+    #[test]
+    fn nee_no_lights_returns_zero() {
+        use crate::material::RngCore;
+        use crate::vec3::{Color, Point3, Vec3};
+        use crate::hit::HittableList;
+        use rand::SeedableRng;
+        use rand::rngs::SmallRng;
+
+        let world = HittableList::new();
+        let lights: Vec<LightInfo> = vec![];
+        let mut rng = SmallRng::seed_from_u64(42);
+        let hit_point = Point3::new(0.0, 0.0, 0.0);
+        let normal = Vec3::new(0.0, 1.0, 0.0);
+        let albedo = Color::new(0.8, 0.8, 0.8);
+
+        let result = sample_direct_light(&hit_point, &normal, &albedo, &lights, &world, &mut rng);
+        assert_eq!(result.x, 0.0);
+        assert_eq!(result.y, 0.0);
+        assert_eq!(result.z, 0.0);
+    }
+
+    #[test]
+    fn nee_occluded_returns_zero() {
+        use crate::material::{Lambertian, RngCore};
+        use crate::vec3::{Color, Point3, Vec3};
+        use crate::sphere::Sphere;
+        use crate::hit::HittableList;
+        use rand::SeedableRng;
+        use rand::rngs::SmallRng;
+
+        // Light above, but a sphere blocks the path
+        let mut world = HittableList::new();
+        // Blocker sphere between hit point and light
+        world.add(Box::new(Sphere::new(
+            Point3::new(0.0, 2.5, 0.0),
+            1.0,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        )));
+        // Light sphere
+        world.add(Box::new(Sphere::new(
+            Point3::new(0.0, 5.0, 0.0),
+            0.5,
+            Box::new(crate::material::Emissive::new(Color::new(1.0, 1.0, 1.0), 10.0)),
+        )));
+
+        let lights = vec![LightInfo {
+            center: Point3::new(0.0, 5.0, 0.0),
+            radius: 0.5,
+            emission: Color::new(10.0, 10.0, 10.0),
+        }];
+
+        let mut rng = SmallRng::seed_from_u64(42);
+        let hit_point = Point3::new(0.0, 0.0, 0.0);
+        let normal = Vec3::new(0.0, 1.0, 0.0);
+        let albedo = Color::new(0.8, 0.8, 0.8);
+
+        // All samples should be zero since the blocker fully occludes the light
+        let mut total = Color::ZERO;
+        for _ in 0..100 {
+            total += sample_direct_light(&hit_point, &normal, &albedo, &lights, &world, &mut rng);
+        }
+        assert_eq!(total.x, 0.0, "Occluded light should contribute zero");
     }
 }

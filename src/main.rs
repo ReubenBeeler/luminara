@@ -132,7 +132,7 @@ fn main() {
         render_config.samples_per_pixel, render_config.max_depth, num_threads
     );
 
-    let pixels = render::render(&render_config, &camera, &world);
+    let pixels = render::render(&render_config, &camera, &world, &world.lights);
 
     let elapsed = start.elapsed();
     let secs = elapsed.as_secs_f64();

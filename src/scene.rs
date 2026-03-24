@@ -20,7 +20,7 @@ use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
-use crate::render::{Background, RenderConfig};
+use crate::render::{Background, LightInfo, RenderConfig};
 use crate::sphere::{MovingSphere, Sphere};
 use crate::obj;
 use crate::torus::Torus;
@@ -399,12 +399,13 @@ pub struct SceneWorld {
     unbounded: Vec<Box<dyn Hittable>>,
     pub bounded_count: usize,
     pub unbounded_count: usize,
+    pub lights: Vec<LightInfo>,
 }
 
 impl SceneWorld {
     /// Build a SceneWorld from a HittableList, partitioning objects into
     /// bounded (accelerated via BVH) and unbounded (tested linearly).
-    pub fn from_list(list: HittableList) -> Self {
+    pub fn from_list(list: HittableList, lights: Vec<LightInfo>) -> Self {
         let mut bounded = Vec::new();
         let mut unbounded = Vec::new();
 
@@ -425,7 +426,7 @@ impl SceneWorld {
             Some(BvhNode::build(bounded))
         };
 
-        Self { bvh, unbounded, bounded_count, unbounded_count }
+        Self { bvh, unbounded, bounded_count, unbounded_count, lights }
     }
 
     /// Total number of objects in the scene.
@@ -613,15 +614,22 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         world.add(Box::new(Ellipsoid::new(arr_to_vec3(e.center), arr_to_vec3(e.radii), mat)));
     }
 
+    let mut lights = Vec::new();
     for l in &scene.light {
         let color = l.color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(1.0, 1.0, 1.0));
         let intensity = l.intensity.unwrap_or(10.0);
         let radius = l.radius.unwrap_or(0.1);
+        let center = arr_to_vec3(l.position);
         world.add(Box::new(Sphere::new(
-            arr_to_vec3(l.position),
+            center,
             radius,
             Box::new(Emissive::new(color, intensity)),
         )));
+        lights.push(LightInfo {
+            center,
+            radius,
+            emission: color * intensity,
+        });
     }
 
     for h in &scene.hemisphere {
@@ -772,7 +780,7 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         world.add(Box::new(YzRect::new(r.y[0], r.y[1], r.z[0], r.z[1], r.k, mat)));
     }
 
-    Ok((render_config, camera, SceneWorld::from_list(world)))
+    Ok((render_config, camera, SceneWorld::from_list(world, lights)))
 }
 
 fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
@@ -990,7 +998,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         }
     }
 
-    (render_config, camera, SceneWorld::from_list(world))
+    (render_config, camera, SceneWorld::from_list(world, Vec::new()))
 }
 
 #[cfg(test)]

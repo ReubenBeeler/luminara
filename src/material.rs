@@ -19,6 +19,12 @@ pub trait Material: Send + Sync {
     fn emitted(&self) -> Color {
         Color::ZERO
     }
+
+    /// Whether this material is specular (mirror/glass). Specular materials
+    /// should not use direct light sampling (NEE).
+    fn is_specular(&self) -> bool {
+        false
+    }
 }
 
 /// Workaround to use `dyn Rng` — we define our own trait object-safe RNG trait.
@@ -81,6 +87,10 @@ impl Metal {
 }
 
 impl Material for Metal {
+    fn is_specular(&self) -> bool {
+        true
+    }
+
     fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
         let mut rng_adapter = RngAdapter(rng);
         let reflected = ray.direction.unit().reflect(hit.normal);
@@ -125,6 +135,10 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
+    fn is_specular(&self) -> bool {
+        true
+    }
+
     fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
         let eta_ratio = if hit.front_face {
             1.0 / self.refraction_index
