@@ -108,6 +108,11 @@ pub enum BackgroundDesc {
         intensity: Option<f64>,
         sky_color: Option<[f64; 3]>,
     },
+    #[serde(alias = "starfield")]
+    Starfield {
+        star_density: Option<f64>,
+        star_brightness: Option<f64>,
+    },
     #[serde(alias = "env_map")]
     EnvMap {
         file: String,
@@ -513,6 +518,12 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
                         sun_color: sun_color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(1.0, 0.95, 0.85)),
                         sun_intensity: intensity.unwrap_or(20.0),
                         sky_color: sky_color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(0.5, 0.7, 1.0)),
+                    }
+                }
+                BackgroundDesc::Starfield { star_density, star_brightness } => {
+                    Background::Starfield {
+                        star_density: star_density.unwrap_or(1.0),
+                        star_brightness: star_brightness.unwrap_or(5.0),
                     }
                 }
                 BackgroundDesc::EnvMap { file, intensity } => {

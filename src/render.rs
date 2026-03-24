@@ -30,6 +30,11 @@ pub enum Background {
         sun_intensity: f64,
         sky_color: Color,
     },
+    /// Starfield with procedural stars
+    Starfield {
+        star_density: f64,
+        star_brightness: f64,
+    },
     /// Environment map (equirectangular HDR image)
     EnvMap {
         pixels: Arc<Vec<f32>>,
@@ -52,6 +57,36 @@ impl Background {
                 let unit_dir = ray.direction.unit();
                 let t = 0.5 * (unit_dir.y + 1.0);
                 *bottom * (1.0 - t) + *top * t
+            }
+            Background::Starfield { star_density, star_brightness } => {
+                let unit_dir = ray.direction.unit();
+                // Dark blue space
+                let t = 0.5 * (unit_dir.y + 1.0);
+                let space = Color::new(0.0, 0.0, 0.02) * (1.0 - t) + Color::new(0.02, 0.0, 0.05) * t;
+
+                // Procedural stars using hash of quantized direction
+                let scale = 500.0 * star_density;
+                let ix = (unit_dir.x * scale).floor() as i64;
+                let iy = (unit_dir.y * scale).floor() as i64;
+                let iz = (unit_dir.z * scale).floor() as i64;
+                let hash = (ix.wrapping_mul(73856093) ^ iy.wrapping_mul(19349663) ^ iz.wrapping_mul(83492791)) as u64;
+                let star_val = (hash % 10000) as f64 / 10000.0;
+
+                if star_val > 0.997 {
+                    let intensity = star_val * star_brightness;
+                    // Color variation
+                    let r_hash = ((hash >> 8) % 100) as f64 / 100.0;
+                    let star_color = if r_hash < 0.3 {
+                        Color::new(1.0, 0.9, 0.8) // warm
+                    } else if r_hash < 0.6 {
+                        Color::new(0.9, 0.9, 1.0) // cool
+                    } else {
+                        Color::new(1.0, 1.0, 1.0) // white
+                    };
+                    space + star_color * intensity
+                } else {
+                    space
+                }
             }
             Background::EnvMap { pixels, width, height, intensity } => {
                 let unit_dir = ray.direction.unit();
