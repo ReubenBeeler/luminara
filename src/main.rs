@@ -102,6 +102,7 @@ fn main() {
         eprintln!("Samples: {} ({}x{} stratified = {})", render_config.samples_per_pixel, sqrt_spp, sqrt_spp, actual_spp);
         eprintln!("Max depth: {}", render_config.max_depth);
         eprintln!("Total primary rays: {}", total_rays);
+        eprintln!("Objects: {} ({} bounded/BVH, {} unbounded)", world.object_count(), world.bounded_count, world.unbounded_count);
         eprintln!("Seed: {}", render_config.seed);
         std::process::exit(0);
     }

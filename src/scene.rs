@@ -335,6 +335,8 @@ pub enum MaterialDesc {
 pub struct SceneWorld {
     bvh: Option<Box<dyn Hittable>>,
     unbounded: Vec<Box<dyn Hittable>>,
+    pub bounded_count: usize,
+    pub unbounded_count: usize,
 }
 
 impl SceneWorld {
@@ -352,13 +354,21 @@ impl SceneWorld {
             }
         }
 
+        let bounded_count = bounded.len();
+        let unbounded_count = unbounded.len();
+
         let bvh = if bounded.is_empty() {
             None
         } else {
             Some(BvhNode::build(bounded))
         };
 
-        Self { bvh, unbounded }
+        Self { bvh, unbounded, bounded_count, unbounded_count }
+    }
+
+    /// Total number of objects in the scene.
+    pub fn object_count(&self) -> usize {
+        self.bounded_count + self.unbounded_count
     }
 }
 
