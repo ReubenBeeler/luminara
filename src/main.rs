@@ -179,6 +179,10 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.max_depth = args[i].parse().ok();
                 }
             }
+            "-V" | "--version" => {
+                eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
+                std::process::exit(0);
+            }
             "-h" | "--help" => {
                 eprintln!("Usage: luminara [scene.toml] [options]");
                 eprintln!();
