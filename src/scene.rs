@@ -84,6 +84,7 @@ pub struct RenderSettings {
     pub max_depth: Option<u32>,
     pub seed: Option<u64>,
     pub exposure: Option<f64>,
+    pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -481,6 +482,13 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(e) = r.exposure {
             render_config.exposure = e;
+        }
+        if let Some(ref tm) = r.tone_map {
+            render_config.tone_map = match tm.as_str() {
+                "reinhard" => crate::render::ToneMap::Reinhard,
+                "none" => crate::render::ToneMap::None,
+                _ => crate::render::ToneMap::Aces,
+            };
         }
         if let Some(bg) = &r.background {
             render_config.background = match bg {
