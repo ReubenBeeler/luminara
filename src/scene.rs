@@ -52,6 +52,8 @@ pub struct SceneFile {
     #[serde(default)]
     pub hemisphere: Vec<HemisphereDesc>,
     #[serde(default)]
+    pub light: Vec<LightDesc>,
+    #[serde(default)]
     pub fog: Vec<FogDesc>,
     #[serde(default)]
     pub cone: Vec<ConeDesc>,
@@ -199,6 +201,14 @@ pub struct EllipsoidDesc {
     pub center: [f64; 3],
     pub radii: [f64; 3],
     pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct LightDesc {
+    pub position: [f64; 3],
+    pub color: Option<[f64; 3]>,
+    pub intensity: Option<f64>,
+    pub radius: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -578,6 +588,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     for e in &scene.ellipsoid {
         let mat = build_material(&e.material);
         world.add(Box::new(Ellipsoid::new(arr_to_vec3(e.center), arr_to_vec3(e.radii), mat)));
+    }
+
+    for l in &scene.light {
+        let color = l.color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(1.0, 1.0, 1.0));
+        let intensity = l.intensity.unwrap_or(10.0);
+        let radius = l.radius.unwrap_or(0.1);
+        world.add(Box::new(Sphere::new(
+            arr_to_vec3(l.position),
+            radius,
+            Box::new(Emissive::new(color, intensity)),
+        )));
     }
 
     for h in &scene.hemisphere {
