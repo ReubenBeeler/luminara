@@ -8,6 +8,7 @@ use crate::material::{Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, Marble, Turbulence};
 use crate::plane::Plane;
 use crate::ray::Ray;
+use crate::rect::{XyRect, XzRect, YzRect};
 use crate::render::{Background, RenderConfig};
 use crate::sphere::Sphere;
 use crate::obj;
@@ -28,6 +29,12 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    pub rect_xy: Vec<RectXyDesc>,
+    #[serde(default)]
+    pub rect_xz: Vec<RectXzDesc>,
+    #[serde(default)]
+    pub rect_yz: Vec<RectYzDesc>,
 }
 
 #[derive(Deserialize)]
@@ -90,6 +97,30 @@ pub struct MeshDesc {
     pub material: MaterialDesc,
     pub scale: Option<f64>,
     pub offset: Option<[f64; 3]>,
+}
+
+#[derive(Deserialize)]
+pub struct RectXyDesc {
+    pub x: [f64; 2],
+    pub y: [f64; 2],
+    pub k: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct RectXzDesc {
+    pub x: [f64; 2],
+    pub z: [f64; 2],
+    pub k: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct RectYzDesc {
+    pub y: [f64; 2],
+    pub z: [f64; 2],
+    pub k: f64,
+    pub material: MaterialDesc,
 }
 
 #[derive(Deserialize)]
@@ -279,6 +310,21 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         for obj in mesh_list.objects {
             world.add(obj);
         }
+    }
+
+    for r in &scene.rect_xy {
+        let mat = build_material(&r.material);
+        world.add(Box::new(XyRect::new(r.x[0], r.x[1], r.y[0], r.y[1], r.k, mat)));
+    }
+
+    for r in &scene.rect_xz {
+        let mat = build_material(&r.material);
+        world.add(Box::new(XzRect::new(r.x[0], r.x[1], r.z[0], r.z[1], r.k, mat)));
+    }
+
+    for r in &scene.rect_yz {
+        let mat = build_material(&r.material);
+        world.add(Box::new(YzRect::new(r.y[0], r.y[1], r.z[0], r.z[1], r.k, mat)));
     }
 
     Ok((render_config, camera, SceneWorld::from_list(world)))

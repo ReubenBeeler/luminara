@@ -1,5 +1,5 @@
 # Cornell Box — classic global illumination test scene
-# Uses triangles to form the box walls and two inner blocks
+# Uses axis-aligned rectangles for walls and area light
 
 [render]
 width = 600
@@ -15,91 +15,55 @@ vfov = 40.0
 aperture = 0.0
 focus_dist = 1.0
 
-# Light (top, emissive)
-[[triangle]]
-v0 = [213.0, 554.0, 227.0]
-v1 = [343.0, 554.0, 227.0]
-v2 = [343.0, 554.0, 332.0]
+# Area light (XZ rectangle on ceiling)
+[[rect_xz]]
+x = [213.0, 343.0]
+z = [227.0, 332.0]
+k = 554.0
 material = { type = "emissive", color = [1.0, 0.95, 0.85], intensity = 15.0 }
 
-[[triangle]]
-v0 = [213.0, 554.0, 227.0]
-v1 = [343.0, 554.0, 332.0]
-v2 = [213.0, 554.0, 332.0]
-material = { type = "emissive", color = [1.0, 0.95, 0.85], intensity = 15.0 }
-
-# Floor (white)
-[[triangle]]
-v0 = [0.0, 0.0, 0.0]
-v1 = [555.0, 0.0, 0.0]
-v2 = [555.0, 0.0, 555.0]
+# Floor (XZ at y=0)
+[[rect_xz]]
+x = [0.0, 555.0]
+z = [0.0, 555.0]
+k = 0.0
 material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
 
-[[triangle]]
-v0 = [0.0, 0.0, 0.0]
-v1 = [555.0, 0.0, 555.0]
-v2 = [0.0, 0.0, 555.0]
+# Ceiling (XZ at y=555)
+[[rect_xz]]
+x = [0.0, 555.0]
+z = [0.0, 555.0]
+k = 555.0
 material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
 
-# Ceiling (white)
-[[triangle]]
-v0 = [0.0, 555.0, 0.0]
-v1 = [0.0, 555.0, 555.0]
-v2 = [555.0, 555.0, 555.0]
+# Back wall (XY at z=555)
+[[rect_xy]]
+x = [0.0, 555.0]
+y = [0.0, 555.0]
+k = 555.0
 material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
 
-[[triangle]]
-v0 = [0.0, 555.0, 0.0]
-v1 = [555.0, 555.0, 555.0]
-v2 = [555.0, 555.0, 0.0]
-material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
-
-# Back wall (white)
-[[triangle]]
-v0 = [0.0, 0.0, 555.0]
-v1 = [555.0, 0.0, 555.0]
-v2 = [555.0, 555.0, 555.0]
-material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
-
-[[triangle]]
-v0 = [0.0, 0.0, 555.0]
-v1 = [555.0, 555.0, 555.0]
-v2 = [0.0, 555.0, 555.0]
-material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
-
-# Left wall (red)
-[[triangle]]
-v0 = [0.0, 0.0, 0.0]
-v1 = [0.0, 0.0, 555.0]
-v2 = [0.0, 555.0, 555.0]
+# Left wall (YZ at x=0) — red
+[[rect_yz]]
+y = [0.0, 555.0]
+z = [0.0, 555.0]
+k = 0.0
 material = { type = "lambertian", color = [0.65, 0.05, 0.05] }
 
-[[triangle]]
-v0 = [0.0, 0.0, 0.0]
-v1 = [0.0, 555.0, 555.0]
-v2 = [0.0, 555.0, 0.0]
-material = { type = "lambertian", color = [0.65, 0.05, 0.05] }
-
-# Right wall (green)
-[[triangle]]
-v0 = [555.0, 0.0, 0.0]
-v1 = [555.0, 555.0, 0.0]
-v2 = [555.0, 555.0, 555.0]
+# Right wall (YZ at x=555) — green
+[[rect_yz]]
+y = [0.0, 555.0]
+z = [0.0, 555.0]
+k = 555.0
 material = { type = "lambertian", color = [0.12, 0.45, 0.15] }
 
-[[triangle]]
-v0 = [555.0, 0.0, 0.0]
-v1 = [555.0, 555.0, 555.0]
-v2 = [555.0, 0.0, 555.0]
-material = { type = "lambertian", color = [0.12, 0.45, 0.15] }
-
-# Tall box (white) — simplified as a sphere for now
+# Tall box (approximated as sphere)
 [[sphere]]
 center = [368.0, 165.0, 295.0]
 radius = 100.0
 material = { type = "lambertian", color = [0.73, 0.73, 0.73] }
 
-# Short box (white) — simplified as a sphere
+# Short box (approximated as sphere)
 [[sphere]]
 center = [185.0, 82.5, 168.0]
 radius = 82.5

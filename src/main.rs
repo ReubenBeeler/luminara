@@ -6,6 +6,7 @@ mod material;
 mod obj;
 mod plane;
 mod ray;
+mod rect;
 mod render;
 mod scene;
 mod sphere;
