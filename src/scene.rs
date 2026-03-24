@@ -260,6 +260,8 @@ pub enum MaterialDesc {
     },
     #[serde(alias = "mirror")]
     Mirror,
+    #[serde(alias = "glass")]
+    Glass,
     #[serde(alias = "wood")]
     Wood {
         color1: [f64; 3],
@@ -658,6 +660,9 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
         }
         MaterialDesc::Mirror => {
             Box::new(Metal::new(Color::new(0.95, 0.95, 0.95), 0.0))
+        }
+        MaterialDesc::Glass => {
+            Box::new(Dielectric::new(1.5))
         }
         MaterialDesc::Wood { color1, color2, scale } => {
             Box::new(Lambertian::with_texture(Box::new(Wood::new(
