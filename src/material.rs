@@ -382,4 +382,31 @@ mod tests {
         assert!((emitted.y).abs() < 1e-6);
         assert!((emitted.z).abs() < 1e-6);
     }
+
+    #[test]
+    fn blend_chooses_between_materials() {
+        let mat = Blend::new(
+            Box::new(Lambertian::new(Color::new(1.0, 0.0, 0.0))),
+            Box::new(Metal::new(Color::new(0.0, 0.0, 1.0), 0.0)),
+            0.5,
+        );
+        let hit = make_hit_record(&mat);
+        let incoming = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let mut got_red = false;
+        let mut got_blue = false;
+        for _ in 0..100 {
+            if let Some(scatter) = mat.scatter(&incoming, &hit, &mut rng) {
+                if scatter.attenuation.x > 0.5 {
+                    got_red = true;
+                }
+                if scatter.attenuation.z > 0.5 {
+                    got_blue = true;
+                }
+            }
+        }
+        assert!(got_red, "Blend should sometimes pick material A (red)");
+        assert!(got_blue, "Blend should sometimes pick material B (blue)");
+    }
 }
