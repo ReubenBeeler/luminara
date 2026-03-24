@@ -5,6 +5,7 @@ use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::bump::BumpMap;
 use crate::capsule::Capsule;
+use crate::transform::{RotateY, Translate};
 use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
@@ -183,6 +184,8 @@ pub struct BoxDesc {
     pub min: [f64; 3],
     pub max: [f64; 3],
     pub material: MaterialDesc,
+    pub rotate_y: Option<f64>,
+    pub translate: Option<[f64; 3]>,
 }
 
 #[derive(Deserialize)]
@@ -544,8 +547,25 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(b.max),
             || build_material(&b.material),
         );
-        for side in sides {
-            world.add(side);
+
+        if b.rotate_y.is_some() || b.translate.is_some() {
+            // Wrap all sides into a HittableList, then transform
+            let mut box_list = HittableList::new();
+            for side in sides {
+                box_list.add(side);
+            }
+            let mut obj: Box<dyn Hittable> = Box::new(box_list);
+            if let Some(angle) = b.rotate_y {
+                obj = Box::new(RotateY::new(obj, angle));
+            }
+            if let Some(offset) = b.translate {
+                obj = Box::new(Translate::new(obj, arr_to_vec3(offset)));
+            }
+            world.add(obj);
+        } else {
+            for side in sides {
+                world.add(side);
+            }
         }
     }
 
