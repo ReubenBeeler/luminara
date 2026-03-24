@@ -12,6 +12,7 @@ mod hit;
 mod material;
 mod obj;
 mod plane;
+mod quad;
 mod ray;
 mod rect;
 mod render;

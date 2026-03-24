@@ -15,6 +15,7 @@ use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Wood};
 use crate::plane::Plane;
+use crate::quad::Quad;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
 use crate::render::{Background, RenderConfig};
@@ -55,6 +56,8 @@ pub struct SceneFile {
     #[serde(default)]
     #[serde(rename = "box")]
     pub aabb_box: Vec<BoxDesc>,
+    #[serde(default)]
+    pub quad: Vec<QuadDesc>,
     #[serde(default)]
     pub rect_xy: Vec<RectXyDesc>,
     #[serde(default)]
@@ -199,6 +202,14 @@ pub struct BoxDesc {
     pub material: MaterialDesc,
     pub rotate_y: Option<f64>,
     pub translate: Option<[f64; 3]>,
+}
+
+#[derive(Deserialize)]
+pub struct QuadDesc {
+    pub q: [f64; 3],
+    pub u: [f64; 3],
+    pub v: [f64; 3],
+    pub material: MaterialDesc,
 }
 
 #[derive(Deserialize)]
@@ -553,6 +564,16 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(t.v0),
             arr_to_vec3(t.v1),
             arr_to_vec3(t.v2),
+            mat,
+        )));
+    }
+
+    for q in &scene.quad {
+        let mat = build_material(&q.material);
+        world.add(Box::new(Quad::new(
+            arr_to_vec3(q.q),
+            arr_to_vec3(q.u),
+            arr_to_vec3(q.v),
             mat,
         )));
     }
