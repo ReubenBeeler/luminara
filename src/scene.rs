@@ -9,7 +9,7 @@ use crate::cylinder::Cylinder;
 use crate::disk::Disk;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::{Checker, GradientTexture, ImageTexture, Marble, Stripe, Turbulence};
+use crate::texture::{Checker, GradientTexture, ImageTexture, Marble, Stripe, Turbulence, UvChecker};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
@@ -211,6 +211,12 @@ pub enum MaterialDesc {
     #[serde(alias = "image")]
     Image {
         file: String,
+    },
+    #[serde(alias = "uv_checker")]
+    UvChecker {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        frequency: Option<f64>,
     },
     #[serde(alias = "gradient_tex")]
     GradientTex {
@@ -515,6 +521,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                     ImageTexture::fallback()
                 });
             Box::new(Lambertian::with_texture(Box::new(tex)))
+        }
+        MaterialDesc::UvChecker { color1, color2, frequency } => {
+            Box::new(Lambertian::with_texture(Box::new(UvChecker::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                frequency.unwrap_or(10.0),
+            ))))
         }
         MaterialDesc::GradientTex { color1, color2, axis, min, max } => {
             let axis_idx = match axis.as_deref() {

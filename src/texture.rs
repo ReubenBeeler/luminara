@@ -111,6 +111,31 @@ impl Texture for GradientTexture {
     }
 }
 
+/// UV-based checkerboard that uses texture coordinates instead of world position.
+pub struct UvChecker {
+    pub even: Color,
+    pub odd: Color,
+    pub frequency: f64,
+}
+
+impl UvChecker {
+    pub fn new(even: Color, odd: Color, frequency: f64) -> Self {
+        Self { even, odd, frequency: if frequency.abs() < 1e-10 { 10.0 } else { frequency } }
+    }
+}
+
+impl Texture for UvChecker {
+    fn value(&self, u: f64, v: f64, _point: &Point3) -> Color {
+        let su = (u * self.frequency).floor() as i64;
+        let sv = (v * self.frequency).floor() as i64;
+        if (su + sv) % 2 == 0 {
+            self.even
+        } else {
+            self.odd
+        }
+    }
+}
+
 /// Perlin noise generator.
 pub struct Perlin {
     ranvec: [Vec3; 256],
