@@ -51,14 +51,14 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
         let mut rng_adapter = RngAdapter(rng);
         let mut scatter_dir = hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
         if scatter_dir.near_zero() {
             scatter_dir = hit.normal;
         }
         Some(Scatter {
-            ray: Ray::new(hit.point, scatter_dir),
+            ray: Ray::with_time(hit.point, scatter_dir, ray.time),
             attenuation: self.texture.value(hit.u, hit.v, &hit.point),
         })
     }
@@ -87,7 +87,7 @@ impl Material for Metal {
         let scattered = reflected + Vec3::random_in_unit_sphere(&mut rng_adapter) * self.fuzz;
         if scattered.dot(hit.normal) > 0.0 {
             Some(Scatter {
-                ray: Ray::new(hit.point, scattered),
+                ray: Ray::with_time(hit.point, scattered, ray.time),
                 attenuation: self.albedo,
             })
         } else {
@@ -150,9 +150,22 @@ impl Material for Dielectric {
             direction += Vec3::random_in_unit_sphere(&mut rng_adapter) * self.roughness;
         }
 
+        // Beer's Law: colored glass absorbs light based on distance traveled inside
+        let attenuation = if !hit.front_face && self.tint != Color::new(1.0, 1.0, 1.0) {
+            // Inside the object — apply exponential attenuation
+            let distance = hit.t;
+            Color::new(
+                (-(1.0 - self.tint.x) * distance).exp(),
+                (-(1.0 - self.tint.y) * distance).exp(),
+                (-(1.0 - self.tint.z) * distance).exp(),
+            )
+        } else {
+            self.tint
+        };
+
         Some(Scatter {
-            ray: Ray::new(hit.point, direction),
-            attenuation: self.tint,
+            ray: Ray::with_time(hit.point, direction, ray.time),
+            attenuation,
         })
     }
 }

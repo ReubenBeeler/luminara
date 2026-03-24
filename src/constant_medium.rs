@@ -79,10 +79,10 @@ pub struct Isotropic {
 }
 
 impl Material for Isotropic {
-    fn scatter(&self, _ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
         let mut rng_adapter = IsotropicRng(rng);
         Some(Scatter {
-            ray: Ray::new(hit.point, Vec3::random_in_unit_sphere(&mut rng_adapter)),
+            ray: Ray::with_time(hit.point, Vec3::random_in_unit_sphere(&mut rng_adapter), ray.time),
             attenuation: self.albedo,
         })
     }
