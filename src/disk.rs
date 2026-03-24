@@ -14,9 +14,14 @@ pub struct Disk {
 
 impl Disk {
     pub fn new(center: Point3, normal: Vec3, radius: f64, material: Box<dyn Material>) -> Self {
+        let normal = if normal.near_zero() {
+            Vec3::new(0.0, 1.0, 0.0)
+        } else {
+            normal.unit()
+        };
         Self {
             center,
-            normal: normal.unit(),
+            normal,
             radius,
             material,
         }

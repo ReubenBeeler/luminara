@@ -31,7 +31,7 @@ pub struct Checker {
 
 impl Checker {
     pub fn new(even: Color, odd: Color, scale: f64) -> Self {
-        Self { even, odd, scale }
+        Self { even, odd, scale: if scale.abs() < 1e-10 { 1.0 } else { scale } }
     }
 }
 
@@ -59,7 +59,7 @@ pub struct Stripe {
 
 impl Stripe {
     pub fn new(color1: Color, color2: Color, scale: f64, axis: usize) -> Self {
-        Self { color1, color2, scale, axis: axis.min(2) }
+        Self { color1, color2, scale: if scale.abs() < 1e-10 { 1.0 } else { scale }, axis: axis.min(2) }
     }
 }
 
@@ -241,6 +241,15 @@ impl ImageTexture {
             width,
             height,
         })
+    }
+
+    /// Fallback 1x1 magenta texture for when image loading fails.
+    pub fn fallback() -> Self {
+        Self {
+            pixels: vec![255, 0, 255],
+            width: 1,
+            height: 1,
+        }
     }
 }
 

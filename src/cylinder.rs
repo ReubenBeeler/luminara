@@ -60,7 +60,8 @@ impl Hittable for Cylinder {
             // UV mapping: theta around cylinder, v along height
             let theta = (-(point.z - self.center.z)).atan2(point.x - self.center.x) + std::f64::consts::PI;
             let u = theta / (2.0 * std::f64::consts::PI);
-            let v = (y - self.y_min) / (self.y_max - self.y_min);
+            let height = self.y_max - self.y_min;
+            let v = if height.abs() < 1e-10 { 0.5 } else { (y - self.y_min) / height };
 
             return Some(HitRecord::new(
                 ray, point, outward_normal, root, u, v, self.material.as_ref(),

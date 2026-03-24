@@ -13,9 +13,14 @@ pub struct Plane {
 
 impl Plane {
     pub fn new(point: Point3, normal: Vec3, material: Box<dyn Material>) -> Self {
+        let normal = if normal.near_zero() {
+            Vec3::new(0.0, 1.0, 0.0) // Fallback to up vector
+        } else {
+            normal.unit()
+        };
         Self {
             point,
-            normal: normal.unit(),
+            normal,
             material,
         }
     }

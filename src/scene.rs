@@ -452,15 +452,17 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
         }
         MaterialDesc::Image { file } => {
             let tex = ImageTexture::load(file)
-                .unwrap_or_else(|e| panic!("Failed to load image texture: {e}"));
+                .unwrap_or_else(|e| {
+                    eprintln!("Warning: Failed to load image texture '{file}': {e}, using fallback");
+                    ImageTexture::fallback()
+                });
             Box::new(Lambertian::with_texture(Box::new(tex)))
         }
         MaterialDesc::Stripe { color1, color2, scale, axis } => {
             let axis_idx = match axis.as_deref() {
                 Some("x" | "X") => 0,
                 Some("y" | "Y") => 1,
-                Some("z" | "Z") | None => 2,
-                Some(other) => panic!("Unknown axis '{other}', use x/y/z"),
+                _ => 2, // Default to Z for unknown axes
             };
             Box::new(Lambertian::with_texture(Box::new(Stripe::new(
                 Color::new(color1[0], color1[1], color1[2]),
