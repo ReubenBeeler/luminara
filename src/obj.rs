@@ -8,6 +8,12 @@ use crate::vec3::{Point3, Vec3};
 
 /// Load an OBJ file and return a HittableList of triangles.
 /// Supports vertices (v) and faces (f) with fan triangulation.
+/// Parsed face vertex: position index and optional normal index.
+struct FaceVertex {
+    pos: usize,
+    normal: Option<usize>,
+}
+
 pub fn load_obj(
     content: &str,
     material: Box<dyn Material>,
@@ -15,7 +21,8 @@ pub fn load_obj(
     offset: Point3,
 ) -> Result<HittableList, String> {
     let mut vertices: Vec<Point3> = Vec::new();
-    let mut faces: Vec<[usize; 3]> = Vec::new();
+    let mut normals: Vec<Vec3> = Vec::new();
+    let mut faces: Vec<[FaceVertex; 3]> = Vec::new();
 
     for (line_num, line) in content.lines().enumerate() {
         let line = line.trim();
@@ -38,24 +45,44 @@ pub fn load_obj(
                     z * scale + offset.z,
                 ));
             }
+            Some(&"vn") => {
+                if parts.len() < 4 {
+                    return Err(format!("Line {}: normal needs 3 components", line_num + 1));
+                }
+                let x: f64 = parts[1].parse().map_err(|e| format!("Line {}: {e}", line_num + 1))?;
+                let y: f64 = parts[2].parse().map_err(|e| format!("Line {}: {e}", line_num + 1))?;
+                let z: f64 = parts[3].parse().map_err(|e| format!("Line {}: {e}", line_num + 1))?;
+                normals.push(Vec3::new(x, y, z).unit());
+            }
             Some(&"f") => {
-                let indices: Result<Vec<usize>, String> = parts[1..]
+                let face_verts: Result<Vec<FaceVertex>, String> = parts[1..]
                     .iter()
                     .map(|p| {
-                        let idx_str = p.split('/').next().unwrap();
-                        idx_str
+                        let segments: Vec<&str> = p.split('/').collect();
+                        let pos = segments[0]
                             .parse::<usize>()
-                            .map_err(|e| format!("Line {}: {e}", line_num + 1))
+                            .map_err(|e| format!("Line {}: {e}", line_num + 1))?;
+                        let normal = if segments.len() >= 3 && !segments[2].is_empty() {
+                            Some(segments[2].parse::<usize>()
+                                .map_err(|e| format!("Line {}: {e}", line_num + 1))?)
+                        } else {
+                            None
+                        };
+                        Ok(FaceVertex { pos, normal })
                     })
                     .collect();
-                let indices = indices?;
+                let face_verts = face_verts?;
 
-                if indices.len() < 3 {
+                if face_verts.len() < 3 {
                     return Err(format!("Line {}: face needs at least 3 vertices", line_num + 1));
                 }
                 // Fan triangulation
-                for i in 1..indices.len() - 1 {
-                    faces.push([indices[0], indices[i], indices[i + 1]]);
+                for i in 1..face_verts.len() - 1 {
+                    faces.push([
+                        FaceVertex { pos: face_verts[0].pos, normal: face_verts[0].normal },
+                        FaceVertex { pos: face_verts[i].pos, normal: face_verts[i].normal },
+                        FaceVertex { pos: face_verts[i + 1].pos, normal: face_verts[i + 1].normal },
+                    ]);
                 }
             }
             _ => {}
@@ -66,26 +93,42 @@ pub fn load_obj(
     let mut list = HittableList::new();
 
     for face in &faces {
-        let v0 = *vertices.get(face[0] - 1).ok_or_else(|| format!("Vertex index {} out of range", face[0]))?;
-        let v1 = *vertices.get(face[1] - 1).ok_or_else(|| format!("Vertex index {} out of range", face[1]))?;
-        let v2 = *vertices.get(face[2] - 1).ok_or_else(|| format!("Vertex index {} out of range", face[2]))?;
+        let v0 = *vertices.get(face[0].pos - 1).ok_or_else(|| format!("Vertex index {} out of range", face[0].pos))?;
+        let v1 = *vertices.get(face[1].pos - 1).ok_or_else(|| format!("Vertex index {} out of range", face[1].pos))?;
+        let v2 = *vertices.get(face[2].pos - 1).ok_or_else(|| format!("Vertex index {} out of range", face[2].pos))?;
+
+        let smooth_normals = if let (Some(n0), Some(n1), Some(n2)) = (face[0].normal, face[1].normal, face[2].normal) {
+            let nn0 = normals.get(n0 - 1).copied();
+            let nn1 = normals.get(n1 - 1).copied();
+            let nn2 = normals.get(n2 - 1).copied();
+            match (nn0, nn1, nn2) {
+                (Some(a), Some(b), Some(c)) => Some([a, b, c]),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
         list.add(Box::new(MeshTriangle {
             v0,
             v1,
             v2,
+            normals: smooth_normals,
             material: Arc::clone(&shared_mat),
         }));
     }
 
-    eprintln!("Loaded OBJ: {} vertices, {} triangles", vertices.len(), faces.len());
+    eprintln!("Loaded OBJ: {} vertices, {} normals, {} triangles", vertices.len(), normals.len(), faces.len());
     Ok(list)
 }
 
 /// A triangle that shares its material via Arc for mesh efficiency.
+/// Optionally stores per-vertex normals for smooth (Phong) shading.
 struct MeshTriangle {
     v0: Point3,
     v1: Point3,
     v2: Point3,
+    normals: Option<[Vec3; 3]>,
     material: Arc<dyn Material>,
 }
 
@@ -121,7 +164,12 @@ impl Hittable for MeshTriangle {
         }
 
         let point = ray.at(t);
-        let outward_normal = edge1.cross(edge2).unit();
+        let outward_normal = if let Some([n0, n1, n2]) = self.normals {
+            // Interpolate vertex normals using barycentric coordinates
+            (n0 * (1.0 - u - v) + n1 * u + n2 * v).unit()
+        } else {
+            edge1.cross(edge2).unit()
+        };
         Some(HitRecord::new(
             ray,
             point,
@@ -172,6 +220,14 @@ mod tests {
         let bb = list.objects[0].bounding_box().unwrap();
         assert!(bb.min.x > 2.9); // 1*2+1 = 3
         assert!(bb.max.x < 5.1); // 2*2+1 = 5
+    }
+
+    #[test]
+    fn test_load_with_normals() {
+        let obj = "v 0 0 0\nv 1 0 0\nv 0 1 0\nvn 0 0 1\nvn 0 0 1\nvn 0 0 1\nf 1//1 2//2 3//3\n";
+        let mat = Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+        let list = load_obj(obj, mat, 1.0, Point3::ZERO).unwrap();
+        assert_eq!(list.objects.len(), 1);
     }
 
     #[test]
