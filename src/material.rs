@@ -100,11 +100,19 @@ impl Material for Metal {
 
 pub struct Dielectric {
     pub refraction_index: f64,
+    pub tint: Color,
 }
 
 impl Dielectric {
     pub const fn new(refraction_index: f64) -> Self {
-        Self { refraction_index }
+        Self {
+            refraction_index,
+            tint: Color::new(1.0, 1.0, 1.0),
+        }
+    }
+
+    pub const fn tinted(refraction_index: f64, tint: Color) -> Self {
+        Self { refraction_index, tint }
     }
 
     /// Schlick's approximation for reflectance.
@@ -136,7 +144,7 @@ impl Material for Dielectric {
 
         Some(Scatter {
             ray: Ray::new(hit.point, direction),
-            attenuation: Color::new(1.0, 1.0, 1.0),
+            attenuation: self.tint,
         })
     }
 }

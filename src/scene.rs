@@ -163,7 +163,10 @@ pub enum MaterialDesc {
     #[serde(alias = "metal")]
     Metal { color: [f64; 3], fuzz: Option<f64> },
     #[serde(alias = "dielectric")]
-    Dielectric { refraction_index: f64 },
+    Dielectric {
+        refraction_index: f64,
+        tint: Option<[f64; 3]>,
+    },
     #[serde(alias = "emissive")]
     Emissive { color: [f64; 3], intensity: Option<f64> },
     #[serde(alias = "checker")]
@@ -415,8 +418,12 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
             Color::new(color[0], color[1], color[2]),
             fuzz.unwrap_or(0.0),
         )),
-        MaterialDesc::Dielectric { refraction_index } => {
-            Box::new(Dielectric::new(*refraction_index))
+        MaterialDesc::Dielectric { refraction_index, tint } => {
+            if let Some(t) = tint {
+                Box::new(Dielectric::tinted(*refraction_index, Color::new(t[0], t[1], t[2])))
+            } else {
+                Box::new(Dielectric::new(*refraction_index))
+            }
         }
         MaterialDesc::Emissive { color, intensity } => {
             Box::new(Emissive::new(
