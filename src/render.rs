@@ -92,16 +92,14 @@ pub fn render(
     let height = config.height as usize;
 
     let rows_done = AtomicUsize::new(0);
+    let sqrt_spp = (config.samples_per_pixel as f64).sqrt().ceil() as u32;
+    let actual_spp = sqrt_spp * sqrt_spp;
 
     let rows: Vec<Vec<Color>> = (0..height)
         .into_par_iter()
         .map(|j| {
             let mut rng = SmallRng::seed_from_u64(j as u64 * 31337);
             let y = (height - 1 - j) as f64;
-
-            // Stratified sampling: divide samples into a sqrt_spp x sqrt_spp grid
-            let sqrt_spp = (config.samples_per_pixel as f64).sqrt().ceil() as u32;
-            let actual_spp = sqrt_spp * sqrt_spp;
 
             let row: Vec<Color> = (0..width)
                 .map(|i| {
@@ -130,6 +128,9 @@ pub fn render(
         .collect();
 
     eprintln!();
+
+    let total_rays = width as u64 * height as u64 * actual_spp as u64;
+    eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
 
     // Convert to RGBA bytes with ACES tone mapping + gamma correction.
     let mut pixels = Vec::with_capacity(width * height * 4);
