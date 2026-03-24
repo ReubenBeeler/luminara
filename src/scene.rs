@@ -8,7 +8,7 @@ use crate::material::{Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, Marble, Turbulence};
 use crate::plane::Plane;
 use crate::ray::Ray;
-use crate::render::RenderConfig;
+use crate::render::{Background, RenderConfig};
 use crate::sphere::Sphere;
 use crate::obj;
 use crate::triangle::Triangle;
@@ -36,6 +36,20 @@ pub struct RenderSettings {
     pub height: Option<u32>,
     pub samples: Option<u32>,
     pub max_depth: Option<u32>,
+    pub background: Option<BackgroundDesc>,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+pub enum BackgroundDesc {
+    #[serde(alias = "sky")]
+    Sky,
+    #[serde(alias = "solid")]
+    Solid { color: [f64; 3] },
+    #[serde(alias = "gradient")]
+    Gradient { bottom: [f64; 3], top: [f64; 3] },
+    #[serde(alias = "black")]
+    Black,
 }
 
 #[derive(Deserialize)]
@@ -188,6 +202,19 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         if let Some(d) = r.max_depth {
             render_config.max_depth = d;
         }
+        if let Some(bg) = &r.background {
+            render_config.background = match bg {
+                BackgroundDesc::Sky => Background::SkyGradient,
+                BackgroundDesc::Solid { color } => {
+                    Background::Solid(Color::new(color[0], color[1], color[2]))
+                }
+                BackgroundDesc::Gradient { bottom, top } => Background::Gradient {
+                    bottom: Color::new(bottom[0], bottom[1], bottom[2]),
+                    top: Color::new(top[0], top[1], top[2]),
+                },
+                BackgroundDesc::Black => Background::Solid(Color::ZERO),
+            };
+        }
     }
 
     // Camera
@@ -304,6 +331,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         height: 450,
         samples_per_pixel: 64,
         max_depth: 50,
+        background: Background::default(),
     };
 
     let cam_config = CameraConfig {

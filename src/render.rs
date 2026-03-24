@@ -11,11 +11,46 @@ use crate::material::RngCore;
 use crate::ray::Ray;
 use crate::vec3::Color;
 
+/// Background environment for rays that miss all objects.
+pub enum Background {
+    /// Sky gradient from white (bottom) to blue (top)
+    SkyGradient,
+    /// Solid color background
+    Solid(Color),
+    /// Custom gradient from bottom to top
+    Gradient { bottom: Color, top: Color },
+}
+
+impl Default for Background {
+    fn default() -> Self {
+        Background::SkyGradient
+    }
+}
+
+impl Background {
+    fn color(&self, ray: &Ray) -> Color {
+        match self {
+            Background::SkyGradient => {
+                let unit_dir = ray.direction.unit();
+                let t = 0.5 * (unit_dir.y + 1.0);
+                Color::new(1.0, 1.0, 1.0) * (1.0 - t) + Color::new(0.5, 0.7, 1.0) * t
+            }
+            Background::Solid(c) => *c,
+            Background::Gradient { bottom, top } => {
+                let unit_dir = ray.direction.unit();
+                let t = 0.5 * (unit_dir.y + 1.0);
+                *bottom * (1.0 - t) + *top * t
+            }
+        }
+    }
+}
+
 pub struct RenderConfig {
     pub width: u32,
     pub height: u32,
     pub samples_per_pixel: u32,
     pub max_depth: u32,
+    pub background: Background,
 }
 
 impl Default for RenderConfig {
@@ -25,12 +60,13 @@ impl Default for RenderConfig {
             height: 450,
             samples_per_pixel: 100,
             max_depth: 50,
+            background: Background::default(),
         }
     }
 }
 
 /// Trace a single ray through the scene.
-fn ray_color(ray: &Ray, world: &dyn Hittable, rng: &mut dyn RngCore, depth: u32) -> Color {
+fn ray_color(ray: &Ray, world: &dyn Hittable, bg: &Background, rng: &mut dyn RngCore, depth: u32) -> Color {
     if depth == 0 {
         return Color::ZERO;
     }
@@ -42,15 +78,12 @@ fn ray_color(ray: &Ray, world: &dyn Hittable, rng: &mut dyn RngCore, depth: u32)
             return emitted
                 + scatter
                     .attenuation
-                    .hadamard(ray_color(&scatter.ray, world, rng, depth - 1));
+                    .hadamard(ray_color(&scatter.ray, world, bg, rng, depth - 1));
         }
         return emitted;
     }
 
-    // Sky gradient
-    let unit_dir = ray.direction.unit();
-    let t = 0.5 * (unit_dir.y + 1.0);
-    Color::new(1.0, 1.0, 1.0) * (1.0 - t) + Color::new(0.5, 0.7, 1.0) * t
+    bg.color(ray)
 }
 
 /// Render the scene and return a flat Vec of RGBA bytes.
@@ -77,7 +110,7 @@ pub fn render(
                         let u = (i as f64 + rng.random::<f64>()) / (width - 1) as f64;
                         let v = (y + rng.random::<f64>()) / (height - 1) as f64;
                         let ray = camera.get_ray(u, v, &mut rng);
-                        color += ray_color(&ray, world, &mut rng, config.max_depth);
+                        color += ray_color(&ray, world, &config.background, &mut rng, config.max_depth);
                     }
                     color / config.samples_per_pixel as f64
                 })

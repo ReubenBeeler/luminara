@@ -6,6 +6,7 @@ width = 600
 height = 600
 samples = 256
 max_depth = 50
+background = { type = "black" }
 
 [camera]
 look_from = [278.0, 278.0, -800.0]
