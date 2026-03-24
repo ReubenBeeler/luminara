@@ -1091,6 +1091,36 @@ center = [0.0, 1.0, 0.0]
 radius = 2.0
 density = 0.5
 color = [0.8, 0.8, 0.8]
+
+[[quad]]
+q = [0.0, 0.0, 0.0]
+u = [1.0, 0.0, 0.0]
+v = [0.0, 0.0, 1.0]
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[moving_sphere]]
+center0 = [0.0, 0.0, 0.0]
+center1 = [1.0, 0.0, 0.0]
+radius = 0.5
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[hemisphere]]
+center = [0.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[annulus]]
+center = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+inner_radius = 0.5
+outer_radius = 1.0
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[torus]]
+center = [0.0, 0.0, 0.0]
+major_radius = 1.0
+minor_radius = 0.3
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every geometry type should parse: {:?}", result.err());
