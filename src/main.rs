@@ -119,9 +119,13 @@ fn main() {
         std::process::exit(1);
     }
 
+    let num_threads = rayon::current_num_threads();
+    let total_pixels = render_config.width as u64 * render_config.height as u64;
     eprintln!(
-        "Rendering {}x{} @ {} spp, max depth {}",
-        render_config.width, render_config.height, render_config.samples_per_pixel, render_config.max_depth
+        "Rendering {}x{} ({:.1}MP) @ {} spp, max depth {}, {} threads",
+        render_config.width, render_config.height,
+        total_pixels as f64 / 1_000_000.0,
+        render_config.samples_per_pixel, render_config.max_depth, num_threads
     );
 
     let pixels = render::render(&render_config, &camera, &world);
