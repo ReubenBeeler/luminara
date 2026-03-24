@@ -35,6 +35,7 @@ struct CliArgs {
     max_depth: Option<u32>,
     threads: Option<usize>,
     seed: Option<u64>,
+    quiet: bool,
 }
 
 fn main() {
@@ -71,6 +72,7 @@ fn main() {
     if let Some(s) = cli.seed {
         render_config.seed = s;
     }
+    render_config.quiet = cli.quiet;
     if let Some(t) = cli.threads {
         rayon::ThreadPoolBuilder::new()
             .num_threads(t)
@@ -145,6 +147,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         max_depth: None,
         threads: None,
         seed: None,
+        quiet: false,
     };
     let mut i = 1;
 
@@ -173,6 +176,9 @@ fn parse_args(args: &[String]) -> CliArgs {
                 if i < args.len() {
                     cli.samples = args[i].parse().ok();
                 }
+            }
+            "-q" | "--quiet" => {
+                cli.quiet = true;
             }
             "--seed" => {
                 i += 1;

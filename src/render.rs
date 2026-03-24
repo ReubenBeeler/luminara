@@ -73,6 +73,7 @@ pub struct RenderConfig {
     pub max_depth: u32,
     pub background: Background,
     pub seed: u64,
+    pub quiet: bool,
 }
 
 impl Default for RenderConfig {
@@ -84,6 +85,7 @@ impl Default for RenderConfig {
             max_depth: 50,
             background: Background::default(),
             seed: 31337,
+            quiet: false,
         }
     }
 }
@@ -144,20 +146,23 @@ pub fn render(
                 .collect();
 
             let done = rows_done.fetch_add(1, Ordering::Relaxed) + 1;
-            #[allow(clippy::manual_is_multiple_of)]
-            if done % 20 == 0 || done == height {
-                let pct = done * 100 / height;
-                eprint!("\rProgress: {pct:3}% [{done}/{height} rows]");
+            if !config.quiet {
+                #[allow(clippy::manual_is_multiple_of)]
+                if done % 20 == 0 || done == height {
+                    let pct = done * 100 / height;
+                    eprint!("\rProgress: {pct:3}% [{done}/{height} rows]");
+                }
             }
 
             row
         })
         .collect();
 
-    eprintln!();
-
-    let total_rays = width as u64 * height as u64 * actual_spp as u64;
-    eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
+    if !config.quiet {
+        eprintln!();
+        let total_rays = width as u64 * height as u64 * actual_spp as u64;
+        eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
+    }
 
     // Convert to RGBA bytes with ACES tone mapping + gamma correction.
     let mut pixels = Vec::with_capacity(width * height * 4);
