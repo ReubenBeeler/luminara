@@ -26,14 +26,17 @@ impl Vec3 {
         Self { x, y, z }
     }
 
+    #[inline(always)]
     pub fn length_squared(self) -> f64 {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
+    #[inline(always)]
     pub fn length(self) -> f64 {
         self.length_squared().sqrt()
     }
 
+    #[inline(always)]
     pub fn dot(self, other: Self) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
@@ -46,6 +49,7 @@ impl Vec3 {
         }
     }
 
+    #[inline]
     pub fn unit(self) -> Self {
         let len = self.length();
         debug_assert!(len > 0.0, "Cannot normalize zero-length vector");
@@ -131,6 +135,7 @@ impl Vec3 {
     }
 
     /// Component-wise multiplication (Hadamard product), used for color blending.
+    #[inline(always)]
     pub fn hadamard(self, other: Self) -> Self {
         Self::new(self.x * other.x, self.y * other.y, self.z * other.z)
     }

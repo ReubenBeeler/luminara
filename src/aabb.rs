@@ -14,6 +14,7 @@ impl Aabb {
     }
 
     /// Test whether a ray intersects this AABB using the slab method.
+    #[inline]
     pub fn hit(&self, ray: &Ray, mut t_min: f64, mut t_max: f64) -> bool {
         // X axis
         let inv_d = 1.0 / ray.direction.x;
