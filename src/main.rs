@@ -72,6 +72,16 @@ fn main() {
             .ok();
     }
 
+    // Validate render config
+    if render_config.width == 0 || render_config.height == 0 {
+        eprintln!("Error: width and height must be > 0");
+        std::process::exit(1);
+    }
+    if render_config.samples_per_pixel == 0 {
+        eprintln!("Error: samples must be > 0");
+        std::process::exit(1);
+    }
+
     eprintln!(
         "Rendering {}x{} @ {} spp, max depth {}",
         render_config.width, render_config.height, render_config.samples_per_pixel, render_config.max_depth
