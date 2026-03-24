@@ -3,6 +3,7 @@ use serde::Deserialize;
 use crate::aabb::Aabb;
 use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
+use crate::bump::BumpMap;
 use crate::capsule::Capsule;
 use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
@@ -102,6 +103,8 @@ pub struct SphereDesc {
     pub center: [f64; 3],
     pub radius: f64,
     pub material: MaterialDesc,
+    pub bump_strength: Option<f64>,
+    pub bump_scale: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -417,7 +420,13 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
 
     for s in &scene.sphere {
         let mat = build_material(&s.material);
-        world.add(Box::new(Sphere::new(arr_to_vec3(s.center), s.radius, mat)));
+        let sphere: Box<dyn Hittable> = Box::new(Sphere::new(arr_to_vec3(s.center), s.radius, mat));
+        if let Some(strength) = s.bump_strength {
+            let scale = s.bump_scale.unwrap_or(4.0);
+            world.add(Box::new(BumpMap::new(sphere, strength, scale)));
+        } else {
+            world.add(sphere);
+        }
     }
 
     for p in &scene.plane {
