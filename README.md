@@ -109,17 +109,24 @@ color = [0.8, 0.8, 0.8]
 
 | Type | Parameters |
 |------|-----------|
-| `lambertian` | `color` |
+| `lambertian` / `matte` | `color` |
 | `metal` | `color`, `fuzz` (optional, 0.0-1.0) |
 | `dielectric` | `refraction_index`, `tint` (optional), `roughness` (optional, 0.0-1.0) |
 | `emissive` | `color`, `intensity` (optional, default 1.0) |
+| `mirror` | *(none — perfect reflector)* |
+| `glass` | *(none — standard glass, IOR 1.5)* |
+| `blend` | `material_a`, `material_b`, `ratio` (optional, default 0.5) |
 | `checker` | `color1`, `color2`, `scale` (optional) |
-| `stripe` | `color1`, `color2`, `scale` (optional), `axis` (optional, x/y/z) |
+| `uv_checker` | `color1`, `color2`, `frequency` (optional) |
+| `stripe` | `color1`, `color2`, `scale` (optional), `axis` (optional) |
+| `grid` | `line_color`, `bg_color`, `scale` (optional), `line_width` (optional) |
+| `dots` | `dot_color`, `bg_color`, `scale` (optional), `radius` (optional) |
+| `rings` | `color1`, `color2`, `scale` (optional) |
+| `wood` | `color1`, `color2`, `scale` (optional) |
 | `gradient_tex` | `color1`, `color2`, `axis` (optional), `min`/`max` (optional) |
 | `marble` | `color`, `scale` (optional) |
 | `turbulence` | `color`, `scale` (optional) |
 | `image` | `file` (path to PNG/JPG) |
-| `uv_checker` | `color1`, `color2`, `frequency` (optional) |
 
 ## Architecture
 

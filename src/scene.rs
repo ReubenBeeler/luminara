@@ -226,7 +226,7 @@ pub struct RectYzDesc {
 #[derive(Deserialize)]
 #[serde(tag = "type")]
 pub enum MaterialDesc {
-    #[serde(alias = "lambertian")]
+    #[serde(alias = "lambertian", alias = "matte")]
     Lambertian { color: [f64; 3] },
     #[serde(alias = "metal")]
     Metal { color: [f64; 3], fuzz: Option<f64> },
