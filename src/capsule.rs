@@ -3,7 +3,7 @@ use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::Material;
 use crate::sphere::Sphere;
 use crate::cylinder::Cylinder;
-use crate::vec3::{Point3, Vec3};
+use crate::vec3::Point3;
 
 /// A capsule (rounded cylinder): a cylinder capped with hemispheres.
 /// Implemented as a composite of a cylinder and two spheres.
