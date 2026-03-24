@@ -68,7 +68,7 @@ mod tests {
     use super::*;
     use crate::material::Lambertian;
     use crate::ray::Ray;
-    use crate::vec3::Color;
+    use crate::vec3::{Color, Vec3};
 
     #[test]
     fn test_capsule_hit() {

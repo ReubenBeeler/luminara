@@ -29,6 +29,7 @@ struct CliArgs {
     width: Option<u32>,
     height: Option<u32>,
     samples: Option<u32>,
+    max_depth: Option<u32>,
 }
 
 fn main() {
@@ -58,6 +59,9 @@ fn main() {
     }
     if let Some(s) = cli.samples {
         render_config.samples_per_pixel = s;
+    }
+    if let Some(d) = cli.max_depth {
+        render_config.max_depth = d;
     }
 
     eprintln!(
@@ -91,6 +95,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         width: None,
         height: None,
         samples: None,
+        max_depth: None,
     };
     let mut i = 1;
 
@@ -120,6 +125,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.samples = args[i].parse().ok();
                 }
             }
+            "-d" | "--depth" => {
+                i += 1;
+                if i < args.len() {
+                    cli.max_depth = args[i].parse().ok();
+                }
+            }
             "-h" | "--help" => {
                 eprintln!("Usage: luminara [scene.toml] [options]");
                 eprintln!();
@@ -128,6 +139,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -w, --width       Override render width");
                 eprintln!("      --height      Override render height");
                 eprintln!("  -s, --samples     Override samples per pixel");
+                eprintln!("  -d, --depth       Override max ray bounce depth");
                 eprintln!("  -h, --help        Show this help");
                 std::process::exit(0);
             }
