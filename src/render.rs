@@ -223,3 +223,59 @@ fn linear_to_srgb(x: f64) -> u8 {
     };
     (s.clamp(0.0, 0.999) * 256.0) as u8
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn aces_tonemap_zero() {
+        assert_eq!(aces_tonemap(0.0), 0.0);
+    }
+
+    #[test]
+    fn aces_tonemap_bounded() {
+        for i in 0..100 {
+            let x = i as f64 * 0.5;
+            let y = aces_tonemap(x);
+            assert!(y >= 0.0 && y <= 1.0, "aces_tonemap({x}) = {y} out of [0,1]");
+        }
+    }
+
+    #[test]
+    fn aces_tonemap_monotonic() {
+        let mut prev = 0.0;
+        for i in 1..100 {
+            let x = i as f64 * 0.1;
+            let y = aces_tonemap(x);
+            assert!(y >= prev, "ACES should be monotonically increasing");
+            prev = y;
+        }
+    }
+
+    #[test]
+    fn srgb_black() {
+        assert_eq!(linear_to_srgb(0.0), 0);
+    }
+
+    #[test]
+    fn srgb_white() {
+        assert_eq!(linear_to_srgb(1.0), 255);
+    }
+
+    #[test]
+    fn srgb_monotonic() {
+        let mut prev = 0u8;
+        for i in 1..=100 {
+            let x = i as f64 / 100.0;
+            let y = linear_to_srgb(x);
+            assert!(y >= prev, "sRGB should be monotonically increasing");
+            prev = y;
+        }
+    }
+
+    #[test]
+    fn srgb_clamps_negative() {
+        assert_eq!(linear_to_srgb(-1.0), 0);
+    }
+}
