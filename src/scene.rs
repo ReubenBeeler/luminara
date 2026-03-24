@@ -10,7 +10,7 @@ use crate::cylinder::Cylinder;
 use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Dielectric, Emissive, Lambertian, Metal};
+use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Stripe, Turbulence, UvChecker};
 use crate::plane::Plane;
 use crate::ray::Ray;
@@ -239,6 +239,12 @@ pub enum MaterialDesc {
     #[serde(alias = "image")]
     Image {
         file: String,
+    },
+    #[serde(alias = "blend")]
+    BlendMat {
+        material_a: Box<MaterialDesc>,
+        material_b: Box<MaterialDesc>,
+        ratio: Option<f64>,
     },
     #[serde(alias = "dots")]
     Dots {
@@ -586,6 +592,11 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                     ImageTexture::fallback()
                 });
             Box::new(Lambertian::with_texture(Box::new(tex)))
+        }
+        MaterialDesc::BlendMat { material_a, material_b, ratio } => {
+            let a = build_material(material_a);
+            let b = build_material(material_b);
+            Box::new(Blend::new(a, b, ratio.unwrap_or(0.5)))
         }
         MaterialDesc::Dots { dot_color, bg_color, scale, radius } => {
             Box::new(Lambertian::with_texture(Box::new(Dots::new(

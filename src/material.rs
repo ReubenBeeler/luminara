@@ -180,6 +180,36 @@ impl Material for Emissive {
     }
 }
 
+// --- Blend (mix two materials) ---
+
+/// Randomly chooses between two materials per interaction.
+pub struct Blend {
+    pub mat_a: Box<dyn Material>,
+    pub mat_b: Box<dyn Material>,
+    pub ratio: f64, // Probability of choosing mat_a (0.0 to 1.0)
+}
+
+impl Blend {
+    pub fn new(mat_a: Box<dyn Material>, mat_b: Box<dyn Material>, ratio: f64) -> Self {
+        Self { mat_a, mat_b, ratio: ratio.clamp(0.0, 1.0) }
+    }
+}
+
+impl Material for Blend {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        if rng.next_f64() < self.ratio {
+            self.mat_a.scatter(ray, hit, rng)
+        } else {
+            self.mat_b.scatter(ray, hit, rng)
+        }
+    }
+
+    fn emitted(&self) -> Color {
+        // Blend emissions by ratio
+        self.mat_a.emitted() * self.ratio + self.mat_b.emitted() * (1.0 - self.ratio)
+    }
+}
+
 /// Adapter to use our `RngCore` trait with functions expecting `impl Rng`.
 struct RngAdapter<'a>(&'a mut dyn RngCore);
 
