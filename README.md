@@ -6,15 +6,16 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
-- **Geometry**: Spheres, ellipsoids, tori, infinite planes, disks, triangles, cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with tint and roughness), emissive (lights), blend (mix two materials)
+- **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
+- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with Beer's Law absorption, tint, and roughness), emissive (lights), blend (mix two materials)
 - **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
-- **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator, Mrays/s stats
+- **Motion blur**: Moving spheres with per-ray time sampling
+- **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
-- **Backgrounds**: Sky gradient, sun+sky with directional sun disk, solid color, custom gradient, or black
-- **Transforms**: Translate, rotate (Y-axis), uniform scale
+- **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, or black
+- **Transforms**: Translate, rotate (X/Y/Z-axis), uniform scale
 - **Output**: PNG images, PPM format, or stdout piping (`-o -`)
 - **Scenes**: Declarative TOML format, plus a built-in demo scene
 
@@ -41,10 +42,16 @@ cargo run --release -- --help
 
 | Flag | Description |
 |------|-------------|
-| `-o`, `--output` | Output file path (default: output.png) |
+| `-o`, `--output` | Output file path (default: output.png, `-` for stdout PPM) |
 | `-w`, `--width` | Override render width |
-| `--height` | Override render height |
+| `-H`, `--height` | Override render height |
 | `-s`, `--samples` | Override samples per pixel |
+| `-d`, `--depth` | Override max ray bounce depth |
+| `-t`, `--threads` | Number of render threads (default: all cores) |
+| `--seed` | Set RNG seed for deterministic rendering |
+| `-q`, `--quiet` | Suppress progress output |
+| `--info` | Show scene info without rendering |
+| `-V`, `--version` | Show version |
 | `-h`, `--help` | Show help |
 
 ## Scene format
@@ -133,23 +140,24 @@ color = [0.8, 0.8, 0.8]
 | Module | Purpose |
 |--------|---------|
 | `vec3` | 3D vector math, colors, points |
-| `ray` | Ray definition (origin + direction) |
+| `ray` | Ray definition (origin + direction + time) |
 | `aabb` | Axis-aligned bounding boxes |
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
 | `material` | Material trait + Lambertian, Metal, Dielectric, Emissive, Blend |
 | `texture` | Texture trait + 12 procedural/image textures |
-| `sphere` | Sphere intersection with UV mapping |
+| `sphere` | Sphere and MovingSphere with UV mapping |
 | `ellipsoid` | Ellipsoid with 3-axis radii |
 | `torus` | Torus via SDF ray marching |
-| `plane` | Infinite plane intersection |
+| `plane` | Infinite plane with UV projection |
+| `quad` | Parallelogram (arbitrary quad) primitive |
 | `disk` | Finite circular plane |
 | `triangle` | Triangle intersection (Möller-Trumbore) |
 | `cylinder` | Finite Y-axis cylinder |
 | `cone` | Finite Y-axis cone |
 | `capsule` | Rounded cylinder (cylinder + hemispheres) |
 | `rect` | Axis-aligned rectangles (XY, XZ, YZ) and box builder |
-| `transform` | Translate, RotateY, Scale wrappers |
+| `transform` | Translate, RotateX/Y/Z, Scale wrappers |
 | `bump` | Perlin noise bump mapping |
 | `constant_medium` | Volumetric fog/smoke with isotropic scattering |
 | `obj` | OBJ file loading with fan triangulation |
@@ -162,7 +170,7 @@ color = [0.8, 0.8, 0.8]
 - **Pure Rust, minimal dependencies**: Only `rand`, `rayon`, `image`, `toml`, and `serde`. No graphics API, no GPU — just math and parallelism.
 - **Trait-based extensibility**: `Hittable`, `Material`, and `Texture` traits make adding new geometry, materials, and textures straightforward.
 - **BVH acceleration**: Bounded objects are organized in a bounding volume hierarchy for logarithmic ray intersection. Unbounded objects (infinite planes) are tested separately.
-- **Physically-based**: Schlick's approximation for Fresnel, proper refraction via Snell's law, Lambertian scattering, emissive light transport.
+- **Physically-based**: Schlick's approximation for Fresnel, Beer's Law volumetric absorption, proper refraction via Snell's law, Lambertian scattering, emissive light transport.
 - **HDR pipeline**: ACES filmic tone mapping prevents harsh clamping of bright emissive surfaces. Stratified (jittered) sampling reduces noise.
 - **Deterministic per-row seeding**: Each row gets its own RNG seeded by row index, making renders reproducible regardless of thread scheduling.
 - **Input validation**: Guards against zero-length normals, zero-scale textures, and missing image files to prevent NaN propagation.
@@ -174,6 +182,8 @@ color = [0.8, 0.8, 0.8]
 - **gallery.toml**: Feature showcase with all geometry types, textures, fog, tinted glass, and multiple lights
 - **outdoor.toml**: Sunlit outdoor scene with frosted glass, UV globe, cylinder, and cone
 - **everything.toml**: Comprehensive demo of every geometry, material, texture, and effect
+- **sunset.toml**: Sunset background preset scene
+- **motion.toml**: Motion blur demo with moving spheres and quad geometry
 
 ## What's next
 
@@ -181,7 +191,7 @@ color = [0.8, 0.8, 0.8]
 - Constructive solid geometry (CSG)
 - Importance sampling for faster convergence
 - HDR environment maps
-- Motion blur
+- Texture support on more geometry types
 
 ---
 
