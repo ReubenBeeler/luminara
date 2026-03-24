@@ -113,10 +113,6 @@ impl Dielectric {
         }
     }
 
-    pub const fn tinted(refraction_index: f64, tint: Color) -> Self {
-        Self { refraction_index, tint, roughness: 0.0 }
-    }
-
     pub const fn rough(refraction_index: f64, tint: Color, roughness: f64) -> Self {
         Self { refraction_index, tint, roughness }
     }
@@ -151,7 +147,7 @@ impl Material for Dielectric {
         // Apply roughness (frosted glass effect)
         if self.roughness > 0.0 {
             let mut rng_adapter = RngAdapter(rng);
-            direction = direction + Vec3::random_in_unit_sphere(&mut rng_adapter) * self.roughness;
+            direction += Vec3::random_in_unit_sphere(&mut rng_adapter) * self.roughness;
         }
 
         Some(Scatter {
