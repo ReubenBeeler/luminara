@@ -397,6 +397,22 @@ mod tests {
     }
 
     #[test]
+    fn schlick_reflectance_at_normal() {
+        // At normal incidence, reflectance = ((1-n)/(1+n))^2
+        let r = Dielectric::reflectance(1.0, 1.0 / 1.5);
+        let ratio = 1.0_f64 / 1.5;
+        let expected = ((1.0 - ratio) / (1.0 + ratio)).powi(2);
+        assert!((r - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn schlick_reflectance_at_grazing() {
+        // At grazing angle (cosine near 0), reflectance approaches 1
+        let r = Dielectric::reflectance(0.01, 1.0 / 1.5);
+        assert!(r > 0.9, "Grazing angle should have high reflectance, got {r}");
+    }
+
+    #[test]
     fn blend_chooses_between_materials() {
         let mat = Blend::new(
             Box::new(Lambertian::new(Color::new(1.0, 0.0, 0.0))),
