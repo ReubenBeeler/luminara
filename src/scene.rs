@@ -1219,6 +1219,11 @@ material = { type = "rings", color1 = [0.6, 0.3, 0.1], color2 = [0.3, 0.15, 0.05
 center = [24.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "wood", color1 = [0.6, 0.3, 0.1], color2 = [0.3, 0.15, 0.05] }
+
+[[sphere]]
+center = [26.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "voronoi", color1 = [0.8, 0.4, 0.1], color2 = [0.2, 0.1, 0.05] }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
