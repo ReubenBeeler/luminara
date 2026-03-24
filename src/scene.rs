@@ -10,6 +10,7 @@ use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::render::RenderConfig;
 use crate::sphere::Sphere;
+use crate::obj;
 use crate::triangle::Triangle;
 use crate::vec3::{Color, Point3, Vec3};
 
@@ -25,6 +26,8 @@ pub struct SceneFile {
     pub plane: Vec<PlaneDesc>,
     #[serde(default)]
     pub triangle: Vec<TriangleDesc>,
+    #[serde(default)]
+    pub mesh: Vec<MeshDesc>,
 }
 
 #[derive(Deserialize)]
@@ -65,6 +68,14 @@ pub struct TriangleDesc {
     pub v1: [f64; 3],
     pub v2: [f64; 3],
     pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct MeshDesc {
+    pub file: String,
+    pub material: MaterialDesc,
+    pub scale: Option<f64>,
+    pub offset: Option<[f64; 3]>,
 }
 
 #[derive(Deserialize)]
@@ -219,6 +230,18 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(t.v2),
             mat,
         )));
+    }
+
+    for m in &scene.mesh {
+        let mat = build_material(&m.material);
+        let scale = m.scale.unwrap_or(1.0);
+        let offset = m.offset.map(arr_to_vec3).unwrap_or(Vec3::ZERO);
+        let content = std::fs::read_to_string(&m.file)
+            .map_err(|e| format!("Failed to read mesh '{}': {e}", m.file))?;
+        let mesh_list = obj::load_obj(&content, mat, scale, offset)?;
+        for obj in mesh_list.objects {
+            world.add(obj);
+        }
     }
 
     Ok((render_config, camera, SceneWorld::from_list(world)))

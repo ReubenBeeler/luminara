@@ -3,6 +3,7 @@ mod bvh;
 mod camera;
 mod hit;
 mod material;
+mod obj;
 mod plane;
 mod ray;
 mod render;
