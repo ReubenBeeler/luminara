@@ -271,4 +271,36 @@ mod tests {
         assert!((h.y - 0.12).abs() < 1e-10);
         assert!((h.z - 0.06).abs() < 1e-10);
     }
+
+    #[test]
+    fn test_refract() {
+        // Normal incidence through glass (eta=1/1.5)
+        let v = Vec3::new(0.0, -1.0, 0.0).unit();
+        let n = Vec3::new(0.0, 1.0, 0.0);
+        let r = v.refract(n, 1.0 / 1.5);
+        // At normal incidence, direction should be same (just slowed)
+        assert!((r.x).abs() < 1e-6);
+        assert!(r.y < 0.0); // still going down
+    }
+
+    #[test]
+    fn test_near_zero() {
+        assert!(Vec3::new(1e-9, 1e-9, 1e-9).near_zero());
+        assert!(!Vec3::new(0.1, 0.0, 0.0).near_zero());
+    }
+
+    #[test]
+    fn test_sub_assign() {
+        let mut v = Vec3::new(3.0, 4.0, 5.0);
+        v -= Vec3::new(1.0, 1.0, 1.0);
+        assert_eq!(v, Vec3::new(2.0, 3.0, 4.0));
+    }
+
+    #[test]
+    fn test_min_max() {
+        let a = Vec3::new(1.0, 5.0, 3.0);
+        let b = Vec3::new(4.0, 2.0, 6.0);
+        assert_eq!(a.min(b), Vec3::new(1.0, 2.0, 3.0));
+        assert_eq!(a.max(b), Vec3::new(4.0, 5.0, 6.0));
+    }
 }
