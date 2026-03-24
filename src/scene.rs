@@ -3,6 +3,7 @@ use serde::Deserialize;
 use crate::aabb::Aabb;
 use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
+use crate::capsule::Capsule;
 use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
@@ -34,6 +35,8 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    pub capsule: Vec<CapsuleDesc>,
     #[serde(default)]
     pub ellipsoid: Vec<EllipsoidDesc>,
     #[serde(default)]
@@ -129,6 +132,14 @@ pub struct DiskDesc {
     pub center: [f64; 3],
     pub normal: [f64; 3],
     pub radius: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct CapsuleDesc {
+    pub center: [f64; 3],
+    pub radius: f64,
+    pub height: f64,
     pub material: MaterialDesc,
 }
 
@@ -395,6 +406,16 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(p.point),
             arr_to_vec3(p.normal),
             mat,
+        )));
+    }
+
+    for c in &scene.capsule {
+        let center = arr_to_vec3(c.center);
+        world.add(Box::new(Capsule::new(
+            center,
+            c.radius,
+            c.height,
+            || build_material(&c.material),
         )));
     }
 
