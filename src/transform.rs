@@ -105,6 +105,34 @@ impl Hittable for RotateY {
     }
 }
 
+/// Uniformly scales an object around the origin.
+pub struct Scale {
+    inner: Box<dyn Hittable>,
+    factor: f64,
+    inv_factor: f64,
+}
+
+impl Scale {
+    pub fn new(inner: Box<dyn Hittable>, factor: f64) -> Self {
+        let factor = if factor.abs() < 1e-10 { 1.0 } else { factor };
+        Self { inner, factor, inv_factor: 1.0 / factor }
+    }
+}
+
+impl Hittable for Scale {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
+        let scaled_ray = Ray::new(ray.origin * self.inv_factor, ray.direction * self.inv_factor);
+        let mut hit = self.inner.hit(&scaled_ray, t_min, t_max)?;
+        hit.point = hit.point * self.factor;
+        hit.t *= self.factor;
+        Some(hit)
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        self.inner.bounding_box().map(|bb| Aabb::new(bb.min * self.factor, bb.max * self.factor))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
