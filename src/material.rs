@@ -101,6 +101,7 @@ impl Material for Metal {
 pub struct Dielectric {
     pub refraction_index: f64,
     pub tint: Color,
+    pub roughness: f64,
 }
 
 impl Dielectric {
@@ -108,11 +109,16 @@ impl Dielectric {
         Self {
             refraction_index,
             tint: Color::new(1.0, 1.0, 1.0),
+            roughness: 0.0,
         }
     }
 
     pub const fn tinted(refraction_index: f64, tint: Color) -> Self {
-        Self { refraction_index, tint }
+        Self { refraction_index, tint, roughness: 0.0 }
+    }
+
+    pub const fn rough(refraction_index: f64, tint: Color, roughness: f64) -> Self {
+        Self { refraction_index, tint, roughness }
     }
 
     /// Schlick's approximation for reflectance.
@@ -135,12 +141,18 @@ impl Material for Dielectric {
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
         let cannot_refract = eta_ratio * sin_theta > 1.0;
-        let direction =
+        let mut direction =
             if cannot_refract || Self::reflectance(cos_theta, eta_ratio) > rng.next_f64() {
                 unit_direction.reflect(hit.normal)
             } else {
                 unit_direction.refract(hit.normal, eta_ratio)
             };
+
+        // Apply roughness (frosted glass effect)
+        if self.roughness > 0.0 {
+            let mut rng_adapter = RngAdapter(rng);
+            direction = direction + Vec3::random_in_unit_sphere(&mut rng_adapter) * self.roughness;
+        }
 
         Some(Scatter {
             ray: Ray::new(hit.point, direction),
