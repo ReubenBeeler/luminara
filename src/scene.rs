@@ -188,11 +188,9 @@ impl Hittable for SceneWorld {
         let mut closest = t_max;
         let mut best_hit = None;
 
-        if let Some(ref bvh) = self.bvh {
-            if let Some(hit) = bvh.hit(ray, t_min, closest) {
-                closest = hit.t;
-                best_hit = Some(hit);
-            }
+        if let Some(hit) = self.bvh.as_ref().and_then(|bvh| bvh.hit(ray, t_min, closest)) {
+            closest = hit.t;
+            best_hit = Some(hit);
         }
 
         for obj in &self.unbounded {
@@ -249,8 +247,10 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     }
 
     // Camera
-    let mut cam_config = CameraConfig::default();
-    cam_config.aspect_ratio = render_config.width as f64 / render_config.height as f64;
+    let mut cam_config = CameraConfig {
+        aspect_ratio: render_config.width as f64 / render_config.height as f64,
+        ..CameraConfig::default()
+    };
     if let Some(c) = &scene.camera {
         if let Some(lf) = c.look_from {
             cam_config.look_from = arr_to_vec3(lf);

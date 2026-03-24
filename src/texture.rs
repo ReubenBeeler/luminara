@@ -59,7 +59,6 @@ pub struct Perlin {
 
 impl Perlin {
     pub fn new() -> Self {
-        use rand::Rng;
         let mut rng = rand::rng();
 
         let mut ranvec = [Vec3::ZERO; 256];
@@ -118,14 +117,14 @@ impl Perlin {
         let ww = w * w * (3.0 - 2.0 * w);
 
         let mut accum = 0.0;
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
+        for (i, ci) in c.iter().enumerate() {
+            for (j, cij) in ci.iter().enumerate() {
+                for (k, cijk) in cij.iter().enumerate() {
                     let weight = Vec3::new(u - i as f64, v - j as f64, w - k as f64);
                     accum += (i as f64 * uu + (1 - i) as f64 * (1.0 - uu))
                         * (j as f64 * vv + (1 - j) as f64 * (1.0 - vv))
                         * (k as f64 * ww + (1 - k) as f64 * (1.0 - ww))
-                        * c[i][j][k].dot(weight);
+                        * cijk.dot(weight);
                 }
             }
         }
@@ -141,7 +140,7 @@ impl Perlin {
         for _ in 0..depth {
             accum += weight * self.noise(&temp_p);
             weight *= 0.5;
-            temp_p = temp_p * 2.0;
+            temp_p *= 2.0;
         }
 
         accum.abs()

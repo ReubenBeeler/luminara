@@ -12,19 +12,15 @@ use crate::ray::Ray;
 use crate::vec3::Color;
 
 /// Background environment for rays that miss all objects.
+#[derive(Default)]
 pub enum Background {
     /// Sky gradient from white (bottom) to blue (top)
+    #[default]
     SkyGradient,
     /// Solid color background
     Solid(Color),
     /// Custom gradient from bottom to top
     Gradient { bottom: Color, top: Color },
-}
-
-impl Default for Background {
-    fn default() -> Self {
-        Background::SkyGradient
-    }
 }
 
 impl Background {
@@ -123,6 +119,7 @@ pub fn render(
                 .collect();
 
             let done = rows_done.fetch_add(1, Ordering::Relaxed) + 1;
+            #[allow(clippy::manual_is_multiple_of)]
             if done % 20 == 0 || done == height {
                 let pct = done * 100 / height;
                 eprint!("\rProgress: {pct:3}% [{done}/{height} rows]");
