@@ -83,6 +83,7 @@ pub struct RenderSettings {
     pub samples: Option<u32>,
     pub max_depth: Option<u32>,
     pub seed: Option<u64>,
+    pub exposure: Option<f64>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -477,6 +478,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(s) = r.seed {
             render_config.seed = s;
+        }
+        if let Some(e) = r.exposure {
+            render_config.exposure = e;
         }
         if let Some(bg) = &r.background {
             render_config.background = match bg {
@@ -898,6 +902,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         background: Background::default(),
         seed: 31337,
         quiet: false,
+        exposure: 1.0,
     };
 
     let cam_config = CameraConfig {

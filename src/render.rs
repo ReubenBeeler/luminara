@@ -105,6 +105,7 @@ pub struct RenderConfig {
     pub background: Background,
     pub seed: u64,
     pub quiet: bool,
+    pub exposure: f64,
 }
 
 impl Default for RenderConfig {
@@ -117,6 +118,7 @@ impl Default for RenderConfig {
             background: Background::default(),
             seed: 31337,
             quiet: false,
+            exposure: 1.0,
         }
     }
 }
@@ -217,13 +219,14 @@ pub fn render(
         eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
     }
 
-    // Convert to RGBA bytes with ACES tone mapping + gamma correction.
+    // Convert to RGBA bytes with exposure, ACES tone mapping + gamma correction.
+    let exposure = config.exposure;
     let mut pixels = Vec::with_capacity(width * height * 4);
     for row in &rows {
         for color in row {
-            let r = linear_to_srgb(aces_tonemap(color.x));
-            let g = linear_to_srgb(aces_tonemap(color.y));
-            let b = linear_to_srgb(aces_tonemap(color.z));
+            let r = linear_to_srgb(aces_tonemap(color.x * exposure));
+            let g = linear_to_srgb(aces_tonemap(color.y * exposure));
+            let b = linear_to_srgb(aces_tonemap(color.z * exposure));
             pixels.extend_from_slice(&[r, g, b, 255]);
         }
     }
