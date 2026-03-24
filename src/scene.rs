@@ -854,4 +854,139 @@ color = [1.0, 0.0, 0.0]
         let result = load_scene(toml);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn every_geometry_type_parses() {
+        let toml = r#"
+[[sphere]]
+center = [0.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[plane]]
+point = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[triangle]]
+v0 = [0.0, 0.0, 0.0]
+v1 = [1.0, 0.0, 0.0]
+v2 = [0.0, 1.0, 0.0]
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[cylinder]]
+center = [0.0, 0.0, 0.0]
+radius = 0.5
+height = 1.0
+material = { type = "metal", color = [0.5, 0.5, 0.5] }
+
+[[cone]]
+center = [0.0, 0.0, 0.0]
+radius = 0.5
+height = 1.0
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[disk]]
+center = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+radius = 1.0
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[capsule]]
+center = [0.0, 0.0, 0.0]
+radius = 0.3
+height = 1.0
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[ellipsoid]]
+center = [0.0, 0.0, 0.0]
+radii = [1.0, 0.5, 0.7]
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[box]]
+min = [0.0, 0.0, 0.0]
+max = [1.0, 1.0, 1.0]
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[fog]]
+center = [0.0, 1.0, 0.0]
+radius = 2.0
+density = 0.5
+color = [0.8, 0.8, 0.8]
+"#;
+        let result = load_scene(toml);
+        assert!(result.is_ok(), "Every geometry type should parse: {:?}", result.err());
+    }
+
+    #[test]
+    fn every_material_type_parses() {
+        let toml = r#"
+[[sphere]]
+center = [0.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
+
+[[sphere]]
+center = [2.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "metal", color = [0.5, 0.5, 0.5], fuzz = 0.1 }
+
+[[sphere]]
+center = [4.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "dielectric", refraction_index = 1.5, tint = [0.9, 0.9, 1.0], roughness = 0.1 }
+
+[[sphere]]
+center = [6.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "emissive", color = [1.0, 1.0, 1.0], intensity = 5.0 }
+
+[[sphere]]
+center = [8.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "checker", color1 = [0.9, 0.9, 0.9], color2 = [0.1, 0.1, 0.1] }
+
+[[sphere]]
+center = [10.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "stripe", color1 = [1.0, 0.0, 0.0], color2 = [0.0, 0.0, 1.0] }
+
+[[sphere]]
+center = [12.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "marble", color = [0.9, 0.9, 0.9] }
+
+[[sphere]]
+center = [14.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "turbulence", color = [0.7, 0.5, 0.3] }
+
+[[sphere]]
+center = [16.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "dots", dot_color = [1.0, 0.0, 0.0], bg_color = [1.0, 1.0, 1.0] }
+
+[[sphere]]
+center = [18.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "grid", line_color = [0.0, 0.0, 0.0], bg_color = [1.0, 1.0, 1.0] }
+
+[[sphere]]
+center = [20.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "uv_checker", color1 = [0.0, 0.0, 1.0], color2 = [1.0, 1.0, 0.0] }
+
+[[sphere]]
+center = [22.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "rings", color1 = [0.6, 0.3, 0.1], color2 = [0.3, 0.15, 0.05] }
+
+[[sphere]]
+center = [24.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "wood", color1 = [0.6, 0.3, 0.1], color2 = [0.3, 0.15, 0.05] }
+"#;
+        let result = load_scene(toml);
+        assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
+    }
 }
