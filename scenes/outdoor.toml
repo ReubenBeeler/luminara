@@ -1,0 +1,59 @@
+# Outdoor scene with sun lighting
+
+[render]
+width = 960
+height = 540
+samples = 128
+max_depth = 50
+background = { type = "sun", direction = [1.0, 0.5, -0.3], intensity = 25.0 }
+
+[camera]
+look_from = [4.0, 2.0, 6.0]
+look_at = [0.0, 0.5, 0.0]
+vfov = 35.0
+aperture = 0.06
+focus_dist = 8.0
+
+# Grass-like ground
+[[plane]]
+point = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+material = { type = "checker", color1 = [0.3, 0.5, 0.2], color2 = [0.2, 0.4, 0.15], scale = 0.5 }
+
+# Chrome sphere
+[[sphere]]
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+material = { type = "metal", color = [0.95, 0.95, 0.95], fuzz = 0.0 }
+
+# Frosted glass sphere
+[[sphere]]
+center = [-2.0, 0.7, 1.0]
+radius = 0.7
+material = { type = "dielectric", refraction_index = 1.5, roughness = 0.15 }
+
+# Terracotta sphere
+[[sphere]]
+center = [2.0, 0.6, 0.5]
+radius = 0.6
+material = { type = "lambertian", color = [0.75, 0.35, 0.2] }
+
+# UV checker sphere (globe pattern)
+[[sphere]]
+center = [-0.5, 0.4, 2.5]
+radius = 0.4
+material = { type = "uv_checker", color1 = [0.9, 0.9, 0.1], color2 = [0.1, 0.1, 0.8], frequency = 12.0 }
+
+# Metal pillar
+[[cylinder]]
+center = [3.0, 0.0, -1.0]
+radius = 0.15
+height = 2.0
+material = { type = "metal", color = [0.7, 0.7, 0.7], fuzz = 0.1 }
+
+# Stone cone
+[[cone]]
+center = [-3.0, 0.0, -0.5]
+radius = 0.5
+height = 1.2
+material = { type = "turbulence", color = [0.6, 0.6, 0.55], scale = 8.0 }
