@@ -3,6 +3,7 @@ use serde::Deserialize;
 use crate::aabb::Aabb;
 use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
+use crate::cylinder::Cylinder;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
 use crate::texture::{Checker, ImageTexture, Marble, Turbulence};
@@ -29,6 +30,8 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    pub cylinder: Vec<CylinderDesc>,
     #[serde(default)]
     #[serde(rename = "box")]
     pub aabb_box: Vec<BoxDesc>,
@@ -100,6 +103,14 @@ pub struct MeshDesc {
     pub material: MaterialDesc,
     pub scale: Option<f64>,
     pub offset: Option<[f64; 3]>,
+}
+
+#[derive(Deserialize)]
+pub struct CylinderDesc {
+    pub center: [f64; 3],
+    pub radius: f64,
+    pub height: f64,
+    pub material: MaterialDesc,
 }
 
 #[derive(Deserialize)]
@@ -300,6 +311,18 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         world.add(Box::new(Plane::new(
             arr_to_vec3(p.point),
             arr_to_vec3(p.normal),
+            mat,
+        )));
+    }
+
+    for c in &scene.cylinder {
+        let mat = build_material(&c.material);
+        let center = arr_to_vec3(c.center);
+        world.add(Box::new(Cylinder::new(
+            center,
+            c.radius,
+            center.y,
+            center.y + c.height,
             mat,
         )));
     }
