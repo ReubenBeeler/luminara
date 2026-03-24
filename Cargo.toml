@@ -1,0 +1,16 @@
+[package]
+name = "luminara"
+version = "0.1.0"
+edition = "2024"
+description = "A physically-based ray tracer"
+
+[dependencies]
+rand = "0.9"
+rayon = "1.10"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+image = "0.25"
+
+[profile.release]
+opt-level = 3
+lto = true

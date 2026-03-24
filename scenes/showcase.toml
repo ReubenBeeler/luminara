@@ -1,0 +1,50 @@
+# Luminara showcase scene — glass, metal, and matte spheres on a ground plane.
+
+[render]
+width = 800
+height = 450
+samples = 64
+max_depth = 50
+
+[camera]
+look_from = [3.0, 2.0, 6.0]
+look_at = [0.0, 0.5, 0.0]
+vfov = 30.0
+aperture = 0.05
+focus_dist = 7.0
+
+# Ground
+[[plane]]
+point = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+material = { type = "lambertian", color = [0.8, 0.8, 0.8] }
+
+# Glass sphere
+[[sphere]]
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+material = { type = "dielectric", refraction_index = 1.5 }
+
+# Metal sphere
+[[sphere]]
+center = [2.5, 0.7, -1.0]
+radius = 0.7
+material = { type = "metal", color = [0.8, 0.7, 0.6], fuzz = 0.0 }
+
+# Matte red sphere
+[[sphere]]
+center = [-2.0, 0.8, -0.5]
+radius = 0.8
+material = { type = "lambertian", color = [0.7, 0.15, 0.15] }
+
+# Small blue sphere
+[[sphere]]
+center = [1.0, 0.35, 1.5]
+radius = 0.35
+material = { type = "lambertian", color = [0.15, 0.2, 0.7] }
+
+# Small gold sphere
+[[sphere]]
+center = [-0.8, 0.3, 1.8]
+radius = 0.3
+material = { type = "metal", color = [0.9, 0.75, 0.2], fuzz = 0.15 }

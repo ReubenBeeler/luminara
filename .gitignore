@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+vendor/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+out/
+target/
+*.o
+*.so
+*.dylib
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# Logs
+*.log
+logs/
+
+# Rendered images
+*.png
+*.ppm
+
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+htmlcov/
+
+# Package manager locks (Claude Code will manage these)
+# Uncomment if needed:
+# package-lock.json
+# yarn.lock
+# bun.lockb
+
+
+# Added by cargo
+
+/target
