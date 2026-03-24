@@ -6,6 +6,7 @@ mod camera;
 mod capsule;
 mod cone;
 mod constant_medium;
+mod csg;
 mod cylinder;
 mod disk;
 mod ellipsoid;

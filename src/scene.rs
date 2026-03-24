@@ -74,6 +74,8 @@ pub struct SceneFile {
     pub rect_xz: Vec<RectXzDesc>,
     #[serde(default)]
     pub rect_yz: Vec<RectYzDesc>,
+    #[serde(default)]
+    pub csg: Vec<CsgDesc>,
 }
 
 #[derive(Deserialize)]
@@ -290,6 +292,22 @@ pub struct RectYzDesc {
     pub y: [f64; 2],
     pub z: [f64; 2],
     pub k: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct CsgDesc {
+    pub operation: String,
+    pub a: CsgChild,
+    pub b: CsgChild,
+}
+
+#[derive(Deserialize)]
+pub struct CsgChild {
+    pub shape: String,
+    pub center: [f64; 3],
+    pub radius: Option<f64>,
+    pub size: Option<[f64; 3]>,
     pub material: MaterialDesc,
 }
 
@@ -784,7 +802,52 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         world.add(Box::new(YzRect::new(r.y[0], r.y[1], r.z[0], r.z[1], r.k, mat)));
     }
 
+    for c in &scene.csg {
+        let a = build_csg_child(&c.a);
+        let b = build_csg_child(&c.b);
+        let csg = match c.operation.as_str() {
+            "union" => crate::csg::Csg::union(a, b),
+            "intersection" | "intersect" => crate::csg::Csg::intersection(a, b),
+            "difference" | "subtract" => crate::csg::Csg::difference(a, b),
+            other => {
+                eprintln!("Warning: unknown CSG operation '{other}', using union");
+                crate::csg::Csg::union(a, b)
+            }
+        };
+        world.add(Box::new(csg));
+    }
+
     Ok((render_config, camera, SceneWorld::from_list(world, lights)))
+}
+
+fn build_csg_child(child: &CsgChild) -> Box<dyn Hittable> {
+    let mat = build_material(&child.material);
+    let center = arr_to_vec3(child.center);
+    match child.shape.as_str() {
+        "sphere" => {
+            let radius = child.radius.unwrap_or(1.0);
+            Box::new(Sphere::new(center, radius, mat))
+        }
+        "box" => {
+            let size = child.size.map(arr_to_vec3).unwrap_or(Vec3::new(1.0, 1.0, 1.0));
+            let half = size * 0.5;
+            let sides = make_box(center - half, center + half, || build_material(&child.material));
+            let mut list = HittableList::new();
+            for side in sides {
+                list.add(side);
+            }
+            Box::new(list)
+        }
+        "cylinder" => {
+            let radius = child.radius.unwrap_or(1.0);
+            let height = child.size.map(|s| s[1]).unwrap_or(2.0);
+            Box::new(Cylinder::new(center, radius, center.y - height / 2.0, center.y + height / 2.0, mat))
+        }
+        other => {
+            eprintln!("Warning: unknown CSG shape '{other}', using unit sphere");
+            Box::new(Sphere::new(center, 1.0, mat))
+        }
+    }
 }
 
 fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {

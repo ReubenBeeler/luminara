@@ -61,6 +61,14 @@ impl Aabb {
         2.0 * (d.x * d.y + d.y * d.z + d.z * d.x)
     }
 
+    /// Return the bounding box of the intersection of two boxes.
+    pub fn intersection(a: &Aabb, b: &Aabb) -> Aabb {
+        Aabb {
+            min: a.min.max(b.min),
+            max: a.max.min(b.max),
+        }
+    }
+
     /// Return the bounding box that encloses both boxes.
     pub fn surrounding(a: &Aabb, b: &Aabb) -> Aabb {
         Aabb {
