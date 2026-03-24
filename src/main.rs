@@ -20,14 +20,21 @@ mod vec3;
 use std::path::PathBuf;
 use std::time::Instant;
 
+struct CliArgs {
+    scene: Option<String>,
+    output: Option<PathBuf>,
+    width: Option<u32>,
+    height: Option<u32>,
+    samples: Option<u32>,
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-
-    let (scene_name, output_path) = parse_args(&args);
+    let cli = parse_args(&args);
 
     let start = Instant::now();
 
-    let (render_config, camera, world) = match &scene_name {
+    let (mut render_config, camera, world) = match &cli.scene {
         Some(path) => {
             let content = std::fs::read_to_string(path)
                 .unwrap_or_else(|e| panic!("Failed to read scene file '{}': {}", path, e));
@@ -38,6 +45,17 @@ fn main() {
             scene::demo_scene()
         }
     };
+
+    // CLI overrides
+    if let Some(w) = cli.width {
+        render_config.width = w;
+    }
+    if let Some(h) = cli.height {
+        render_config.height = h;
+    }
+    if let Some(s) = cli.samples {
+        render_config.samples_per_pixel = s;
+    }
 
     eprintln!(
         "Rendering {}x{} @ {} spp, max depth {}",
@@ -50,7 +68,7 @@ fn main() {
     eprintln!("Rendered in {:.2}s", elapsed.as_secs_f64());
 
     // Save as PNG
-    let out = output_path.unwrap_or_else(|| PathBuf::from("output.png"));
+    let out = cli.output.unwrap_or_else(|| PathBuf::from("output.png"));
     image::save_buffer(
         &out,
         &pixels,
@@ -63,9 +81,14 @@ fn main() {
     eprintln!("Saved to {}", out.display());
 }
 
-fn parse_args(args: &[String]) -> (Option<String>, Option<PathBuf>) {
-    let mut scene = None;
-    let mut output = None;
+fn parse_args(args: &[String]) -> CliArgs {
+    let mut cli = CliArgs {
+        scene: None,
+        output: None,
+        width: None,
+        height: None,
+        samples: None,
+    };
     let mut i = 1;
 
     while i < args.len() {
@@ -73,22 +96,44 @@ fn parse_args(args: &[String]) -> (Option<String>, Option<PathBuf>) {
             "-o" | "--output" => {
                 i += 1;
                 if i < args.len() {
-                    output = Some(PathBuf::from(&args[i]));
+                    cli.output = Some(PathBuf::from(&args[i]));
+                }
+            }
+            "-w" | "--width" => {
+                i += 1;
+                if i < args.len() {
+                    cli.width = args[i].parse().ok();
+                }
+            }
+            "--height" => {
+                i += 1;
+                if i < args.len() {
+                    cli.height = args[i].parse().ok();
+                }
+            }
+            "-s" | "--samples" => {
+                i += 1;
+                if i < args.len() {
+                    cli.samples = args[i].parse().ok();
                 }
             }
             "-h" | "--help" => {
-                eprintln!("Usage: luminara [scene.toml] [-o output.png]");
+                eprintln!("Usage: luminara [scene.toml] [options]");
                 eprintln!();
-                eprintln!("  scene.toml    Scene description file (optional, uses demo scene if omitted)");
-                eprintln!("  -o, --output  Output file path (default: output.png)");
+                eprintln!("  scene.toml        Scene description file (optional, uses demo scene if omitted)");
+                eprintln!("  -o, --output      Output file path (default: output.png)");
+                eprintln!("  -w, --width       Override render width");
+                eprintln!("      --height      Override render height");
+                eprintln!("  -s, --samples     Override samples per pixel");
+                eprintln!("  -h, --help        Show this help");
                 std::process::exit(0);
             }
             other => {
-                scene = Some(other.to_string());
+                cli.scene = Some(other.to_string());
             }
         }
         i += 1;
     }
 
-    (scene, output)
+    cli
 }
