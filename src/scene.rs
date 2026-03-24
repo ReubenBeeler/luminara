@@ -3,6 +3,7 @@ use serde::Deserialize;
 use crate::aabb::Aabb;
 use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
+use crate::cone::Cone;
 use crate::cylinder::Cylinder;
 use crate::disk::Disk;
 use crate::hit::{HitRecord, Hittable, HittableList};
@@ -31,6 +32,8 @@ pub struct SceneFile {
     pub triangle: Vec<TriangleDesc>,
     #[serde(default)]
     pub mesh: Vec<MeshDesc>,
+    #[serde(default)]
+    pub cone: Vec<ConeDesc>,
     #[serde(default)]
     pub cylinder: Vec<CylinderDesc>,
     #[serde(default)]
@@ -113,6 +116,14 @@ pub struct DiskDesc {
     pub center: [f64; 3],
     pub normal: [f64; 3],
     pub radius: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct ConeDesc {
+    pub center: [f64; 3],
+    pub radius: f64,
+    pub height: f64,
     pub material: MaterialDesc,
 }
 
@@ -332,6 +343,18 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         world.add(Box::new(Plane::new(
             arr_to_vec3(p.point),
             arr_to_vec3(p.normal),
+            mat,
+        )));
+    }
+
+    for c in &scene.cone {
+        let mat = build_material(&c.material);
+        let center = arr_to_vec3(c.center);
+        world.add(Box::new(Cone::new(
+            center,
+            c.radius,
+            center.y,
+            center.y + c.height,
             mat,
         )));
     }

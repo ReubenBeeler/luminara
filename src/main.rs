@@ -1,6 +1,7 @@
 mod aabb;
 mod bvh;
 mod camera;
+mod cone;
 mod cylinder;
 mod disk;
 mod hit;
