@@ -146,7 +146,15 @@ pub fn render(
                             let u = (i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (width - 1) as f64;
                             let v = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (height - 1) as f64;
                             let ray = camera.get_ray(u, v, &mut rng);
-                            color += ray_color(&ray, world, &config.background, &mut rng, config.max_depth);
+                            let sample = ray_color(&ray, world, &config.background, &mut rng, config.max_depth);
+                            // Clamp per-sample luminance to prevent firefly artifacts
+                            let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
+                            if luminance > 100.0 {
+                                let scale = 100.0 / luminance;
+                                color += sample * scale;
+                            } else {
+                                color += sample;
+                            }
                         }
                     }
                     color / actual_spp as f64
