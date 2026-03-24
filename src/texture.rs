@@ -111,6 +111,41 @@ impl Texture for GradientTexture {
     }
 }
 
+/// 3D polka-dot pattern.
+pub struct Dots {
+    pub dot_color: Color,
+    pub bg_color: Color,
+    pub scale: f64,
+    pub radius: f64,
+}
+
+impl Dots {
+    pub fn new(dot_color: Color, bg_color: Color, scale: f64, radius: f64) -> Self {
+        Self {
+            dot_color,
+            bg_color,
+            scale: if scale.abs() < 1e-10 { 1.0 } else { scale },
+            radius: radius.clamp(0.01, 0.49),
+        }
+    }
+}
+
+impl Texture for Dots {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let inv = 1.0 / self.scale;
+        let fx = (point.x * inv).fract().abs() - 0.5;
+        let fy = (point.y * inv).fract().abs() - 0.5;
+        let fz = (point.z * inv).fract().abs() - 0.5;
+
+        let dist_sq = fx * fx + fy * fy + fz * fz;
+        if dist_sq < self.radius * self.radius {
+            self.dot_color
+        } else {
+            self.bg_color
+        }
+    }
+}
+
 /// 3D grid pattern with thin lines.
 pub struct Grid {
     pub line_color: Color,
