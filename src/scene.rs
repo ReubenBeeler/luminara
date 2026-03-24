@@ -14,7 +14,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Wood};
+use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -350,6 +350,12 @@ pub enum MaterialDesc {
         color2: [f64; 3],
         scale: Option<f64>,
         axis: Option<String>,
+    },
+    #[serde(alias = "voronoi")]
+    Voronoi {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
     },
 }
 
@@ -811,13 +817,20 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
             let axis_idx = match axis.as_deref() {
                 Some("x" | "X") => 0,
                 Some("y" | "Y") => 1,
-                _ => 2, // Default to Z for unknown axes
+                _ => 2,
             };
             Box::new(Lambertian::with_texture(Box::new(Stripe::new(
                 Color::new(color1[0], color1[1], color1[2]),
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
                 axis_idx,
+            ))))
+        }
+        MaterialDesc::Voronoi { color1, color2, scale } => {
+            Box::new(Lambertian::with_texture(Box::new(Voronoi::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                scale.unwrap_or(1.0),
             ))))
         }
     }

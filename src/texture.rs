@@ -450,6 +450,60 @@ impl Texture for ImageTexture {
     }
 }
 
+/// Voronoi (cell) texture pattern — creates organic cell-like patterns.
+pub struct Voronoi {
+    pub color1: Color,
+    pub color2: Color,
+    pub scale: f64,
+}
+
+impl Voronoi {
+    pub fn new(color1: Color, color2: Color, scale: f64) -> Self {
+        Self { color1, color2, scale: if scale.abs() < 1e-10 { 1.0 } else { scale } }
+    }
+
+    /// Hash a 3D integer coordinate to a pseudo-random point offset.
+    fn hash_point(ix: i64, iy: i64, iz: i64) -> Vec3 {
+        // Simple hash using large primes
+        let n = ix.wrapping_mul(73856093) ^ iy.wrapping_mul(19349663) ^ iz.wrapping_mul(83492791);
+        let fx = ((n & 0xFF) as f64) / 255.0;
+        let fy = (((n >> 8) & 0xFF) as f64) / 255.0;
+        let fz = (((n >> 16) & 0xFF) as f64) / 255.0;
+        Vec3::new(fx, fy, fz)
+    }
+}
+
+impl Texture for Voronoi {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point / self.scale;
+        let ix = p.x.floor() as i64;
+        let iy = p.y.floor() as i64;
+        let iz = p.z.floor() as i64;
+
+        let mut min_dist = f64::INFINITY;
+
+        // Check surrounding 27 cells
+        for di in -1..=1 {
+            for dj in -1..=1 {
+                for dk in -1..=1 {
+                    let ci = ix + di;
+                    let cj = iy + dj;
+                    let ck = iz + dk;
+                    let offset = Self::hash_point(ci, cj, ck);
+                    let cell_point = Vec3::new(ci as f64 + offset.x, cj as f64 + offset.y, ck as f64 + offset.z);
+                    let dist = (p - cell_point).length_squared();
+                    if dist < min_dist {
+                        min_dist = dist;
+                    }
+                }
+            }
+        }
+
+        let t = min_dist.sqrt().min(1.0);
+        self.color1 * (1.0 - t) + self.color2 * t
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -477,6 +531,17 @@ mod tests {
             let p = Point3::new(i as f64 * 0.1, i as f64 * 0.2, i as f64 * 0.3);
             let n = perlin.noise(&p);
             assert!((-1.0..=1.0).contains(&n), "Perlin noise out of range: {n}");
+        }
+    }
+
+    #[test]
+    fn test_voronoi_in_range() {
+        let tex = Voronoi::new(Color::new(1.0, 0.0, 0.0), Color::new(0.0, 0.0, 1.0), 1.0);
+        for i in 0..20 {
+            let p = Point3::new(i as f64 * 0.37, i as f64 * 0.53, i as f64 * 0.17);
+            let c = tex.value(0.0, 0.0, &p);
+            assert!(c.x >= 0.0 && c.x <= 1.0, "r={} out of range", c.x);
+            assert!(c.z >= 0.0 && c.z <= 1.0, "b={} out of range", c.z);
         }
     }
 
