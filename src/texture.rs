@@ -49,6 +49,35 @@ impl Texture for Checker {
     }
 }
 
+/// Stripe pattern along a specified axis.
+pub struct Stripe {
+    pub color1: Color,
+    pub color2: Color,
+    pub scale: f64,
+    pub axis: usize, // 0=X, 1=Y, 2=Z
+}
+
+impl Stripe {
+    pub fn new(color1: Color, color2: Color, scale: f64, axis: usize) -> Self {
+        Self { color1, color2, scale, axis: axis.min(2) }
+    }
+}
+
+impl Texture for Stripe {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let val = match self.axis {
+            0 => point.x,
+            1 => point.y,
+            _ => point.z,
+        };
+        if ((val / self.scale).floor() as i64) % 2 == 0 {
+            self.color1
+        } else {
+            self.color2
+        }
+    }
+}
+
 /// Perlin noise generator.
 pub struct Perlin {
     ranvec: [Vec3; 256],

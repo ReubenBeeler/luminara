@@ -7,7 +7,7 @@ use crate::cylinder::Cylinder;
 use crate::disk::Disk;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
-use crate::texture::{Checker, ImageTexture, Marble, Turbulence};
+use crate::texture::{Checker, ImageTexture, Marble, Stripe, Turbulence};
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::rect::{XyRect, XzRect, YzRect, make_box};
@@ -185,6 +185,13 @@ pub enum MaterialDesc {
     #[serde(alias = "image")]
     Image {
         file: String,
+    },
+    #[serde(alias = "stripe")]
+    Stripe {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
+        axis: Option<String>,
     },
 }
 
@@ -440,6 +447,20 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
             let tex = ImageTexture::load(file)
                 .unwrap_or_else(|e| panic!("Failed to load image texture: {e}"));
             Box::new(Lambertian::with_texture(Box::new(tex)))
+        }
+        MaterialDesc::Stripe { color1, color2, scale, axis } => {
+            let axis_idx = match axis.as_deref() {
+                Some("x" | "X") => 0,
+                Some("y" | "Y") => 1,
+                Some("z" | "Z") | None => 2,
+                Some(other) => panic!("Unknown axis '{other}', use x/y/z"),
+            };
+            Box::new(Lambertian::with_texture(Box::new(Stripe::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                scale.unwrap_or(1.0),
+                axis_idx,
+            ))))
         }
     }
 }
