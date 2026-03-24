@@ -57,6 +57,8 @@ impl Hittable for Triangle {
             point,
             outward_normal,
             t,
+            u,
+            v,
             self.material.as_ref(),
         ))
     }

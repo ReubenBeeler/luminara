@@ -13,11 +13,11 @@ vfov = 30.0
 aperture = 0.05
 focus_dist = 7.0
 
-# Ground
+# Checkerboard ground
 [[plane]]
 point = [0.0, 0.0, 0.0]
 normal = [0.0, 1.0, 0.0]
-material = { type = "lambertian", color = [0.8, 0.8, 0.8] }
+material = { type = "checker", color1 = [0.9, 0.9, 0.9], color2 = [0.2, 0.2, 0.2], scale = 1.0 }
 
 # Glass sphere
 [[sphere]]

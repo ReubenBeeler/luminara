@@ -2,6 +2,7 @@ use rand::Rng;
 
 use crate::hit::HitRecord;
 use crate::ray::Ray;
+use crate::texture::{SolidColor, Texture};
 use crate::vec3::{Color, Vec3};
 
 /// Result of scattering a ray off a material.
@@ -34,12 +35,18 @@ impl<R: Rng> RngCore for R {
 // --- Lambertian (diffuse) ---
 
 pub struct Lambertian {
-    pub albedo: Color,
+    pub texture: Box<dyn Texture>,
 }
 
 impl Lambertian {
-    pub const fn new(albedo: Color) -> Self {
-        Self { albedo }
+    pub fn new(albedo: Color) -> Self {
+        Self {
+            texture: Box::new(SolidColor::new(albedo)),
+        }
+    }
+
+    pub fn with_texture(texture: Box<dyn Texture>) -> Self {
+        Self { texture }
     }
 }
 
@@ -52,7 +59,7 @@ impl Material for Lambertian {
         }
         Some(Scatter {
             ray: Ray::new(hit.point, scatter_dir),
-            attenuation: self.albedo,
+            attenuation: self.texture.value(hit.u, hit.v, &hit.point),
         })
     }
 }

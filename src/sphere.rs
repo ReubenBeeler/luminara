@@ -45,11 +45,18 @@ impl Hittable for Sphere {
 
         let point = ray.at(root);
         let outward_normal = (point - self.center) / self.radius;
+        // Spherical UV mapping
+        let theta = (-outward_normal.y).acos();
+        let phi = (-outward_normal.z).atan2(outward_normal.x) + std::f64::consts::PI;
+        let u = phi / (2.0 * std::f64::consts::PI);
+        let v = theta / std::f64::consts::PI;
         Some(HitRecord::new(
             ray,
             point,
             outward_normal,
             root,
+            u,
+            v,
             self.material.as_ref(),
         ))
     }

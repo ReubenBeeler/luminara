@@ -5,6 +5,7 @@ use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Dielectric, Emissive, Lambertian, Metal};
+use crate::texture::Checker;
 use crate::plane::Plane;
 use crate::ray::Ray;
 use crate::render::RenderConfig;
@@ -77,6 +78,12 @@ pub enum MaterialDesc {
     Dielectric { refraction_index: f64 },
     #[serde(alias = "emissive")]
     Emissive { color: [f64; 3], intensity: Option<f64> },
+    #[serde(alias = "checker")]
+    Checker {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
+    },
 }
 
 /// A scene world that uses BVH for bounded objects and linear scan for unbounded ones.
@@ -234,6 +241,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color[0], color[1], color[2]),
                 intensity.unwrap_or(1.0),
             ))
+        }
+        MaterialDesc::Checker { color1, color2, scale } => {
+            Box::new(Lambertian::with_texture(Box::new(Checker::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                scale.unwrap_or(1.0),
+            ))))
         }
     }
 }

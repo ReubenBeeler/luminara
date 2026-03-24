@@ -41,6 +41,8 @@ impl Hittable for Plane {
             point,
             self.normal,
             t,
+            0.0,
+            0.0,
             self.material.as_ref(),
         ))
     }
