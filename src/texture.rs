@@ -424,7 +424,7 @@ mod tests {
         for i in 0..100 {
             let p = Point3::new(i as f64 * 0.1, i as f64 * 0.2, i as f64 * 0.3);
             let n = perlin.noise(&p);
-            assert!(n >= -1.0 && n <= 1.0, "Perlin noise out of range: {n}");
+            assert!((-1.0..=1.0).contains(&n), "Perlin noise out of range: {n}");
         }
     }
 

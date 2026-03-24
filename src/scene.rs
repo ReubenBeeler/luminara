@@ -640,6 +640,84 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
     }
 }
 
+/// Build the classic "random spheres" demo scene.
+pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
+    let render_config = RenderConfig {
+        width: 800,
+        height: 450,
+        samples_per_pixel: 64,
+        max_depth: 50,
+        background: Background::default(),
+    };
+
+    let cam_config = CameraConfig {
+        look_from: Point3::new(13.0, 2.0, 3.0),
+        look_at: Point3::new(0.0, 0.0, 0.0),
+        vup: Vec3::new(0.0, 1.0, 0.0),
+        vfov_degrees: 20.0,
+        aspect_ratio: render_config.width as f64 / render_config.height as f64,
+        aperture: 0.1,
+        focus_dist: 10.0,
+    };
+    let camera = Camera::new(cam_config);
+
+    let mut world = HittableList::new();
+
+    // Ground
+    world.add(Box::new(Sphere::new(
+        Point3::new(0.0, -1000.0, 0.0),
+        1000.0,
+        Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+    )));
+
+    // Three showcase spheres
+    world.add(Box::new(Sphere::new(
+        Point3::new(0.0, 1.0, 0.0),
+        1.0,
+        Box::new(Dielectric::new(1.5)),
+    )));
+    world.add(Box::new(Sphere::new(
+        Point3::new(-4.0, 1.0, 0.0),
+        1.0,
+        Box::new(Lambertian::new(Color::new(0.4, 0.2, 0.1))),
+    )));
+    world.add(Box::new(Sphere::new(
+        Point3::new(4.0, 1.0, 0.0),
+        1.0,
+        Box::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0)),
+    )));
+
+    // Small random spheres
+    let mut rng = rand::rng();
+    use rand::Rng;
+    for a in -5..5 {
+        for b in -5..5 {
+            let choose_mat: f64 = rng.random();
+            let center = Point3::new(
+                a as f64 + 0.9 * rng.random::<f64>(),
+                0.2,
+                b as f64 + 0.9 * rng.random::<f64>(),
+            );
+
+            if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
+                let material: Box<dyn crate::material::Material> = if choose_mat < 0.8 {
+                    let albedo = Color::random(&mut rng).hadamard(Color::random(&mut rng));
+                    Box::new(Lambertian::new(albedo))
+                } else if choose_mat < 0.95 {
+                    let albedo = Color::random_range(&mut rng, 0.5, 1.0);
+                    let fuzz = rng.random::<f64>() * 0.5;
+                    Box::new(Metal::new(albedo, fuzz))
+                } else {
+                    Box::new(Dielectric::new(1.5))
+                };
+                world.add(Box::new(Sphere::new(center, 0.2, material)));
+            }
+        }
+    }
+
+    (render_config, camera, SceneWorld::from_list(world))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -725,82 +803,4 @@ color = [1.0, 0.0, 0.0]
         let result = load_scene(toml);
         assert!(result.is_err());
     }
-}
-
-/// Build the classic "random spheres" demo scene.
-pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
-    let render_config = RenderConfig {
-        width: 800,
-        height: 450,
-        samples_per_pixel: 64,
-        max_depth: 50,
-        background: Background::default(),
-    };
-
-    let cam_config = CameraConfig {
-        look_from: Point3::new(13.0, 2.0, 3.0),
-        look_at: Point3::new(0.0, 0.0, 0.0),
-        vup: Vec3::new(0.0, 1.0, 0.0),
-        vfov_degrees: 20.0,
-        aspect_ratio: render_config.width as f64 / render_config.height as f64,
-        aperture: 0.1,
-        focus_dist: 10.0,
-    };
-    let camera = Camera::new(cam_config);
-
-    let mut world = HittableList::new();
-
-    // Ground
-    world.add(Box::new(Sphere::new(
-        Point3::new(0.0, -1000.0, 0.0),
-        1000.0,
-        Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
-    )));
-
-    // Three showcase spheres
-    world.add(Box::new(Sphere::new(
-        Point3::new(0.0, 1.0, 0.0),
-        1.0,
-        Box::new(Dielectric::new(1.5)),
-    )));
-    world.add(Box::new(Sphere::new(
-        Point3::new(-4.0, 1.0, 0.0),
-        1.0,
-        Box::new(Lambertian::new(Color::new(0.4, 0.2, 0.1))),
-    )));
-    world.add(Box::new(Sphere::new(
-        Point3::new(4.0, 1.0, 0.0),
-        1.0,
-        Box::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0)),
-    )));
-
-    // Small random spheres
-    let mut rng = rand::rng();
-    use rand::Rng;
-    for a in -5..5 {
-        for b in -5..5 {
-            let choose_mat: f64 = rng.random();
-            let center = Point3::new(
-                a as f64 + 0.9 * rng.random::<f64>(),
-                0.2,
-                b as f64 + 0.9 * rng.random::<f64>(),
-            );
-
-            if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
-                let material: Box<dyn crate::material::Material> = if choose_mat < 0.8 {
-                    let albedo = Color::random(&mut rng).hadamard(Color::random(&mut rng));
-                    Box::new(Lambertian::new(albedo))
-                } else if choose_mat < 0.95 {
-                    let albedo = Color::random_range(&mut rng, 0.5, 1.0);
-                    let fuzz = rng.random::<f64>() * 0.5;
-                    Box::new(Metal::new(albedo, fuzz))
-                } else {
-                    Box::new(Dielectric::new(1.5))
-                };
-                world.add(Box::new(Sphere::new(center, 0.2, material)));
-            }
-        }
-    }
-
-    (render_config, camera, SceneWorld::from_list(world))
 }
