@@ -6,9 +6,10 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
-- **Geometry**: Spheres, infinite planes, triangles, cylinders, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic (with configurable fuzz), dielectric (glass), and emissive (light sources)
-- **Textures**: Solid color, 3D checkerboard, Perlin marble, turbulence, and image textures (PNG/JPG)
+- **Geometry**: Spheres, infinite planes, triangles, cylinders, cones, disks, axis-aligned rectangles, boxes, and OBJ triangle meshes
+- **Materials**: Lambertian (diffuse), metallic (with configurable fuzz), dielectric (glass with optional tint), emissive (light sources)
+- **Textures**: Solid color, 3D checkerboard, stripes, gradient, Perlin marble, turbulence, and image textures (PNG/JPG)
+- **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator
 - **Acceleration**: BVH (bounding volume hierarchy) for O(log n) ray intersection
@@ -25,12 +26,25 @@ cargo run --release
 # Render a custom scene
 cargo run --release -- scenes/showcase.toml -o my_render.png
 
+# Override resolution and samples from CLI
+cargo run --release -- scenes/gallery.toml -w 1920 --height 1080 -s 256
+
 # Render the Cornell Box
 cargo run --release -- scenes/cornell.toml -o cornell.png
 
-# See options
+# See all options
 cargo run --release -- --help
 ```
+
+### CLI options
+
+| Flag | Description |
+|------|-------------|
+| `-o`, `--output` | Output file path (default: output.png) |
+| `-w`, `--width` | Override render width |
+| `--height` | Override render height |
+| `-s`, `--samples` | Override samples per pixel |
+| `-h`, `--help` | Show help |
 
 ## Scene format
 
@@ -42,6 +56,7 @@ width = 800
 height = 450
 samples = 64
 max_depth = 50
+background = { type = "sky" }
 
 [camera]
 look_from = [3.0, 2.0, 6.0]
@@ -53,38 +68,56 @@ focus_dist = 7.0
 [[sphere]]
 center = [0.0, 1.0, 0.0]
 radius = 1.0
-material = { type = "dielectric", refraction_index = 1.5 }
+material = { type = "dielectric", refraction_index = 1.5, tint = [0.9, 1.0, 0.9] }
 
-[[sphere]]
-center = [2.5, 0.7, -1.0]
-radius = 0.7
-material = { type = "metal", color = [0.8, 0.7, 0.6], fuzz = 0.0 }
+[[cylinder]]
+center = [2.0, 0.0, 0.0]
+radius = 0.3
+height = 2.0
+material = { type = "metal", color = [0.8, 0.8, 0.8], fuzz = 0.1 }
+
+[[cone]]
+center = [-2.0, 0.0, 0.0]
+radius = 0.5
+height = 1.5
+material = { type = "lambertian", color = [0.7, 0.2, 0.2] }
 
 [[plane]]
 point = [0.0, 0.0, 0.0]
 normal = [0.0, 1.0, 0.0]
 material = { type = "checker", color1 = [0.9, 0.9, 0.9], color2 = [0.2, 0.2, 0.2], scale = 1.0 }
 
-# Emissive light
 [[sphere]]
 center = [0.0, 5.0, 0.0]
 radius = 1.0
 material = { type = "emissive", color = [1.0, 1.0, 1.0], intensity = 10.0 }
 
-# Triangle
-[[triangle]]
-v0 = [0.0, 0.0, 0.0]
-v1 = [1.0, 0.0, 0.0]
-v2 = [0.0, 1.0, 0.0]
-material = { type = "lambertian", color = [0.8, 0.2, 0.2] }
+[[box]]
+min = [1.0, 0.0, -2.0]
+max = [2.0, 1.0, -1.0]
+material = { type = "marble", color = [0.9, 0.9, 0.9], scale = 4.0 }
 
-# OBJ mesh
-[[mesh]]
-file = "models/bunny.obj"
-material = { type = "metal", color = [0.9, 0.9, 0.9], fuzz = 0.1 }
-scale = 10.0
-offset = [0.0, 0.0, 0.0]
+[[fog]]
+center = [0.0, 1.0, 0.0]
+radius = 3.0
+density = 0.2
+color = [0.8, 0.8, 0.8]
 ```
+
+### Material types
+
+| Type | Parameters |
+|------|-----------|
+| `lambertian` | `color` |
+| `metal` | `color`, `fuzz` (optional, 0.0-1.0) |
+| `dielectric` | `refraction_index`, `tint` (optional) |
+| `emissive` | `color`, `intensity` (optional, default 1.0) |
+| `checker` | `color1`, `color2`, `scale` (optional) |
+| `stripe` | `color1`, `color2`, `scale` (optional), `axis` (optional, x/y/z) |
+| `gradient_tex` | `color1`, `color2`, `axis` (optional), `min`/`max` (optional) |
+| `marble` | `color`, `scale` (optional) |
+| `turbulence` | `color`, `scale` (optional) |
+| `image` | `file` (path to PNG/JPG) |
 
 ## Architecture
 
@@ -96,12 +129,15 @@ offset = [0.0, 0.0, 0.0]
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
 | `material` | Material trait + Lambertian, Metal, Dielectric, Emissive |
-| `texture` | Texture trait + SolidColor, Checker, Marble, Turbulence, Image |
+| `texture` | Texture trait + SolidColor, Checker, Stripe, Gradient, Marble, Turbulence, Image |
 | `sphere` | Sphere intersection with UV mapping |
 | `plane` | Infinite plane intersection |
+| `disk` | Finite circular plane |
 | `triangle` | Triangle intersection (Möller-Trumbore) |
-| `cylinder` | Finite Y-axis cylinder intersection |
+| `cylinder` | Finite Y-axis cylinder |
+| `cone` | Finite Y-axis cone |
 | `rect` | Axis-aligned rectangles (XY, XZ, YZ) and box builder |
+| `constant_medium` | Volumetric fog/smoke with isotropic scattering |
 | `obj` | OBJ file loading with fan triangulation |
 | `camera` | Perspective camera with depth of field |
 | `render` | Stratified sampling, ACES tone mapping, progress |
@@ -115,12 +151,13 @@ offset = [0.0, 0.0, 0.0]
 - **Physically-based**: Schlick's approximation for Fresnel, proper refraction via Snell's law, Lambertian scattering, emissive light transport.
 - **HDR pipeline**: ACES filmic tone mapping prevents harsh clamping of bright emissive surfaces. Stratified (jittered) sampling reduces noise.
 - **Deterministic per-row seeding**: Each row gets its own RNG seeded by row index, making renders reproducible regardless of thread scheduling.
+- **Input validation**: Guards against zero-length normals, zero-scale textures, and missing image files to prevent NaN propagation.
 
 ## Included scenes
 
-- **showcase.toml**: Glass, metal, marble, and matte spheres on a checkerboard ground with a glowing light
+- **showcase.toml**: Glass, metal, marble, and matte spheres on a checkerboard ground with emissive light
 - **cornell.toml**: Classic Cornell Box with colored walls, area light, and two boxes
-- **gallery.toml**: Feature showcase with all geometry types, textures, and multiple light sources
+- **gallery.toml**: Feature showcase with all geometry types, textures, tinted glass, and multiple lights
 
 ## What's next
 
@@ -128,7 +165,7 @@ offset = [0.0, 0.0, 0.0]
 - Constructive solid geometry (CSG)
 - Importance sampling for faster convergence
 - HDR environment maps
-- Depth of field bokeh shapes
+- Motion blur
 
 ---
 
