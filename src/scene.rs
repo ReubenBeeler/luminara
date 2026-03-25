@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Toon, Translucent, Velvet};
-use crate::texture::{Checker, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
+use crate::texture::{Checker, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -478,6 +478,12 @@ pub enum MaterialDesc {
     },
     #[serde(alias = "voronoi")]
     Voronoi {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
+    },
+    #[serde(alias = "noise")]
+    Noise {
         color1: [f64; 3],
         color2: [f64; 3],
         scale: Option<f64>,
@@ -1242,6 +1248,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color1[0], color1[1], color1[2]),
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
+            ))))
+        }
+        MaterialDesc::Noise { color1, color2, scale } => {
+            Box::new(Lambertian::with_texture(Box::new(Noise::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                scale.unwrap_or(4.0),
             ))))
         }
         MaterialDesc::Spiral { color1, color2, scale, arms } => {

@@ -404,6 +404,33 @@ impl Texture for Turbulence {
     }
 }
 
+/// Raw Perlin noise texture — interpolates between two colors based on noise value.
+pub struct Noise {
+    perlin: Perlin,
+    scale: f64,
+    color1: Color,
+    color2: Color,
+}
+
+impl Noise {
+    pub fn new(color1: Color, color2: Color, scale: f64) -> Self {
+        Self {
+            perlin: Perlin::new(),
+            scale: if scale.abs() < 1e-10 { 1.0 } else { scale },
+            color1,
+            color2,
+        }
+    }
+}
+
+impl Texture for Noise {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        // Map noise from [-1,1] to [0,1] for blending
+        let t = (self.perlin.noise(&(*point * self.scale)) * 0.5 + 0.5).clamp(0.0, 1.0);
+        self.color1 * (1.0 - t) + self.color2 * t
+    }
+}
+
 /// Image texture — loads a PNG/JPG and maps via UV coordinates.
 pub struct ImageTexture {
     pixels: Vec<u8>,
