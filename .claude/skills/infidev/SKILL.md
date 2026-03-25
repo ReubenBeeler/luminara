@@ -31,10 +31,11 @@ Each iteration:
    - Add or improve tests
    - Refactor for clarity
    - Security audit
-2. **Do the work** — Use subagents for research/exploration. Edit files directly. Build and test.
-3. **Verify** — Build must pass. Tests must pass. If not, fix before moving on.
-4. **Commit** — Every iteration that changes code gets its own atomic commit.
-5. **Loop** — Go to step 1. Do NOT stop. Do NOT ask the user what to do next. Just keep going.
+2. **Print the iteration number and brief task description** — let the user see what's next
+3. **Do the work** — Use subagents for research/exploration. Edit files directly. Build and test.
+4. **Verify** — Build must pass. Tests must pass. If not, fix before moving on.
+5. **Commit** — Every iteration that changes code gets its own atomic commit.
+6. **Loop** — Go to step 1. Do NOT stop. Do NOT ask the user what to do next. Just keep going.
 
 ## Rules
 
