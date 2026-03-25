@@ -93,6 +93,7 @@ struct CliArgs {
     sketch: bool,
     median: Option<u32>,
     crosshatch: Option<u32>,
+    glitch: Option<f64>,
 }
 
 fn main() {
@@ -276,6 +277,9 @@ fn main() {
     if let Some(ch) = cli.crosshatch {
         render_config.crosshatch = ch;
     }
+    if let Some(gl) = cli.glitch {
+        render_config.glitch = gl;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -378,6 +382,7 @@ fn main() {
         if render_config.sketch { pp.push("sketch".to_string()); }
         if render_config.median > 0 { pp.push(format!("median({})", render_config.median)); }
         if render_config.crosshatch > 0 { pp.push(format!("crosshatch({})", render_config.crosshatch)); }
+        if render_config.glitch > 0.0 { pp.push(format!("glitch({:.1})", render_config.glitch)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -715,6 +720,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         sketch: false,
         median: None,
         crosshatch: None,
+        glitch: None,
     };
     let mut i = 1;
 
@@ -990,6 +996,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.crosshatch = args[i].parse().ok();
                 }
             }
+            "--glitch" => {
+                i += 1;
+                if i < args.len() {
+                    cli.glitch = args[i].parse().ok();
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1077,6 +1089,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --sketch      Pencil sketch effect (grayscale + edge detection)");
                 eprintln!("      --median N    Median filter radius for noise removal (e.g. 1)");
                 eprintln!("      --crosshatch N Pen-and-ink crosshatch spacing (e.g. 4)");
+                eprintln!("      --glitch N    Digital glitch effect intensity (e.g. 0.5)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

@@ -1827,6 +1827,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         sketch: false,
         median: 0,
         crosshatch: 0,
+        glitch: 0.0,
     };
 
     let cam_config = CameraConfig {

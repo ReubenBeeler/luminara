@@ -334,6 +334,8 @@ pub struct RenderConfig {
     pub median: u32,
     /// Crosshatch spacing (0 = off). Simulates pen-and-ink cross-hatching.
     pub crosshatch: u32,
+    /// Glitch effect intensity (0.0 = off). Simulates digital data corruption.
+    pub glitch: f64,
 }
 
 impl Default for RenderConfig {
@@ -392,6 +394,7 @@ impl Default for RenderConfig {
             sketch: false,
             median: 0,
             crosshatch: 0,
+            glitch: 0.0,
         }
     }
 }
@@ -1617,6 +1620,63 @@ pub fn render(
             eprintln!(" done");
         }
         embossed
+    } else {
+        rows
+    };
+
+    // Optional glitch effect pass
+    let rows = if config.glitch > 0.0 {
+        if !config.quiet {
+            eprint!("Applying glitch...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let intensity = config.glitch;
+
+        let mut result = rows;
+        // Use seed for deterministic glitch pattern
+        let mut hash = config.seed;
+
+        // Create horizontal strip shifts
+        let num_strips = (height as f64 * intensity * 0.15).max(1.0) as usize;
+        for _ in 0..num_strips {
+            hash = hash.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let strip_y = (hash as usize) % height;
+            hash = hash.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let strip_h = ((hash as usize) % 8).max(1).min(height - strip_y);
+            hash = hash.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let shift = ((hash as i64 % (width as i64 / 4)) - (width as i64 / 8)) as i32;
+
+            for row in result.iter_mut().skip(strip_y).take(strip_h.min(height - strip_y)) {
+                let orig = row.clone();
+                for (x, pixel) in row.iter_mut().enumerate() {
+                    let src_x = (x as i32 + shift).rem_euclid(width as i32) as usize;
+                    *pixel = orig[src_x];
+                }
+            }
+        }
+
+        // Channel offset for some strips
+        let num_channel_shifts = (height as f64 * intensity * 0.05).max(1.0) as usize;
+        for _ in 0..num_channel_shifts {
+            hash = hash.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let y = (hash as usize) % height;
+            hash = hash.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let offset = ((hash as usize) % 10) + 2;
+
+            let red_shifted: Vec<f64> = (0..width).map(|x| {
+                let rx = (x + offset).min(width - 1);
+                result[y][rx].x
+            }).collect();
+            for (x, pixel) in result[y].iter_mut().enumerate() {
+                pixel.x = red_shifted[x];
+            }
+        }
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };
