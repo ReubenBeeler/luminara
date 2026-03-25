@@ -1214,4 +1214,34 @@ mod tests {
         let light = Emissive::new(Color::new(1.0, 1.0, 1.0), 1.0);
         assert!(!light.is_specular(), "Emissive should not be specular");
     }
+
+    #[test]
+    fn subsurface_scatters_near_surface() {
+        let mat = Subsurface::new(
+            Color::new(0.9, 0.7, 0.6),
+            0.5,
+            Color::new(0.9, 0.4, 0.3),
+        );
+        let hit = make_hit_record(&mat);
+        let incoming = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let mut scatter_count = 0;
+        for _ in 0..100 {
+            if let Some(scatter) = mat.scatter(&incoming, &hit, &mut rng) {
+                assert!(scatter.attenuation.x >= 0.0);
+                assert!(scatter.attenuation.y >= 0.0);
+                assert!(scatter.attenuation.z >= 0.0);
+                assert!(scatter.ray.direction.length() > 1e-6);
+                scatter_count += 1;
+            }
+        }
+        assert!(scatter_count > 50, "SSS should scatter most rays, got {scatter_count}/100");
+    }
+
+    #[test]
+    fn subsurface_not_specular() {
+        let mat = Subsurface::new(Color::new(0.9, 0.7, 0.6), 0.5, Color::new(0.9, 0.4, 0.3));
+        assert!(!mat.is_specular());
+    }
 }

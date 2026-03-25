@@ -1616,4 +1616,51 @@ mod tests {
         let result = bilateral_denoise(&rows);
         assert!(result.is_empty());
     }
+
+    #[test]
+    fn pixel_filter_box_uniform() {
+        let f = PixelFilter::Box;
+        assert_eq!(f.weight(0.0, 0.0), 1.0);
+        assert_eq!(f.weight(0.4, 0.4), 1.0);
+        assert_eq!(f.weight(-0.5, -0.5), 1.0);
+    }
+
+    #[test]
+    fn pixel_filter_gaussian_peaks_center() {
+        let f = PixelFilter::Gaussian;
+        let center = f.weight(0.0, 0.0);
+        let edge = f.weight(0.4, 0.4);
+        assert!(center > edge, "Gaussian should peak at center");
+    }
+
+    #[test]
+    fn pixel_filter_mitchell_positive_center() {
+        let f = PixelFilter::Mitchell;
+        let center = f.weight(0.0, 0.0);
+        assert!(center > 0.5, "Mitchell center weight should be significant, got {center}");
+    }
+
+    #[test]
+    fn firefly_removal_replaces_outlier() {
+        // Create a 5x5 image with one bright outlier pixel
+        let dim = Color::new(0.1, 0.1, 0.1);
+        let mut rows = vec![vec![dim; 5]; 5];
+        rows[2][2] = Color::new(100.0, 100.0, 100.0); // Firefly
+
+        let result = remove_fireflies(&rows, 5.0);
+        let lum = 0.2126 * result[2][2].x + 0.7152 * result[2][2].y + 0.0722 * result[2][2].z;
+        assert!(lum < 1.0, "Firefly should be removed, got luminance {lum}");
+    }
+
+    #[test]
+    fn chromatic_aberration_preserves_center() {
+        // Center pixel should be minimally affected
+        let white = Color::new(1.0, 1.0, 1.0);
+        let rows = vec![vec![white; 5]; 5];
+        let result = apply_chromatic_aberration(&rows, 0.01);
+        // Center pixel (2,2) should still be close to white
+        let c = result[2][2];
+        assert!((c.x - 1.0).abs() < 0.1, "Center R should be ~1.0, got {}", c.x);
+        assert!((c.y - 1.0).abs() < 0.1, "Center G should be ~1.0, got {}", c.y);
+    }
 }
