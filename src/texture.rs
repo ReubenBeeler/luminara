@@ -861,6 +861,48 @@ mod tests {
         let c = tex.value(0.0, 0.0, &Point3::new(0.0, 0.0, 0.0));
         assert!((c.x - 1.0).abs() < 1e-9);
     }
+
+    #[test]
+    fn mix_texture_blends() {
+        let red = Box::new(SolidColor::new(Color::new(1.0, 0.0, 0.0)));
+        let blue = Box::new(SolidColor::new(Color::new(0.0, 0.0, 1.0)));
+        let mix = MixTexture::new(red, blue, 0.5);
+        let c = mix.value(0.0, 0.0, &Point3::ZERO);
+        assert!((c.x - 0.5).abs() < 1e-9);
+        assert!((c.z - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn mix_texture_factor_zero() {
+        let red = Box::new(SolidColor::new(Color::new(1.0, 0.0, 0.0)));
+        let blue = Box::new(SolidColor::new(Color::new(0.0, 0.0, 1.0)));
+        let mix = MixTexture::new(red, blue, 0.0);
+        let c = mix.value(0.0, 0.0, &Point3::ZERO);
+        assert!((c.x - 1.0).abs() < 1e-9);
+        assert!(c.z.abs() < 1e-9);
+    }
+
+    #[test]
+    fn tri_planar_returns_color() {
+        let inner = Box::new(SolidColor::new(Color::new(0.5, 0.5, 0.5)));
+        let tp = TriPlanar::new(inner, 1.0, 2.0);
+        let c = tp.value(0.0, 0.0, &Point3::new(1.0, 2.0, 3.0));
+        assert!(c.x > 0.0 && c.y > 0.0 && c.z > 0.0);
+        // SolidColor, so should be 0.5 regardless of blending
+        assert!((c.x - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn wavy_texture_basic() {
+        let w = Wavy::new(
+            Color::new(1.0, 0.0, 0.0),
+            Color::new(0.0, 0.0, 1.0),
+            1.0, 3,
+        );
+        let c = w.value(0.0, 0.0, &Point3::ZERO);
+        // Should produce some blend of red and blue
+        assert!(c.x >= 0.0 && c.z >= 0.0);
+    }
 }
 
 /// A texture wrapper that applies UV transforms: offset, rotation, and tiling.
