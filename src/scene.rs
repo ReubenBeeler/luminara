@@ -114,6 +114,8 @@ pub struct RenderSettings {
     pub threshold: Option<f64>,
     pub blur: Option<f64>,
     pub tilt_shift: Option<f64>,
+    pub grade_shadows: Option<[f64; 3]>,
+    pub grade_highlights: Option<[f64; 3]>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -750,6 +752,12 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ts) = r.tilt_shift {
             render_config.tilt_shift = ts;
+        }
+        if let Some(gs) = r.grade_shadows {
+            render_config.grade_shadows = gs;
+        }
+        if let Some(gh) = r.grade_highlights {
+            render_config.grade_highlights = gh;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1583,6 +1591,8 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         threshold: -1.0,
         blur: 0.0,
         tilt_shift: 0.0,
+        grade_shadows: [1.0, 1.0, 1.0],
+        grade_highlights: [1.0, 1.0, 1.0],
     };
 
     let cam_config = CameraConfig {

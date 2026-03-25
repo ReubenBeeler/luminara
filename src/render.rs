@@ -309,6 +309,10 @@ pub struct RenderConfig {
     pub blur: f64,
     /// Tilt-shift effect: blur amount at edges (0 = off). Simulates miniature photography.
     pub tilt_shift: f64,
+    /// Color grading: tint shadows (RGB multiplier, [1,1,1] = neutral).
+    pub grade_shadows: [f64; 3],
+    /// Color grading: tint highlights (RGB multiplier, [1,1,1] = neutral).
+    pub grade_highlights: [f64; 3],
 }
 
 impl Default for RenderConfig {
@@ -355,6 +359,8 @@ impl Default for RenderConfig {
             threshold: -1.0,
             blur: 0.0,
             tilt_shift: 0.0,
+            grade_shadows: [1.0, 1.0, 1.0],
+            grade_highlights: [1.0, 1.0, 1.0],
         }
     }
 }
@@ -1505,6 +1511,21 @@ pub fn render(
                 cr = lum + (cr - lum) * config.saturation;
                 cg = lum + (cg - lum) * config.saturation;
                 cb = lum + (cb - lum) * config.saturation;
+            }
+
+            // Color grading: tint shadows and highlights separately
+            let has_grading = config.grade_shadows != [1.0, 1.0, 1.0]
+                || config.grade_highlights != [1.0, 1.0, 1.0];
+            if has_grading {
+                let lum = (0.2126 * cr + 0.7152 * cg + 0.0722 * cb).max(0.0);
+                // Sigmoid-like split: 0=pure shadow, 1=pure highlight
+                let t = (lum / (lum + 1.0)).clamp(0.0, 1.0);
+                let sr = config.grade_shadows[0] * (1.0 - t) + config.grade_highlights[0] * t;
+                let sg = config.grade_shadows[1] * (1.0 - t) + config.grade_highlights[1] * t;
+                let sb = config.grade_shadows[2] * (1.0 - t) + config.grade_highlights[2] * t;
+                cr *= sr;
+                cg *= sg;
+                cb *= sb;
             }
 
             // Apply tone mapping
