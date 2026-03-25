@@ -705,6 +705,12 @@ fn main() {
     } else {
         (out_w, out_h)
     };
+    // Adjust output dimensions for picture frame
+    let (out_w, out_h) = if render_config.frame > 0 {
+        (out_w + render_config.frame * 2, out_h + render_config.frame * 2)
+    } else {
+        (out_w, out_h)
+    };
 
     let elapsed = start.elapsed();
     let secs = elapsed.as_secs_f64();
