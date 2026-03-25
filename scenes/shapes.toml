@@ -1,0 +1,112 @@
+# Shapes Gallery — every geometry type in one scene
+# Shows all supported geometry primitives
+
+[render]
+width = 1200
+height = 600
+samples = 64
+max_depth = 10
+background = { type = "sky" }
+bloom = 0.05
+
+[camera]
+look_from = [0, 6, 18]
+look_at = [0, 1, 0]
+vfov = 35
+
+# Ground
+[[plane]]
+point = [0, 0, 0]
+normal = [0, 1, 0]
+material = { type = "checker", color1 = [0.9, 0.9, 0.9], color2 = [0.7, 0.7, 0.7], scale = 2.0 }
+
+# Row 1: Basic shapes
+[[sphere]]
+center = [-6, 1, 0]
+radius = 1
+material = { type = "lambertian", color = [0.8, 0.2, 0.2] }
+
+[[ellipsoid]]
+center = [-4, 1, 0]
+radii = [0.6, 1.0, 0.6]
+material = { type = "metal", color = [0.8, 0.8, 0.8], fuzz = 0.1 }
+
+[[cylinder]]
+center = [-2, 0, 0]
+radius = 0.5
+height = 2
+material = { type = "lambertian", color = [0.2, 0.6, 0.2] }
+
+[[cone]]
+center = [0, 0, 0]
+radius = 0.7
+height = 2
+material = { type = "lambertian", color = [0.2, 0.2, 0.8] }
+
+[[capsule]]
+center = [2, 0, 0]
+radius = 0.4
+height = 1.5
+material = { type = "pbr", color = [0.9, 0.5, 0.1], roughness = 0.3, metallic = 0.8 }
+
+[[box]]
+min = [3.5, 0, -0.5]
+max = [4.5, 1.5, 0.5]
+material = { type = "wood", color1 = [0.6, 0.35, 0.15], color2 = [0.45, 0.25, 0.1], scale = 3 }
+
+[[torus]]
+center = [6, 0.8, 0]
+major_radius = 0.7
+minor_radius = 0.25
+material = { type = "dielectric", refraction_index = 1.5, tint = [0.9, 0.95, 1.0] }
+
+# Row 2: Advanced shapes (SDF primitives)
+[[rounded_box]]
+center = [-4, 1, -4]
+half_size = [0.7, 0.7, 0.7]
+radius = 0.2
+material = { type = "iridescent", thickness = 500, roughness = 0.15 }
+
+[[superellipsoid]]
+center = [-1.5, 0.9, -4]
+scale = [0.7, 0.7, 0.7]
+e1 = 0.4
+e2 = 0.4
+material = { type = "pbr", color = [0.8, 0.0, 0.4], roughness = 0.2, metallic = 1.0 }
+
+[[spring]]
+center = [1, 0, -4]
+coil_radius = 0.4
+tube_radius = 0.08
+pitch = 0.4
+turns = 5
+material = { type = "metal", color = [0.95, 0.95, 0.95], fuzz = 0.0 }
+
+[[mobius]]
+center = [4, 1.2, -4]
+radius = 0.8
+width = 0.3
+material = { type = "velvet", color = [0.1, 0.3, 0.6], sheen = 2.0 }
+
+# Additional shapes
+[[hemisphere]]
+center = [-6, 0, -4]
+radius = 1
+material = { type = "marble", color = [0.95, 0.92, 0.88], scale = 3 }
+
+[[disk]]
+center = [6.5, 1, -4]
+normal = [0, 0, 1]
+radius = 1
+material = { type = "emissive", color = [0.5, 0.8, 1.0], intensity = 2 }
+
+# Lighting
+[[sphere]]
+center = [0, 12, 5]
+radius = 3
+material = { type = "emissive", color = [1, 1, 1], intensity = 6 }
+
+[[sphere]]
+center = [-8, 5, 8]
+radius = 1
+material = { type = "emissive", color = [1, 0.9, 0.8], intensity = 4 }
