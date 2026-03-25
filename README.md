@@ -13,7 +13,7 @@ Luminara traces rays of light through a virtual scene, simulating how photons in
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
 - **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling for sphere, rect, and disk lights), adaptive sampling (variance-based early termination), Russian roulette path termination, pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats, time-budgeted rendering
-- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping, solarize, duo-tone, pencil sketch, median filter, crosshatch, digital glitch
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping, solarize, duo-tone, pencil sketch, median filter, crosshatch, digital glitch, depth fog, channel swap, color quantization (median-cut), color tint, named palettes (gameboy/cga/nes/pastel/cyberpunk/etc), radial blur, border frame, resize, rotation, warm/cool presets, ASCII art output
 - **Output**: PNG, PPM, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, albedo pass, stdout piping
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
@@ -93,6 +93,19 @@ cargo run --release -- --help
 | `--median N` | Median filter for noise removal (edge-preserving) |
 | `--crosshatch N` | Pen-and-ink crosshatch spacing (e.g. 4) |
 | `--glitch N` | Digital glitch effect intensity (e.g. 0.5) |
+| `--depth-fog N` | Atmospheric depth fog density (e.g. 0.1) |
+| `--channel-swap S` | Swap RGB channels: rbg, grb, gbr, brg, bgr |
+| `--quantize N` | Reduce to N colors via median-cut quantization |
+| `--tint R,G,B` | Multiply all pixels by RGB color (0-1 each) |
+| `--palette S` | Named palette: gameboy, cga, nes, pastel, cyberpunk, etc. |
+| `--radial-blur N` | Zoom blur from center (e.g. 0.5) |
+| `--border N` | Add N-pixel border frame |
+| `--border-color R,G,B` | Border color (0-1 each, default: black) |
+| `--resize WxH` | Resize output with bilinear interpolation |
+| `--rotate N` | Rotate output (90, 180, 270 degrees) |
+| `--warm` | Warm white balance preset |
+| `--cool` | Cool white balance preset |
+| `--ascii` | Print ASCII art to terminal |
 | `--benchmark` | Run built-in benchmark and report Mrays/s |
 | `--list-scenes` | List available .toml scene files |
 | `-p`, `--preview` | Quick preview (1/4 res, low samples) |
