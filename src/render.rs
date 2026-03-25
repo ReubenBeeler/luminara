@@ -303,6 +303,8 @@ pub struct RenderConfig {
     pub invert: bool,
     /// Scanline intensity (0.0 = off). Simulates CRT scanlines.
     pub scanlines: f64,
+    /// Black-and-white threshold (negative = off, 0.0-1.0 = luminance threshold).
+    pub threshold: f64,
 }
 
 impl Default for RenderConfig {
@@ -346,6 +348,7 @@ impl Default for RenderConfig {
             pixelate: 0,
             invert: false,
             scanlines: 0.0,
+            threshold: -1.0,
         }
     }
 }
@@ -1448,6 +1451,15 @@ pub fn render(
                 r = 255 - r;
                 g = 255 - g;
                 b = 255 - b;
+            }
+
+            // Black-and-white threshold
+            if config.threshold >= 0.0 {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                let bw = if lum >= config.threshold { 255u8 } else { 0u8 };
+                r = bw;
+                g = bw;
+                b = bw;
             }
 
             // CRT scanlines: darken alternating rows

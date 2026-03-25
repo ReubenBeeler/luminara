@@ -111,6 +111,7 @@ pub struct RenderSettings {
     pub pixelate: Option<u32>,
     pub invert: Option<bool>,
     pub scanlines: Option<f64>,
+    pub threshold: Option<f64>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -738,6 +739,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(sl) = r.scanlines {
             render_config.scanlines = sl;
+        }
+        if let Some(th) = r.threshold {
+            render_config.threshold = th;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1568,6 +1572,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         pixelate: 0,
         invert: false,
         scanlines: 0.0,
+        threshold: -1.0,
     };
 
     let cam_config = CameraConfig {

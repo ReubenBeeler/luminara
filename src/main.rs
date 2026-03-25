@@ -75,6 +75,7 @@ struct CliArgs {
     pixelate: Option<u32>,
     invert: bool,
     scanlines: Option<f64>,
+    threshold: Option<f64>,
 }
 
 fn main() {
@@ -221,6 +222,9 @@ fn main() {
     }
     if let Some(sl) = cli.scanlines {
         render_config.scanlines = sl;
+    }
+    if let Some(th) = cli.threshold {
+        render_config.threshold = th;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -603,6 +607,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         pixelate: None,
         invert: false,
         scanlines: None,
+        threshold: None,
     };
     let mut i = 1;
 
@@ -801,6 +806,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.scanlines = args[i].parse().ok();
+                }
+            }
+            "--threshold" | "--bw" => {
+                i += 1;
+                if i < args.len() {
+                    cli.threshold = args[i].parse().ok();
                 }
             }
             "--info" => {
