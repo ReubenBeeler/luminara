@@ -90,6 +90,7 @@ pub struct RenderSettings {
     pub denoise: Option<bool>,
     pub bloom: Option<f64>,
     pub vignette: Option<f64>,
+    pub grain: Option<f64>,
     pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
@@ -546,6 +547,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(vignette) = r.vignette {
             render_config.vignette = vignette;
+        }
+        if let Some(grain) = r.grain {
+            render_config.grain = grain;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1121,6 +1125,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         crop: None,
         bloom: 0.0,
         vignette: 0.0,
+        grain: 0.0,
     };
 
     let cam_config = CameraConfig {

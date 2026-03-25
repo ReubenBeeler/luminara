@@ -180,6 +180,8 @@ pub struct RenderConfig {
     pub bloom: f64,
     /// Vignette strength (0.0 = off). Darkens edges for cinematic look.
     pub vignette: f64,
+    /// Film grain intensity (0.0 = off). Adds photographic noise.
+    pub grain: f64,
 }
 
 impl Default for RenderConfig {
@@ -200,6 +202,7 @@ impl Default for RenderConfig {
             crop: None,
             bloom: 0.0,
             vignette: 0.0,
+            grain: 0.0,
         }
     }
 }
@@ -727,9 +730,21 @@ pub fn render(
             } else {
                 1.0
             };
-            let r = linear_to_srgb(tone_fn(color.x * exposure * vignette_factor));
-            let g = linear_to_srgb(tone_fn(color.y * exposure * vignette_factor));
-            let b = linear_to_srgb(tone_fn(color.z * exposure * vignette_factor));
+            let mut r = linear_to_srgb(tone_fn(color.x * exposure * vignette_factor));
+            let mut g = linear_to_srgb(tone_fn(color.y * exposure * vignette_factor));
+            let mut b = linear_to_srgb(tone_fn(color.z * exposure * vignette_factor));
+
+            // Film grain: add deterministic luminance noise
+            if config.grain > 0.0 {
+                let hash = (i as u64).wrapping_mul(73856093)
+                    ^ (j as u64).wrapping_mul(19349663)
+                    ^ config.seed;
+                let noise = ((hash & 0xFFFF) as f64 / 65535.0 - 0.5) * config.grain * 255.0;
+                r = (r as f64 + noise).clamp(0.0, 255.0) as u8;
+                g = (g as f64 + noise).clamp(0.0, 255.0) as u8;
+                b = (b as f64 + noise).clamp(0.0, 255.0) as u8;
+            }
+
             pixels.extend_from_slice(&[r, g, b, 255]);
         }
     }

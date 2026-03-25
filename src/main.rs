@@ -50,6 +50,7 @@ struct CliArgs {
     crop: Option<String>,
     bloom: Option<f64>,
     vignette: Option<f64>,
+    grain: Option<f64>,
 }
 
 fn main() {
@@ -119,6 +120,9 @@ fn main() {
     }
     if let Some(vignette) = cli.vignette {
         render_config.vignette = vignette;
+    }
+    if let Some(grain) = cli.grain {
+        render_config.grain = grain;
     }
     if cli.save_hdr.is_some() {
         render_config.save_hdr = true;
@@ -339,6 +343,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         crop: None,
         bloom: None,
         vignette: None,
+        grain: None,
     };
     let mut i = 1;
 
@@ -396,6 +401,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.vignette = args[i].parse().ok();
+                }
+            }
+            "--grain" => {
+                i += 1;
+                if i < args.len() {
+                    cli.grain = args[i].parse().ok();
                 }
             }
             "--save-hdr" => {
@@ -458,6 +469,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --denoise     Apply bilateral denoiser to reduce noise");
                 eprintln!("      --bloom N     Add bloom glow effect (intensity, e.g. 0.3)");
                 eprintln!("      --vignette N  Darken edges for cinematic look (e.g. 0.5)");
+                eprintln!("      --grain N     Add film grain noise (e.g. 0.1)");
                 eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
                 eprintln!("      --crop X,Y,W,H  Render only a sub-region of the image");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
