@@ -105,6 +105,8 @@ struct CliArgs {
     border: Option<u32>,
     border_color: Option<[f64; 3]>,
     resize: Option<[u32; 2]>,
+    warm: bool,
+    cool: bool,
 }
 
 fn main() {
@@ -320,6 +322,12 @@ fn main() {
     }
     if let Some(r) = cli.resize {
         render_config.resize = r;
+    }
+    if cli.warm {
+        render_config.tint = [1.0, 0.92, 0.82];
+    }
+    if cli.cool {
+        render_config.tint = [0.85, 0.92, 1.0];
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -818,6 +826,8 @@ fn parse_args(args: &[String]) -> CliArgs {
         border: None,
         border_color: None,
         resize: None,
+        warm: false,
+        cool: false,
     };
     let mut i = 1;
 
@@ -1141,6 +1151,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--ascii" => {
                 cli.ascii = true;
             }
+            "--warm" => {
+                cli.warm = true;
+            }
+            "--cool" => {
+                cli.cool = true;
+            }
             "--radial-blur" => {
                 i += 1;
                 if i < args.len() {
@@ -1272,6 +1288,8 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --border N    Add N-pixel border frame");
                 eprintln!("      --border-color R,G,B  Border color (0-1 each, default: black)");
                 eprintln!("      --resize WxH  Resize output (bilinear), e.g. 1920x1080");
+                eprintln!("      --warm        Warm white balance preset");
+                eprintln!("      --cool        Cool white balance preset");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
