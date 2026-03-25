@@ -182,6 +182,8 @@ pub struct SphereDesc {
     pub material: MaterialDesc,
     pub bump_strength: Option<f64>,
     pub bump_scale: Option<f64>,
+    pub normal_map: Option<String>,
+    pub normal_map_strength: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -954,12 +956,19 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             _ => {}
         }
         let mat = build_material(&s.material);
-        let sphere: Box<dyn Hittable> = Box::new(Sphere::new(arr_to_vec3(s.center), s.radius, mat));
+        let mut obj: Box<dyn Hittable> = Box::new(Sphere::new(arr_to_vec3(s.center), s.radius, mat));
         if let Some(strength) = s.bump_strength {
             let scale = s.bump_scale.unwrap_or(4.0);
-            world.add(Box::new(BumpMap::new(sphere, strength, scale)));
+            obj = Box::new(BumpMap::new(obj, strength, scale));
+        }
+        if let Some(ref nmap_path) = s.normal_map {
+            let strength = s.normal_map_strength.unwrap_or(1.0);
+            match crate::normal_map::NormalMap::load(obj, nmap_path, strength) {
+                Ok(nm) => { world.add(Box::new(nm)); }
+                Err(e) => eprintln!("Warning: {e}"),
+            }
         } else {
-            world.add(sphere);
+            world.add(obj);
         }
     }
 

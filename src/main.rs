@@ -14,6 +14,7 @@ mod hemisphere;
 mod hit;
 mod material;
 mod mobius;
+mod normal_map;
 mod obj;
 mod plane;
 mod quad;
