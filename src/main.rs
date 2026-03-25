@@ -46,6 +46,7 @@ struct CliArgs {
     quiet: bool,
     info_only: bool,
     benchmark: bool,
+    list_scenes: bool,
     denoise: bool,
     save_hdr: Option<PathBuf>,
     crop: Option<String>,
@@ -73,6 +74,27 @@ struct CliArgs {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let cli = parse_args(&args);
+
+    // List available scenes
+    if cli.list_scenes {
+        let scene_dir = std::path::Path::new("scenes");
+        if scene_dir.is_dir() {
+            let mut scenes: Vec<String> = std::fs::read_dir(scene_dir)
+                .unwrap_or_else(|_| { eprintln!("Cannot read scenes/ directory"); std::process::exit(1); })
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
+                .map(|e| e.path().display().to_string())
+                .collect();
+            scenes.sort();
+            eprintln!("Available scenes ({}):", scenes.len());
+            for s in &scenes {
+                eprintln!("  {s}");
+            }
+        } else {
+            eprintln!("No scenes/ directory found");
+        }
+        std::process::exit(0);
+    }
 
     let start = Instant::now();
 
@@ -511,6 +533,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         quiet: false,
         info_only: false,
         benchmark: false,
+        list_scenes: false,
         denoise: false,
         save_hdr: None,
         crop: None,
@@ -706,6 +729,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--benchmark" | "--bench" => {
                 cli.benchmark = true;
             }
+            "--list-scenes" | "--scenes" => {
+                cli.list_scenes = true;
+            }
             "--seed" => {
                 i += 1;
                 if i < args.len() {
@@ -774,6 +800,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
                 eprintln!("      --benchmark   Run standardized performance benchmark");
+                eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
                 std::process::exit(0);
