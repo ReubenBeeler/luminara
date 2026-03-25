@@ -1709,6 +1709,7 @@ material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
         }
     }
 
+    #[test]
     fn every_material_type_parses() {
         let toml = r#"
 [[sphere]]
@@ -1825,6 +1826,22 @@ material = { type = "hexgrid", color1 = [0.9, 0.9, 0.9], color2 = [0.2, 0.2, 0.2
 center = [44.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "subsurface", color = [0.9, 0.7, 0.6], mean_free_path = 0.3, scatter_color = [0.9, 0.4, 0.3] }
+
+[[sphere]]
+center = [46.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "color_ramp", stops = [[0.0, 1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 1.0]], axis = 1, min_val = -1, max_val = 1 }
+
+[[sphere]]
+center = [48.0, 0.0, 0.0]
+radius = 1.0
+
+[sphere.material]
+type = "opacity"
+opacity = 0.5
+[sphere.material.material]
+type = "lambertian"
+color = [0.8, 0.2, 0.2]
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
