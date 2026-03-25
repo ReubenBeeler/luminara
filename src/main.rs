@@ -58,6 +58,8 @@ struct CliArgs {
     hue_shift: Option<f64>,
     dither: bool,
     gamma: Option<f64>,
+    adaptive: bool,
+    adaptive_threshold: Option<f64>,
 }
 
 fn main() {
@@ -148,6 +150,12 @@ fn main() {
     }
     if cli.dither {
         render_config.dither = true;
+    }
+    if cli.adaptive {
+        render_config.adaptive = true;
+    }
+    if let Some(threshold) = cli.adaptive_threshold {
+        render_config.adaptive_threshold = threshold;
     }
     if let Some(gamma) = cli.gamma {
         render_config.gamma = gamma;
@@ -379,6 +387,8 @@ fn parse_args(args: &[String]) -> CliArgs {
         hue_shift: None,
         dither: false,
         gamma: None,
+        adaptive: false,
+        adaptive_threshold: None,
     };
     let mut i = 1;
 
@@ -477,6 +487,15 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--dither" => {
                 cli.dither = true;
             }
+            "--adaptive" => {
+                cli.adaptive = true;
+            }
+            "--adaptive-threshold" => {
+                i += 1;
+                if i < args.len() {
+                    cli.adaptive_threshold = args[i].parse().ok();
+                }
+            }
             "--gamma" => {
                 i += 1;
                 if i < args.len() {
@@ -550,6 +569,8 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --sharpen N   Sharpen details (e.g. 0.5)");
                 eprintln!("      --hue-shift N Rotate hue in degrees (e.g. 30, 180)");
                 eprintln!("      --dither      Apply ordered dithering to reduce banding");
+                eprintln!("      --adaptive    Adaptive sampling: fewer samples on smooth areas");
+                eprintln!("      --adaptive-threshold N  Noise threshold (default 0.03)");
                 eprintln!("      --gamma N     Custom gamma (0=sRGB default, 2.2=simple)");
                 eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
                 eprintln!("      --crop X,Y,W,H  Render only a sub-region of the image");

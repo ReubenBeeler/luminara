@@ -98,6 +98,8 @@ pub struct RenderSettings {
     pub hue_shift: Option<f64>,
     pub dither: Option<bool>,
     pub gamma: Option<f64>,
+    pub adaptive: Option<bool>,
+    pub adaptive_threshold: Option<f64>,
     pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
@@ -635,6 +637,12 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(gamma) = r.gamma {
             render_config.gamma = gamma;
+        }
+        if let Some(adaptive) = r.adaptive {
+            render_config.adaptive = adaptive;
+        }
+        if let Some(threshold) = r.adaptive_threshold {
+            render_config.adaptive_threshold = threshold;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1350,6 +1358,8 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         hue_shift: 0.0,
         dither: false,
         gamma: 0.0,
+        adaptive: false,
+        adaptive_threshold: 0.03,
     };
 
     let cam_config = CameraConfig {

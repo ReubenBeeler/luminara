@@ -196,6 +196,11 @@ pub struct RenderConfig {
     pub dither: bool,
     /// Custom gamma value (0 = use sRGB transfer function, >0 = simple power curve).
     pub gamma: f64,
+    /// Enable adaptive sampling: concentrate samples on noisy regions.
+    pub adaptive: bool,
+    /// Adaptive sampling noise threshold (0.01 = aggressive, 0.1 = conservative).
+    /// Pixels with variance below this stop early.
+    pub adaptive_threshold: f64,
 }
 
 impl Default for RenderConfig {
@@ -224,6 +229,8 @@ impl Default for RenderConfig {
             hue_shift: 0.0,
             dither: false,
             gamma: 0.0,
+            adaptive: false,
+            adaptive_threshold: 0.03,
         }
     }
 }
@@ -645,8 +652,12 @@ pub fn render(
     let height = crop_h;
 
     let rows_done = AtomicUsize::new(0);
+    let total_rays_counter = Arc::new(AtomicUsize::new(0));
     let sqrt_spp = (config.samples_per_pixel as f64).sqrt().ceil() as u32;
     let actual_spp = sqrt_spp * sqrt_spp;
+    // For adaptive sampling: minimum samples before checking variance
+    let adaptive_min_samples: u32 = if config.adaptive { (actual_spp / 4).max(16) } else { 0 };
+    let adaptive_threshold = config.adaptive_threshold;
     let start_time = Instant::now();
 
     let rows: Vec<Vec<Color>> = (0..height)
@@ -655,39 +666,98 @@ pub fn render(
             let global_j = j + crop_y;
             let mut rng = SmallRng::seed_from_u64(global_j as u64 * config.seed);
             let y = (full_height - 1 - global_j) as f64;
+            let mut row_rays: u64 = 0;
 
             let row: Vec<Color> = (0..width)
                 .map(|i| {
                     let global_i = i + crop_x;
-                    let mut color = Color::ZERO;
-                    for sy in 0..sqrt_spp {
-                        for sx in 0..sqrt_spp {
-                            let u = (global_i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_width - 1) as f64;
-                            let v = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_height - 1) as f64;
-                            let ray = camera.get_ray(u, v, &mut rng);
-                            let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth, false);
-                            // Clamp per-sample luminance to prevent firefly artifacts
-                            let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
-                            if luminance > 100.0 {
-                                let scale = 100.0 / luminance;
-                                color += sample * scale;
-                            } else {
-                                color += sample;
+
+                    if config.adaptive {
+                        // Adaptive sampling: use Welford's online algorithm to track
+                        // per-pixel luminance variance. Stop early when converged.
+                        let mut mean = Color::ZERO;
+                        let mut m2_lum = 0.0_f64; // running sum of squared luminance deviations
+                        let mut mean_lum = 0.0_f64;
+                        let mut n: u32 = 0;
+
+                        for sy in 0..sqrt_spp {
+                            for sx in 0..sqrt_spp {
+                                let u_coord = (global_i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_width - 1) as f64;
+                                let v_coord = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_height - 1) as f64;
+                                let ray = camera.get_ray(u_coord, v_coord, &mut rng);
+                                let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth, false);
+
+                                // Clamp per-sample luminance to prevent firefly artifacts
+                                let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
+                                let clamped = if luminance > 100.0 {
+                                    sample * (100.0 / luminance)
+                                } else {
+                                    sample
+                                };
+
+                                n += 1;
+                                let lum = 0.2126 * clamped.x + 0.7152 * clamped.y + 0.0722 * clamped.z;
+                                // Welford's update for luminance variance
+                                let delta_lum = lum - mean_lum;
+                                mean_lum += delta_lum / n as f64;
+                                let delta_lum2 = lum - mean_lum;
+                                m2_lum += delta_lum * delta_lum2;
+
+                                mean = mean + (clamped - mean) / n as f64;
+
+                                // Check convergence after minimum samples
+                                if n >= adaptive_min_samples && n > 1 {
+                                    let variance = m2_lum / (n - 1) as f64;
+                                    // Compare standard error to threshold
+                                    let std_error = (variance / n as f64).sqrt();
+                                    if std_error < adaptive_threshold {
+                                        break;
+                                    }
+                                }
+                            }
+                            // Check if inner loop broke early (n < expected)
+                            let expected = (sy + 1) * sqrt_spp;
+                            if n < expected {
+                                break;
                             }
                         }
+
+                        row_rays += n as u64;
+                        mean
+                    } else {
+                        // Non-adaptive: original stratified sampling
+                        let mut color = Color::ZERO;
+                        for sy in 0..sqrt_spp {
+                            for sx in 0..sqrt_spp {
+                                let u_coord = (global_i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_width - 1) as f64;
+                                let v_coord = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_height - 1) as f64;
+                                let ray = camera.get_ray(u_coord, v_coord, &mut rng);
+                                let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth, false);
+                                // Clamp per-sample luminance to prevent firefly artifacts
+                                let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
+                                if luminance > 100.0 {
+                                    let scale = 100.0 / luminance;
+                                    color += sample * scale;
+                                } else {
+                                    color += sample;
+                                }
+                            }
+                        }
+                        row_rays += actual_spp as u64;
+                        color / actual_spp as f64
                     }
-                    color / actual_spp as f64
                 })
                 .collect();
 
+            total_rays_counter.fetch_add(row_rays as usize, Ordering::Relaxed);
             let done = rows_done.fetch_add(1, Ordering::Relaxed) + 1;
             if !config.quiet {
                 #[allow(clippy::manual_is_multiple_of)]
                 if done % 20 == 0 || done == height {
                     let pct = done * 100 / height;
                     let elapsed = start_time.elapsed().as_secs_f64();
-                    let rays_so_far = done as u64 * width as u64 * actual_spp as u64;
-                    let mrays = rays_so_far as f64 / elapsed / 1_000_000.0;
+                    let rays_so_far = total_rays_counter.load(Ordering::Relaxed) as f64;
+                    let mrays = rays_so_far / elapsed / 1_000_000.0;
                     let eta = if done < height {
                         let remaining = elapsed / done as f64 * (height - done) as f64;
                         format!(" ETA {:.0}s", remaining)
@@ -704,8 +774,15 @@ pub fn render(
 
     if !config.quiet {
         eprintln!();
-        let total_rays = width as u64 * height as u64 * actual_spp as u64;
-        eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
+        let total_rays = total_rays_counter.load(Ordering::Relaxed) as u64;
+        if config.adaptive {
+            let max_rays = width as u64 * height as u64 * actual_spp as u64;
+            let savings = 100.0 * (1.0 - total_rays as f64 / max_rays as f64);
+            let avg_spp = total_rays as f64 / (width as u64 * height as u64) as f64;
+            eprintln!("Adaptive: {total_rays} rays ({avg_spp:.1} avg spp, max {actual_spp}, {savings:.1}% saved)");
+        } else {
+            eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
+        }
     }
 
     // Optional bilateral denoising pass (operates on HDR data before tone mapping)
