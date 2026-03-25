@@ -174,6 +174,8 @@ pub struct RenderConfig {
     pub auto_exposure: bool,
     pub denoise: bool,
     pub save_hdr: bool,
+    /// Optional crop region: (x, y, width, height) in pixels
+    pub crop: Option<(u32, u32, u32, u32)>,
 }
 
 impl Default for RenderConfig {
@@ -191,6 +193,7 @@ impl Default for RenderConfig {
             auto_exposure: false,
             denoise: false,
             save_hdr: false,
+            crop: None,
         }
     }
 }
@@ -453,8 +456,21 @@ pub fn render(
     world: &dyn Hittable,
     lights: &[LightInfo],
 ) -> RenderResult {
-    let width = config.width as usize;
-    let height = config.height as usize;
+    let full_width = config.width as usize;
+    let full_height = config.height as usize;
+
+    // Crop region (defaults to full image)
+    let (crop_x, crop_y, crop_w, crop_h) = match config.crop {
+        Some((cx, cy, cw, ch)) => (
+            (cx as usize).min(full_width),
+            (cy as usize).min(full_height),
+            (cw as usize).min(full_width),
+            (ch as usize).min(full_height),
+        ),
+        None => (0, 0, full_width, full_height),
+    };
+    let width = crop_w;
+    let height = crop_h;
 
     let rows_done = AtomicUsize::new(0);
     let sqrt_spp = (config.samples_per_pixel as f64).sqrt().ceil() as u32;
@@ -464,16 +480,18 @@ pub fn render(
     let rows: Vec<Vec<Color>> = (0..height)
         .into_par_iter()
         .map(|j| {
-            let mut rng = SmallRng::seed_from_u64(j as u64 * config.seed);
-            let y = (height - 1 - j) as f64;
+            let global_j = j + crop_y;
+            let mut rng = SmallRng::seed_from_u64(global_j as u64 * config.seed);
+            let y = (full_height - 1 - global_j) as f64;
 
             let row: Vec<Color> = (0..width)
                 .map(|i| {
+                    let global_i = i + crop_x;
                     let mut color = Color::ZERO;
                     for sy in 0..sqrt_spp {
                         for sx in 0..sqrt_spp {
-                            let u = (i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (width - 1) as f64;
-                            let v = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (height - 1) as f64;
+                            let u = (global_i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_width - 1) as f64;
+                            let v = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_height - 1) as f64;
                             let ray = camera.get_ray(u, v, &mut rng);
                             let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth, false);
                             // Clamp per-sample luminance to prevent firefly artifacts

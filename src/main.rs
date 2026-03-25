@@ -47,6 +47,7 @@ struct CliArgs {
     info_only: bool,
     denoise: bool,
     save_hdr: Option<PathBuf>,
+    crop: Option<String>,
 }
 
 fn main() {
@@ -114,6 +115,15 @@ fn main() {
     if cli.save_hdr.is_some() {
         render_config.save_hdr = true;
     }
+    if let Some(ref crop_str) = cli.crop {
+        match parse_crop(crop_str) {
+            Some(crop) => render_config.crop = Some(crop),
+            None => {
+                eprintln!("Error: invalid crop format '{}', expected X,Y,W,H", crop_str);
+                std::process::exit(1);
+            }
+        }
+    }
     if let Some(ref tm) = cli.tone_map {
         render_config.tone_map = match tm.as_str() {
             "aces" => render::ToneMap::Aces,
@@ -167,13 +177,28 @@ fn main() {
     }
 
     let num_threads = rayon::current_num_threads();
-    let total_pixels = render_config.width as u64 * render_config.height as u64;
-    eprintln!(
-        "Rendering {}x{} ({:.1}MP) @ {} spp, max depth {}, {} threads",
-        render_config.width, render_config.height,
-        total_pixels as f64 / 1_000_000.0,
-        render_config.samples_per_pixel, render_config.max_depth, num_threads
-    );
+    let (out_w, out_h) = if let Some((cx, cy, cw, ch)) = render_config.crop {
+        let cw = cw.min(render_config.width.saturating_sub(cx));
+        let ch = ch.min(render_config.height.saturating_sub(cy));
+        (cw, ch)
+    } else {
+        (render_config.width, render_config.height)
+    };
+    let total_pixels = out_w as u64 * out_h as u64;
+    if let Some((cx, cy, _, _)) = render_config.crop {
+        eprintln!(
+            "Rendering crop {out_w}x{out_h} at ({cx},{cy}) from {}x{} @ {} spp, max depth {}, {} threads",
+            render_config.width, render_config.height,
+            render_config.samples_per_pixel, render_config.max_depth, num_threads
+        );
+    } else {
+        eprintln!(
+            "Rendering {}x{} ({:.1}MP) @ {} spp, max depth {}, {} threads",
+            render_config.width, render_config.height,
+            total_pixels as f64 / 1_000_000.0,
+            render_config.samples_per_pixel, render_config.max_depth, num_threads
+        );
+    }
 
     let result = render::render(&render_config, &camera, &world, &world.lights);
     let pixels = result.pixels;
@@ -181,7 +206,7 @@ fn main() {
     let elapsed = start.elapsed();
     let secs = elapsed.as_secs_f64();
     let sqrt_spp = (render_config.samples_per_pixel as f64).sqrt().ceil() as u64;
-    let total_rays = render_config.width as u64 * render_config.height as u64 * sqrt_spp * sqrt_spp;
+    let total_rays = out_w as u64 * out_h as u64 * sqrt_spp * sqrt_spp;
     let mrays_per_sec = total_rays as f64 / secs / 1_000_000.0;
     eprintln!("Rendered in {secs:.2}s ({mrays_per_sec:.1} Mrays/s)");
 
@@ -192,9 +217,7 @@ fn main() {
     if out_str == "-" || out_str.ends_with(".ppm") {
         // Write PPM to stdout or file
         use std::io::Write;
-        let w = render_config.width;
-        let h = render_config.height;
-        let mut ppm = format!("P3\n{w} {h}\n255\n");
+        let mut ppm = format!("P3\n{out_w} {out_h}\n255\n");
         for chunk in pixels.chunks(4) {
             ppm.push_str(&format!("{} {} {}\n", chunk[0], chunk[1], chunk[2]));
         }
@@ -212,8 +235,8 @@ fn main() {
         if let Err(e) = image::save_buffer(
             &out,
             &pixels,
-            render_config.width,
-            render_config.height,
+            out_w,
+            out_h,
             image::ColorType::Rgba8,
         ) {
             eprintln!("Error: failed to save image '{}': {e}", out.display());
@@ -226,8 +249,8 @@ fn main() {
     if let (Some(hdr_path), Some(hdr_data)) = (&cli.save_hdr, &result.hdr_data) {
         if let Err(e) = write_radiance_hdr(
             hdr_path,
-            render_config.width,
-            render_config.height,
+            out_w,
+            out_h,
             hdr_data,
         ) {
             eprintln!("Error: failed to save HDR '{}': {e}", hdr_path.display());
@@ -275,6 +298,18 @@ fn write_radiance_hdr(
     std::fs::write(path, &buf).map_err(|e| e.to_string())
 }
 
+fn parse_crop(s: &str) -> Option<(u32, u32, u32, u32)> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 4 {
+        return None;
+    }
+    let x = parts[0].trim().parse().ok()?;
+    let y = parts[1].trim().parse().ok()?;
+    let w = parts[2].trim().parse().ok()?;
+    let h = parts[3].trim().parse().ok()?;
+    Some((x, y, w, h))
+}
+
 fn parse_args(args: &[String]) -> CliArgs {
     let mut cli = CliArgs {
         scene: None,
@@ -293,6 +328,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         info_only: false,
         denoise: false,
         save_hdr: None,
+        crop: None,
     };
     let mut i = 1;
 
@@ -346,6 +382,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.save_hdr = Some(PathBuf::from(&args[i]));
                 }
             }
+            "--crop" => {
+                i += 1;
+                if i < args.len() {
+                    cli.crop = Some(args[i].clone());
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -393,6 +435,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --tone-map TM    Tone mapping: aces, reinhard, filmic, none (default: aces)");
                 eprintln!("      --denoise     Apply bilateral denoiser to reduce noise");
                 eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
+                eprintln!("      --crop X,Y,W,H  Render only a sub-region of the image");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");

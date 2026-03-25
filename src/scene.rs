@@ -1097,6 +1097,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         auto_exposure: false,
         denoise: false,
         save_hdr: false,
+        crop: None,
     };
 
     let cam_config = CameraConfig {
