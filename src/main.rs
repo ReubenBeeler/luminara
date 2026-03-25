@@ -133,6 +133,7 @@ struct CliArgs {
     save_json: Option<PathBuf>,
     vintage: bool,
     cinematic: bool,
+    retro: bool,
 }
 
 fn main() {
@@ -435,6 +436,14 @@ fn main() {
         render_config.contrast = 1.15;
         render_config.tint = [1.0, 0.95, 0.88];
         render_config.grain = 0.02;
+    }
+    if cli.retro {
+        render_config.scanlines = 0.3;
+        render_config.pixelate = 3;
+        render_config.vignette = 0.5;
+        render_config.grain = 0.06;
+        render_config.chromatic_aberration = 2.0;
+        render_config.saturation = 0.8;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -1005,6 +1014,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         save_json: None,
         vintage: false,
         cinematic: false,
+        retro: false,
     };
     let mut i = 1;
 
@@ -1355,6 +1365,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--vintage" => {
                 cli.vintage = true;
             }
+            "--retro" | "--crt" => {
+                cli.retro = true;
+            }
             "--cinematic" => {
                 cli.cinematic = true;
             }
@@ -1635,6 +1648,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --panorama    360° equirectangular panoramic camera");
                 eprintln!("      --vintage     Vintage photo preset (sepia + grain + vignette)");
                 eprintln!("      --cinematic   Cinematic preset (bloom + warm tint + vignette)");
+                eprintln!("      --retro       Retro CRT preset (scanlines + pixelate + aberration)");
                 eprintln!("      --save-json F Save render statistics as JSON to file");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
