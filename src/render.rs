@@ -352,6 +352,9 @@ pub struct RenderConfig {
     pub palette: String,
     /// Tri-tone: map shadows/midtones/highlights to three colors. "R,G,B;R,G,B;R,G,B"
     pub tri_tone: String,
+    /// Gradient map: replace luminance with a custom color gradient.
+    /// Format: "RRGGBB;RRGGBB;..." hex colors from dark to light.
+    pub gradient_map: String,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -451,6 +454,7 @@ impl Default for RenderConfig {
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
             tri_tone: String::new(),
+            gradient_map: String::new(),
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2645,6 +2649,19 @@ pub fn render(
         } else { None }
     } else { None };
 
+    // Parse gradient map colors: "RRGGBB;RRGGBB;..."
+    let gradient_map_colors: Vec<[f64; 3]> = if !config.gradient_map.is_empty() {
+        config.gradient_map.split(';').filter_map(|hex| {
+            let hex = hex.trim().trim_start_matches('#');
+            if hex.len() == 6 {
+                let r = u8::from_str_radix(&hex[0..2], 16).ok()? as f64 / 255.0;
+                let g = u8::from_str_radix(&hex[2..4], 16).ok()? as f64 / 255.0;
+                let b = u8::from_str_radix(&hex[4..6], 16).ok()? as f64 / 255.0;
+                Some([r, g, b])
+            } else { None }
+        }).collect()
+    } else { Vec::new() };
+
     let mut pixels = Vec::with_capacity(width * height * 4);
     for (j, row) in rows.iter().enumerate() {
         for (i, color) in row.iter().enumerate() {
@@ -2898,6 +2915,20 @@ pub fn render(
                 } else {
                     (mid, highlight, (lum - 0.5) * 2.0)
                 };
+                r = ((c0[0] * (1.0 - t) + c1[0] * t) * 255.0).clamp(0.0, 255.0) as u8;
+                g = ((c0[1] * (1.0 - t) + c1[1] * t) * 255.0).clamp(0.0, 255.0) as u8;
+                b = ((c0[2] * (1.0 - t) + c1[2] * t) * 255.0).clamp(0.0, 255.0) as u8;
+            }
+
+            // Gradient map: replace luminance with interpolated gradient color
+            if gradient_map_colors.len() >= 2 {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                let n = gradient_map_colors.len() - 1;
+                let pos = lum * n as f64;
+                let idx = (pos.floor() as usize).min(n - 1);
+                let t = pos - idx as f64;
+                let c0 = &gradient_map_colors[idx];
+                let c1 = &gradient_map_colors[idx + 1];
                 r = ((c0[0] * (1.0 - t) + c1[0] * t) * 255.0).clamp(0.0, 255.0) as u8;
                 g = ((c0[1] * (1.0 - t) + c1[1] * t) * 255.0).clamp(0.0, 255.0) as u8;
                 b = ((c0[2] * (1.0 - t) + c1[2] * t) * 255.0).clamp(0.0, 255.0) as u8;
