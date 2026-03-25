@@ -214,6 +214,144 @@ impl Material for Emissive {
     }
 }
 
+// --- Microfacet (Cook-Torrance GGX) ---
+
+pub struct Microfacet {
+    pub albedo: Color,
+    pub roughness: f64,
+    pub metallic: f64,
+}
+
+impl Microfacet {
+    pub fn new(albedo: Color, roughness: f64, metallic: f64) -> Self {
+        Self {
+            albedo,
+            roughness: roughness.clamp(0.01, 1.0),
+            metallic: metallic.clamp(0.0, 1.0),
+        }
+    }
+
+    /// GGX/Trowbridge-Reitz normal distribution function.
+    #[cfg(test)]
+    fn ggx_d(n_dot_h: f64, alpha: f64) -> f64 {
+        let a2 = alpha * alpha;
+        let denom = n_dot_h * n_dot_h * (a2 - 1.0) + 1.0;
+        a2 / (std::f64::consts::PI * denom * denom)
+    }
+
+    /// Schlick-GGX geometry function (single direction).
+    fn schlick_g1(n_dot_v: f64, k: f64) -> f64 {
+        n_dot_v / (n_dot_v * (1.0 - k) + k)
+    }
+
+    /// Smith's geometry function using Schlick-GGX for both directions.
+    fn geometry(n_dot_v: f64, n_dot_l: f64, roughness: f64) -> f64 {
+        let k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+        Self::schlick_g1(n_dot_v, k) * Self::schlick_g1(n_dot_l, k)
+    }
+
+    /// Fresnel-Schlick approximation.
+    fn fresnel(cos_theta: f64, f0: Color) -> Color {
+        let t = (1.0 - cos_theta).max(0.0).powi(5);
+        f0 * (1.0 - t) + Color::new(1.0, 1.0, 1.0) * t
+    }
+
+    /// Sample a microfacet normal using GGX importance sampling.
+    fn sample_ggx_normal(normal: &Vec3, alpha: f64, rng: &mut dyn RngCore) -> Vec3 {
+        let r1 = rng.next_f64();
+        let r2 = rng.next_f64();
+
+        // GGX importance sampling in tangent space
+        let theta = (alpha * alpha * r1 / (1.0 - r1 + 1e-10)).sqrt().atan();
+        let phi = 2.0 * std::f64::consts::PI * r2;
+
+        let sin_theta = theta.sin();
+        let cos_theta = theta.cos();
+        let h_local = Vec3::new(sin_theta * phi.cos(), sin_theta * phi.sin(), cos_theta);
+
+        // Build orthonormal basis from normal
+        let up = if normal.y.abs() < 0.999 {
+            Vec3::new(0.0, 1.0, 0.0)
+        } else {
+            Vec3::new(1.0, 0.0, 0.0)
+        };
+        let tangent = up.cross(*normal).unit();
+        let bitangent = normal.cross(tangent);
+
+        (tangent * h_local.x + bitangent * h_local.y + *normal * h_local.z).unit()
+    }
+}
+
+impl Material for Microfacet {
+    fn is_specular(&self) -> bool {
+        // Treat highly metallic, low-roughness surfaces as specular for NEE
+        self.metallic > 0.9 && self.roughness < 0.1
+    }
+
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        let alpha = self.roughness * self.roughness;
+        let v = (-ray.direction).unit();
+        let n = hit.normal;
+
+        let n_dot_v = n.dot(v).max(0.001);
+
+        // F0: base reflectance (0.04 for dielectrics, albedo for metals)
+        let f0 = Color::new(0.04, 0.04, 0.04) * (1.0 - self.metallic)
+            + self.albedo * self.metallic;
+
+        // Decide: specular or diffuse sampling based on Fresnel
+        let fresnel_weight = Self::fresnel(n_dot_v, f0);
+        let specular_prob = (fresnel_weight.x + fresnel_weight.y + fresnel_weight.z) / 3.0;
+        let specular_prob = specular_prob.clamp(0.1, 0.9);
+
+        if rng.next_f64() < specular_prob {
+            // Specular path: sample GGX microfacet normal
+            let h = Self::sample_ggx_normal(&n, alpha, rng);
+            let l = v.reflect_around(h);
+
+            let n_dot_l = n.dot(l);
+            if n_dot_l <= 0.0 {
+                return None;
+            }
+            let n_dot_h = n.dot(h).max(0.0);
+            let v_dot_h = v.dot(h).max(0.0);
+
+            let g = Self::geometry(n_dot_v, n_dot_l, self.roughness);
+            let f = Self::fresnel(v_dot_h, f0);
+
+            // Cook-Torrance specular BRDF * cos_theta / pdf (D cancels with GGX IS pdf)
+            // weight = BRDF * n_dot_l / pdf_l = G * F * v_dot_h / (n_dot_v * n_dot_h)
+            let weight = if n_dot_h > 0.001 {
+                f * (g * v_dot_h / (n_dot_v * n_dot_h))
+            } else {
+                Color::ZERO
+            };
+
+            Some(Scatter {
+                ray: Ray::with_time(hit.point, l, ray.time),
+                attenuation: weight / specular_prob,
+            })
+        } else {
+            // Diffuse path: Lambertian sampling
+            let mut rng_adapter = RngAdapter(rng);
+            let mut scatter_dir = n + Vec3::random_unit_vector(&mut rng_adapter);
+            if scatter_dir.near_zero() {
+                scatter_dir = n;
+            }
+
+            // Diffuse contribution: (1 - F) * (1 - metallic) * albedo / pi
+            // Weighted by 1 / (1 - specular_prob) for correct MC weighting
+            let k_d = (Color::new(1.0, 1.0, 1.0) - fresnel_weight) * (1.0 - self.metallic);
+            let diffuse_attenuation = k_d.hadamard(self.albedo) / (1.0 - specular_prob);
+
+            Some(Scatter {
+                ray: Ray::with_time(hit.point, scatter_dir, ray.time),
+                attenuation: diffuse_attenuation,
+            })
+        }
+    }
+}
+
 // --- Blend (mix two materials) ---
 
 /// Randomly chooses between two materials per interaction.
@@ -473,6 +611,57 @@ mod tests {
         let luminance = emitted.x + emitted.y + emitted.z;
         assert!(luminance > 0.0, "Textured emissive should emit light");
         assert!((emitted.x / 5.0 + emitted.y / 5.0).abs() < 1.01, "Should be one of the checker colors scaled by 5");
+    }
+
+    #[test]
+    fn microfacet_scatter_valid() {
+        let mat = Microfacet::new(Color::new(0.9, 0.1, 0.1), 0.3, 1.0);
+        let hit = make_hit_record(&mat);
+        let incoming = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let mut scatter_count = 0;
+        for _ in 0..200 {
+            if let Some(scatter) = mat.scatter(&incoming, &hit, &mut rng) {
+                // Attenuation components should be non-negative
+                assert!(scatter.attenuation.x >= 0.0, "Negative attenuation R: {}", scatter.attenuation.x);
+                assert!(scatter.attenuation.y >= 0.0, "Negative attenuation G: {}", scatter.attenuation.y);
+                assert!(scatter.attenuation.z >= 0.0, "Negative attenuation B: {}", scatter.attenuation.z);
+                // Direction should be non-zero
+                assert!(scatter.ray.direction.length() > 1e-6);
+                scatter_count += 1;
+            }
+        }
+        assert!(scatter_count > 50, "Should scatter most of the time, got {scatter_count}/200");
+    }
+
+    #[test]
+    fn microfacet_ggx_normalized() {
+        // GGX D function at n_dot_h = 1 (perfect alignment) should peak
+        let d_peak = Microfacet::ggx_d(1.0, 0.5 * 0.5);
+        let d_off = Microfacet::ggx_d(0.5, 0.5 * 0.5);
+        assert!(d_peak > d_off, "GGX should peak at n_dot_h = 1");
+        assert!(d_peak > 0.0, "GGX D should be positive");
+    }
+
+    #[test]
+    fn microfacet_dielectric_has_diffuse() {
+        // Non-metallic microfacet should have diffuse component
+        let mat = Microfacet::new(Color::new(0.8, 0.2, 0.1), 0.5, 0.0);
+        let hit = make_hit_record(&mat);
+        let incoming = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        // With metallic=0, we should get diffuse scatters with colored attenuation
+        let mut got_diffuse = false;
+        for _ in 0..100 {
+            if let Some(scatter) = mat.scatter(&incoming, &hit, &mut rng) {
+                if scatter.attenuation.x > scatter.attenuation.y {
+                    got_diffuse = true; // Albedo color bleeding through
+                }
+            }
+        }
+        assert!(got_diffuse, "Non-metallic should produce colored diffuse scatters");
     }
 
     #[test]

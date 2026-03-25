@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal};
+use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal, Microfacet};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -329,6 +329,12 @@ pub enum MaterialDesc {
         color: [f64; 3],
         intensity: Option<f64>,
         texture: Option<String>,
+    },
+    #[serde(alias = "microfacet", alias = "pbr")]
+    Microfacet {
+        color: [f64; 3],
+        roughness: Option<f64>,
+        metallic: Option<f64>,
     },
     #[serde(alias = "checker")]
     Checker {
@@ -880,6 +886,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                     int,
                 ))
             }
+        }
+        MaterialDesc::Microfacet { color, roughness, metallic } => {
+            Box::new(Microfacet::new(
+                Color::new(color[0], color[1], color[2]),
+                roughness.unwrap_or(0.5),
+                metallic.unwrap_or(0.0),
+            ))
         }
         MaterialDesc::Checker { color1, color2, scale } => {
             Box::new(Lambertian::with_texture(Box::new(Checker::new(

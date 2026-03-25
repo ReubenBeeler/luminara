@@ -65,6 +65,11 @@ impl Vec3 {
         self - normal * 2.0 * self.dot(normal)
     }
 
+    /// Reflect this vector around a half-vector h: 2*(self·h)*h - self.
+    pub fn reflect_around(self, h: Self) -> Self {
+        h * 2.0 * self.dot(h) - self
+    }
+
     pub fn refract(self, normal: Self, eta_ratio: f64) -> Self {
         let cos_theta = (-self).dot(normal).min(1.0);
         let r_perp = (self + normal * cos_theta) * eta_ratio;
