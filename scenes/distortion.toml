@@ -1,0 +1,64 @@
+# Distortion Demo — showcases wave, swirl, and mosaic effects
+# Try: luminara distortion --wave 10 --swirl 1.5 --mosaic 20
+
+[render]
+width = 800
+height = 600
+samples = 32
+max_depth = 8
+background = { type = "sky" }
+bloom = 0.08
+
+[camera]
+look_from = [0, 4, 10]
+look_at = [0, 1, 0]
+vfov = 40
+
+# Reflective ground
+[[plane]]
+point = [0, 0, 0]
+normal = [0, 1, 0]
+material = { type = "checker", color1 = [0.9, 0.9, 0.9], color2 = [0.3, 0.3, 0.3], scale = 1.5 }
+
+# Central glass sphere
+[[sphere]]
+center = [0, 1.5, 0]
+radius = 1.5
+material = { type = "dielectric", refraction_index = 1.5 }
+
+# Colored spheres in a ring
+[[sphere]]
+center = [3, 0.7, 0]
+radius = 0.7
+material = { type = "lambertian", color = [0.9, 0.1, 0.1] }
+
+[[sphere]]
+center = [-3, 0.7, 0]
+radius = 0.7
+material = { type = "lambertian", color = [0.1, 0.1, 0.9] }
+
+[[sphere]]
+center = [0, 0.7, 3]
+radius = 0.7
+material = { type = "lambertian", color = [0.1, 0.9, 0.1] }
+
+[[sphere]]
+center = [0, 0.7, -3]
+radius = 0.7
+material = { type = "metal", color = [0.95, 0.8, 0.2], fuzz = 0.0 }
+
+[[sphere]]
+center = [2.1, 0.5, 2.1]
+radius = 0.5
+material = { type = "lambertian", color = [0.9, 0.5, 0.0] }
+
+[[sphere]]
+center = [-2.1, 0.5, 2.1]
+radius = 0.5
+material = { type = "lambertian", color = [0.5, 0.0, 0.9] }
+
+# Lighting
+[[sphere]]
+center = [0, 10, 5]
+radius = 3
+material = { type = "emissive", color = [1, 1, 1], intensity = 5 }
