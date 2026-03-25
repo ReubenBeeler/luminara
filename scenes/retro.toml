@@ -1,0 +1,64 @@
+# Retro Pixel Art Scene
+# Demonstrates pixelate + posterize for a classic game aesthetic
+
+[render]
+width = 640
+height = 480
+samples = 16
+max_depth = 6
+pixelate = 8
+posterize = 8
+saturation = 1.5
+contrast = 1.2
+background = { type = "gradient", bottom = [0.05, 0.0, 0.15], top = [0.1, 0.0, 0.3] }
+
+[camera]
+look_from = [0, 3, 8]
+look_at = [0, 0.5, 0]
+vfov = 45
+
+# Checkered ground
+[[sphere]]
+center = [0, -100, 0]
+radius = 100
+material = { type = "checker", color1 = [0.2, 0.6, 0.2], color2 = [0.15, 0.4, 0.15], scale = 6 }
+
+# Hero sphere - shiny red
+[[sphere]]
+center = [0, 1, 0]
+radius = 1
+material = { type = "metal", color = [0.9, 0.15, 0.15], fuzz = 0.05 }
+
+# Gold sphere
+[[sphere]]
+center = [-2, 0.6, 1]
+radius = 0.6
+material = { type = "metal", color = [0.95, 0.8, 0.2], fuzz = 0.1 }
+
+# Glass sphere
+[[sphere]]
+center = [2, 0.7, 0.5]
+radius = 0.7
+material = { type = "glass", ior = 1.5 }
+
+# Small accent spheres
+[[sphere]]
+center = [-0.8, 0.3, 2]
+radius = 0.3
+material = { type = "lambertian", color = [0.3, 0.3, 0.95] }
+
+[[sphere]]
+center = [1.2, 0.25, 2.5]
+radius = 0.25
+material = { type = "lambertian", color = [0.95, 0.5, 0.1] }
+
+# Lights
+[[sphere]]
+center = [5, 8, 5]
+radius = 2
+material = { type = "emissive", color = [1, 0.95, 0.8], intensity = 6 }
+
+[[sphere]]
+center = [-4, 6, -2]
+radius = 1
+material = { type = "emissive", color = [0.6, 0.7, 1], intensity = 4 }
