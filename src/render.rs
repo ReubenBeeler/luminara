@@ -365,6 +365,8 @@ pub struct RenderConfig {
     pub lens_flare: f64,
     /// Cel-shading color bands (0 = off). Combines posterization + edge outlines for toon look.
     pub cel_shade: u32,
+    /// Picture frame width in pixels (0 = off). Adds decorative frame with drop shadow.
+    pub frame: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -470,6 +472,7 @@ impl Default for RenderConfig {
             posterize_channels: [0, 0, 0],
             lens_flare: 0.0,
             cel_shade: 0,
+            frame: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2666,6 +2669,47 @@ pub fn render(
                         *pixel = Color::new(0.0, 0.0, 0.0);
                     }
                 }
+            }
+        }
+        result
+    } else { rows };
+
+    // Picture frame: outer frame with inner bevel and drop shadow
+    let rows = if config.frame > 0 {
+        let fw = config.frame as usize;
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let new_h = h + fw * 2;
+        let new_w = w + fw * 2;
+        let mut result = vec![vec![Color::new(0.15, 0.1, 0.05); new_w]; new_h];
+        // Copy image into center
+        for (y, row) in rows.iter().enumerate() {
+            for (x, c) in row.iter().enumerate() {
+                result[y + fw][x + fw] = *c;
+            }
+        }
+        // Inner bevel: light top/left edge, dark bottom/right edge
+        let bevel = (fw / 4).max(1);
+        for b in 0..bevel {
+            let light = Color::new(0.3, 0.25, 0.15);
+            let dark = Color::new(0.05, 0.03, 0.01);
+            let fy = fw - b - 1;
+            let fx = fw - b - 1;
+            // Top edge
+            for pixel in &mut result[fy][fx..new_w - fx] {
+                *pixel = light;
+            }
+            // Left edge
+            for row in result.iter_mut().take(new_h - fy).skip(fy) {
+                row[fx] = light;
+            }
+            // Bottom edge
+            for pixel in &mut result[new_h - 1 - fy][fx..new_w - fx] {
+                *pixel = dark;
+            }
+            // Right edge
+            for row in result.iter_mut().take(new_h - fy).skip(fy) {
+                row[new_w - 1 - fx] = dark;
             }
         }
         result
