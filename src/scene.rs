@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Transparent, Velvet};
-use crate::texture::{Checker, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, MixTexture, Noise, Rings, Spiral, Stripe, TransformedTexture, Turbulence, UvChecker, Voronoi, Wavy, Wood};
+use crate::texture::{Checker, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, MixTexture, Noise, Rings, Spiral, Stripe, TransformedTexture, TriPlanar, Turbulence, UvChecker, Voronoi, Wavy, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -522,6 +522,13 @@ pub enum MaterialDesc {
         color2: [f64; 3],
         scale: Option<f64>,
         line_width: Option<f64>,
+    },
+    #[serde(alias = "tri_planar", alias = "triplanar")]
+    TriPlanar {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
+        sharpness: Option<f64>,
     },
     #[serde(alias = "mix_color")]
     MixColor {
@@ -1393,6 +1400,18 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
                 octaves.unwrap_or(6),
+            ))))
+        }
+        MaterialDesc::TriPlanar { color1, color2, scale, sharpness } => {
+            let inner = Box::new(Checker {
+                even: Color::new(color1[0], color1[1], color1[2]),
+                odd: Color::new(color2[0], color2[1], color2[2]),
+                scale: 1.0,
+            });
+            Box::new(Lambertian::with_texture(Box::new(TriPlanar::new(
+                inner,
+                scale.unwrap_or(1.0),
+                sharpness.unwrap_or(2.0),
             ))))
         }
         MaterialDesc::MixColor { color1, color2, factor } => {

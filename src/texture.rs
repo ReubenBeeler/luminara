@@ -940,3 +940,42 @@ impl Texture for MixTexture {
         ca * (1.0 - self.factor) + cb * self.factor
     }
 }
+
+/// Tri-planar texture mapping: projects a texture from 3 axes based on world-space
+/// position, blending by surface normal weights. Eliminates UV seam artifacts.
+pub struct TriPlanar {
+    pub texture: Box<dyn Texture>,
+    pub scale: f64,
+    pub sharpness: f64,
+}
+
+impl TriPlanar {
+    pub fn new(texture: Box<dyn Texture>, scale: f64, sharpness: f64) -> Self {
+        Self { texture, scale, sharpness: sharpness.max(1.0) }
+    }
+}
+
+impl Texture for TriPlanar {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+
+        // Use point direction from origin as proxy for normal when actual normal
+        // is not available. The sharpness controls how sharply we transition
+        // between projection planes.
+        let len = point.length().max(1e-10);
+        let nx = (point.x / len).abs().powf(self.sharpness);
+        let ny = (point.y / len).abs().powf(self.sharpness);
+        let nz = (point.z / len).abs().powf(self.sharpness);
+        let sum = (nx + ny + nz).max(1e-10);
+        let wx = nx / sum;
+        let wy = ny / sum;
+        let wz = nz / sum;
+
+        // Sample from each projection plane
+        let yz = self.texture.value(p.y.fract().abs(), p.z.fract().abs(), point);
+        let xz = self.texture.value(p.x.fract().abs(), p.z.fract().abs(), point);
+        let xy = self.texture.value(p.x.fract().abs(), p.y.fract().abs(), point);
+
+        yz * wx + xz * wy + xy * wz
+    }
+}
