@@ -894,6 +894,10 @@ pub struct RenderResult {
     pub depth_pass: Option<Vec<f32>>,
     /// Normal pass: world-space normals as [R, G, B] per pixel.
     pub normal_pass: Option<Vec<u8>>,
+    /// Total rays traced (primary + secondary bounces).
+    pub total_rays: u64,
+    /// Render time in seconds (excluding post-processing).
+    pub render_time_secs: f64,
 }
 
 /// Render the scene and return LDR pixels and optionally HDR data.
@@ -1077,6 +1081,9 @@ pub fn render(
             eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
         }
     }
+
+    let render_time_secs = start_time.elapsed().as_secs_f64();
+    let final_total_rays = total_rays_counter.load(Ordering::Relaxed) as u64;
 
     // Optional bilateral denoising pass (operates on HDR data before tone mapping)
     let rows = if config.denoise {
@@ -1357,7 +1364,7 @@ pub fn render(
         (None, None)
     };
 
-    RenderResult { pixels, hdr_data, depth_pass, normal_pass }
+    RenderResult { pixels, hdr_data, depth_pass, normal_pass, total_rays: final_total_rays, render_time_secs }
 }
 
 impl Background {

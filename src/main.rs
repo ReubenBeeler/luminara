@@ -360,10 +360,9 @@ fn main() {
 
     let elapsed = start.elapsed();
     let secs = elapsed.as_secs_f64();
-    let sqrt_spp = (render_config.samples_per_pixel as f64).sqrt().ceil() as u64;
-    let total_rays = out_w as u64 * out_h as u64 * sqrt_spp * sqrt_spp;
-    let mrays_per_sec = total_rays as f64 / secs / 1_000_000.0;
-    eprintln!("Rendered in {secs:.2}s ({mrays_per_sec:.1} Mrays/s)");
+    let mrays_per_sec = result.total_rays as f64 / result.render_time_secs / 1_000_000.0;
+    eprintln!("Rendered in {secs:.2}s (trace: {:.2}s, {mrays_per_sec:.1} Mrays/s, {} total rays)",
+        result.render_time_secs, result.total_rays);
 
     // Save output
     let out = cli.output.unwrap_or_else(|| PathBuf::from("output.png"));
