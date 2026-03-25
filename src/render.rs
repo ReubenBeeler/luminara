@@ -272,11 +272,9 @@ fn sample_direct_light(
 
     // Lambertian BRDF = albedo / pi
     // Monte Carlo estimate: emission * (albedo/pi) * cos_theta * cos_theta_light * area / dist^2 * N_lights
-    let contribution = light.emission.hadamard(*albedo)
+    light.emission.hadamard(*albedo)
         * (cos_theta * cos_theta_light * area * lights.len() as f64
-            / (std::f64::consts::PI * dist_sq));
-
-    contribution
+            / (std::f64::consts::PI * dist_sq))
 }
 
 /// Trace a single ray through the scene.
