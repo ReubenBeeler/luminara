@@ -921,9 +921,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
         MaterialDesc::Emissive { color, intensity, texture } => {
             let int = intensity.unwrap_or(1.0);
             if let Some(file) = texture {
-                let tex = ImageTexture::load(file)
-                    .unwrap_or_else(|e| panic!("Failed to load emissive texture '{file}': {e}"));
-                Box::new(Emissive::with_texture(Box::new(tex), int))
+                match ImageTexture::load(file) {
+                    Ok(tex) => Box::new(Emissive::with_texture(Box::new(tex), int)),
+                    Err(e) => {
+                        eprintln!("Warning: failed to load emissive texture '{file}': {e}, using solid color");
+                        Box::new(Emissive::new(Color::new(color[0], color[1], color[2]), int))
+                    }
+                }
             } else {
                 Box::new(Emissive::new(
                     Color::new(color[0], color[1], color[2]),
@@ -935,9 +939,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
             let r = roughness.unwrap_or(0.5);
             let m = metallic.unwrap_or(0.0);
             if let Some(file) = texture {
-                let tex = ImageTexture::load(file)
-                    .unwrap_or_else(|e| panic!("Failed to load PBR texture '{file}': {e}"));
-                Box::new(Microfacet::with_texture(Box::new(tex), r, m))
+                match ImageTexture::load(file) {
+                    Ok(tex) => Box::new(Microfacet::with_texture(Box::new(tex), r, m)),
+                    Err(e) => {
+                        eprintln!("Warning: failed to load PBR texture '{file}': {e}, using solid color");
+                        Box::new(Microfacet::new(Color::new(color[0], color[1], color[2]), r, m))
+                    }
+                }
             } else {
                 Box::new(Microfacet::new(
                     Color::new(color[0], color[1], color[2]),

@@ -193,18 +193,23 @@ fn main() {
             std::io::stdout().write_all(ppm.as_bytes()).unwrap();
             eprintln!("Written to stdout (PPM)");
         } else {
-            std::fs::write(&out, ppm).unwrap_or_else(|e| panic!("Failed to write: {e}"));
+            if let Err(e) = std::fs::write(&out, ppm) {
+                eprintln!("Error: failed to write '{}': {e}", out.display());
+                std::process::exit(1);
+            }
             eprintln!("Saved to {}", out.display());
         }
     } else {
-        image::save_buffer(
+        if let Err(e) = image::save_buffer(
             &out,
             &pixels,
             render_config.width,
             render_config.height,
             image::ColorType::Rgba8,
-        )
-        .unwrap_or_else(|e| panic!("Failed to save image: {}", e));
+        ) {
+            eprintln!("Error: failed to save image '{}': {e}", out.display());
+            std::process::exit(1);
+        }
         eprintln!("Saved to {}", out.display());
     }
 }
