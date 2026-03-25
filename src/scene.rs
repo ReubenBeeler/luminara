@@ -141,6 +141,7 @@ pub struct RenderSettings {
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
     pub palette: Option<String>,
+    pub night_vision: Option<bool>,
     pub fisheye: Option<f64>,
     pub wave: Option<f64>,
     pub swirl: Option<f64>,
@@ -924,6 +925,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref p) = r.palette {
             render_config.palette = p.clone();
+        }
+        if r.night_vision == Some(true) {
+            render_config.night_vision = true;
         }
         if let Some(fe) = r.fisheye {
             render_config.fisheye = fe;
@@ -1920,6 +1924,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
         palette: String::new(),
+        night_vision: false,
         fisheye: 0.0,
         wave: 0.0,
         swirl: 0.0,

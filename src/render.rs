@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Night vision simulation (0 = off, 1 = full effect).
+    pub night_vision: bool,
     /// Fisheye barrel distortion intensity (0 = off, positive = barrel, negative = pincushion).
     pub fisheye: f64,
     /// Wave distortion amplitude in pixels (0 = off).
@@ -434,6 +436,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            night_vision: false,
             fisheye: 0.0,
             wave: 0.0,
             swirl: 0.0,
@@ -2692,6 +2695,18 @@ pub fn render(
                 r = 255 - r;
                 g = 255 - g;
                 b = 255 - b;
+            }
+
+            // Night vision: green-tinted amplified luminance with noise
+            if config.night_vision {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                // Amplify and add noise
+                let hash = (i as u64).wrapping_mul(73856093) ^ (j as u64).wrapping_mul(19349663);
+                let noise = ((hash & 0xFFFF) as f64 / 65535.0 - 0.5) * 0.08;
+                let bright = (lum * 1.5 + 0.05 + noise).clamp(0.0, 1.0);
+                r = (bright * 0.15 * 255.0) as u8;
+                g = (bright * 255.0) as u8;
+                b = (bright * 0.1 * 255.0) as u8;
             }
 
             // Black-and-white threshold
