@@ -1172,13 +1172,7 @@ fn filmic_tonemap(x: f64) -> f64 {
 /// Convert linear [0,1] to sRGB byte using the official piecewise transfer function.
 #[cfg(test)]
 fn linear_to_srgb(x: f64) -> u8 {
-    linear_to_srgb_dithered(x, 0.0)
-}
-
-/// Convert linear [0,1] to sRGB byte with optional dither offset.
-/// If gamma > 0, uses simple power curve instead of sRGB transfer function.
-fn linear_to_srgb_dithered(x: f64, dither: f64) -> u8 {
-    gamma_correct(x, 0.0, dither)
+    gamma_correct(x, 0.0, 0.0)
 }
 
 fn gamma_correct(x: f64, gamma: f64, dither: f64) -> u8 {
