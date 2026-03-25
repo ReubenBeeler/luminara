@@ -17,6 +17,7 @@ mod mobius;
 mod normal_map;
 mod obj;
 mod plane;
+mod prism;
 mod quad;
 mod ray;
 mod rect;
@@ -1508,7 +1509,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 63 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 31 geometry types, 63 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
