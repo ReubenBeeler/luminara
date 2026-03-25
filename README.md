@@ -7,13 +7,13 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
 - **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with Beer's Law absorption, tint, and roughness), emissive (solid or textured lights), microfacet/PBR (Cook-Torrance GGX with roughness and metallic), blend (mix two materials), iridescent (thin-film interference), translucent (subsurface scattering)
+- **Materials**: Lambertian (diffuse), metallic, dielectric (glass with Beer's Law, tint, roughness, dispersion), emissive, blackbody (Kelvin temperature), microfacet/PBR (Cook-Torrance GGX), iridescent (thin-film interference), translucent (subsurface scattering), velvet (rim lighting), clearcoat (lacquer), anisotropic (brushed metal), toon (cel-shading), blend (mix two materials)
 - **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
 - **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling with solid-angle cone sampling), ACES tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
-- **Post-processing**: Bloom (glow), vignette, film grain, bilateral denoising, HDR output
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, bilateral denoising, HDR output
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
 - **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, or black
@@ -148,6 +148,11 @@ color = [0.8, 0.8, 0.8]
 | `turbulence` | `color`, `scale` (optional) |
 | `iridescent` | `color` (optional), `thickness` (nm, optional), `film_ior` (optional), `roughness` (optional) |
 | `translucent` | `color`, `translucency` (optional, 0.0-1.0), `scatter_width` (optional, 0.0-1.0) |
+| `velvet` | `color`, `sheen` (optional, rim lighting intensity) |
+| `clearcoat` | `color`, `coat_gloss` (optional), `coat_ior` (optional) |
+| `anisotropic` / `brushed` | `color`, `roughness_u` (optional), `roughness_v` (optional), `tangent_axis` (optional) |
+| `toon` / `cel` | `color`, `bands` (optional, shading steps), `specular` (optional) |
+| `blackbody` | `temperature` (Kelvin), `intensity` (optional) |
 | `image` | `file` (path to PNG/JPG) |
 
 ## Architecture
@@ -159,7 +164,7 @@ color = [0.8, 0.8, 0.8]
 | `aabb` | Axis-aligned bounding boxes |
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
-| `material` | Material trait + Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend, Iridescent, Translucent |
+| `material` | Material trait + 14 material types (Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend, Iridescent, Translucent, Velvet, Clearcoat, Anisotropic, Toon) |
 | `csg` | Constructive Solid Geometry (union, intersection, difference) |
 | `texture` | Texture trait + 12 procedural/image textures |
 | `sphere` | Sphere and MovingSphere with UV mapping |
