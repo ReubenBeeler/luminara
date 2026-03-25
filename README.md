@@ -6,16 +6,16 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
-- **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, hemispheres, annuli, axis-aligned rectangles, boxes, rounded boxes, superellipsoids, springs/helices, Möbius strips, OBJ and PLY triangle meshes
+- **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, hemispheres, annuli, axis-aligned rectangles, boxes, rounded boxes, superellipsoids, springs/helices, Möbius strips, prisms, wedges, OBJ and PLY triangle meshes
 - **Materials**: Lambertian (diffuse), metallic, dielectric (glass with Beer's Law, tint, roughness, dispersion), emissive, blackbody (Kelvin temperature), microfacet/PBR (Cook-Torrance GGX), iridescent (thin-film interference), translucent, subsurface scattering (random-walk SSS), velvet (rim lighting), clearcoat (lacquer), anisotropic (brushed metal), toon (cel-shading), blend (mix two materials)
 - **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, Voronoi, spiral, hexgrid, noise, color ramp (multi-stop gradient), FBM (fractal Brownian motion), wavy (sine interference), mix (blend two textures), tri-planar mapping, UV transforms (offset/rotation/tiling), cloud, lava, camouflage, brick, rust/patina, terrain, plasma, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
 - **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling for sphere, rect, and disk lights), adaptive sampling (variance-based early termination), Russian roulette path termination, pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats, time-budgeted rendering
-- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping, solarize, duo-tone, pencil sketch, median filter, crosshatch, digital glitch, depth fog, channel swap, color quantization (median-cut), color tint, named palettes (gameboy/cga/nes/pastel/cyberpunk/etc), radial blur, border frame, resize, rotation, warm/cool presets, ASCII art output, mosaic, swirl, wave, fisheye, night vision, stipple, watercolor, auto-levels, brightness, color balance, thermal/neon color maps
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping, solarize, duo-tone, pencil sketch, median filter, crosshatch, digital glitch, depth fog, channel swap, color quantization (median-cut), color tint, named palettes (gameboy/cga/nes/pastel/cyberpunk/etc), radial blur, border frame, resize, rotation, warm/cool presets, ASCII art output, mosaic, swirl, wave, fisheye, night vision, stipple, watercolor, auto-levels, brightness, color balance, thermal/neon color maps, gradient map, split toning, color shift, per-channel posterize, lens flare, cel-shade, picture frame, tri-tone, pop art, hex pixelate, pencil cross-hatching
 - **Camera modes**: Perspective (standard), panoramic (360° equirectangular)
-- **Presets**: Vintage (sepia+grain+vignette), cinematic (bloom+warm+vignette)
+- **Presets**: Vintage (sepia+grain+vignette), cinematic (bloom+warm+vignette), retro (scanlines+pixelate+aberration), dreamy (bloom+blur+saturation)
 - **Output**: PNG, PPM, JPEG, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, albedo pass, JSON stats, stdout piping
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
@@ -122,6 +122,17 @@ cargo run --release -- --help
 | `--panorama` | 360° equirectangular panoramic camera |
 | `--vintage` | Vintage photo preset |
 | `--cinematic` | Cinematic look preset |
+| `--retro` | Retro CRT preset (scanlines + pixelate + aberration) |
+| `--dreamy` | Dreamy/ethereal preset (bloom + blur + saturation) |
+| `--tri-tone S` | Three-color toning ("R,G,B;R,G,B;R,G,B") |
+| `--gradient-map S` | Custom gradient color map ("RRGGBB;RRGGBB;...") |
+| `--split-tone S` | Split toning ("R,G,B;R,G,B" shadow;highlight) |
+| `--color-shift N` | Rotate RGB channels (1=right, 2=left) |
+| `--posterize-channels R,G,B` | Per-channel posterization levels |
+| `--lens-flare N` | Lens flare streaks from brightest point |
+| `--cel-shade N` | Cel-shading/toon (N color bands + outlines) |
+| `--frame N` | Picture frame with bevel (N pixel width) |
+| `--pop-art N` | Warhol-style pop art color bands |
 | `--save-json F` | Save render statistics as JSON |
 | `--benchmark` | Run built-in benchmark and report Mrays/s |
 | `--list-scenes` | List available .toml scene files |
@@ -251,6 +262,8 @@ color = [0.8, 0.8, 0.8]
 | `cylinder` | Finite Y-axis cylinder |
 | `cone` | Finite Y-axis cone |
 | `capsule` | Rounded cylinder (cylinder + hemispheres) |
+| `prism` | Triangular prism geometry |
+| `wedge` | Wedge (ramp) geometry |
 | `rect` | Axis-aligned rectangles (XY, XZ, YZ) and box builder |
 | `transform` | Translate, RotateX/Y/Z, Scale wrappers |
 | `bump` | Perlin noise bump mapping |
