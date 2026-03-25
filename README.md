@@ -50,6 +50,9 @@ cargo run --release -- --help
 | `-d`, `--depth` | Override max ray bounce depth |
 | `-t`, `--threads` | Number of render threads (default: all cores) |
 | `--seed` | Set RNG seed for deterministic rendering |
+| `-e`, `--exposure` | Exposure multiplier (default: 1.0) |
+| `--auto-exposure` | Automatically compute exposure from scene luminance |
+| `--tone-map` | Tone mapping: aces, reinhard, filmic, none |
 | `-q`, `--quiet` | Suppress progress output |
 | `--info` | Show scene info without rendering |
 | `-V`, `--version` | Show version |
@@ -119,7 +122,7 @@ color = [0.8, 0.8, 0.8]
 |------|-----------|
 | `lambertian` / `matte` | `color` |
 | `metal` | `color`, `fuzz` (optional, 0.0-1.0) |
-| `dielectric` | `refraction_index`, `tint` (optional), `roughness` (optional, 0.0-1.0) |
+| `dielectric` | `refraction_index`, `tint` (optional), `roughness` (optional, 0.0-1.0), `dispersion` (optional, 0.01-0.05 for prism effects) |
 | `emissive` | `color`, `intensity` (optional, default 1.0), `texture` (optional, image path) |
 | `microfacet` / `pbr` | `color`, `roughness` (optional, 0.01-1.0), `metallic` (optional, 0.0-1.0) |
 | `mirror` | *(none — perfect reflector)* |
@@ -174,7 +177,7 @@ color = [0.8, 0.8, 0.8]
 - **Trait-based extensibility**: `Hittable`, `Material`, and `Texture` traits make adding new geometry, materials, and textures straightforward.
 - **BVH acceleration**: Bounded objects are organized in a bounding volume hierarchy for logarithmic ray intersection. Unbounded objects (infinite planes) are tested separately.
 - **Physically-based**: Cook-Torrance GGX microfacet BRDF, Schlick's approximation for Fresnel, Beer's Law volumetric absorption, proper refraction via Snell's law, Lambertian scattering, emissive light transport with Next Event Estimation.
-- **HDR pipeline**: ACES filmic tone mapping prevents harsh clamping of bright emissive surfaces. Stratified (jittered) sampling reduces noise.
+- **HDR pipeline**: ACES, Reinhard, and Uncharted 2 filmic tone mapping. Auto-exposure via log-average luminance. Stratified (jittered) sampling reduces noise.
 - **Deterministic per-row seeding**: Each row gets its own RNG seeded by row index, making renders reproducible regardless of thread scheduling.
 - **Input validation**: Guards against zero-length normals, zero-scale textures, and missing image files to prevent NaN propagation.
 
@@ -188,13 +191,15 @@ color = [0.8, 0.8, 0.8]
 - **sunset.toml**: Sunset background preset scene
 - **motion.toml**: Motion blur demo with moving spheres and quad geometry
 - **csg_demo.toml**: CSG boolean operations (union, intersection, difference) with PBR materials
+- **pbr_showcase.toml**: PBR material roughness and metallic parameter gradients
+- **prism.toml**: Chromatic dispersion rainbow effects in glass
 
 ## What's next
 
 - Normal mapping
-- Spectral rendering / wavelength-dependent dispersion
 - Adaptive sampling for faster convergence on complex scenes
 - Photon mapping for caustics
+- Subsurface scattering for translucent materials
 
 ---
 
