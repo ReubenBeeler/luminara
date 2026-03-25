@@ -120,6 +120,7 @@ struct CliArgs {
     color_halftone: Option<u32>,
     kaleidoscope: Option<u32>,
     frosted_glass: Option<u32>,
+    spin_blur: Option<f64>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -398,6 +399,9 @@ fn main() {
     if let Some(fg) = cli.frosted_glass {
         render_config.frosted_glass = fg;
     }
+    if let Some(sb) = cli.spin_blur {
+        render_config.spin_blur = sb;
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -624,6 +628,7 @@ fn main() {
         if render_config.color_halftone >= 2 { pp.push(format!("color-halftone({})", render_config.color_halftone)); }
         if render_config.kaleidoscope >= 2 { pp.push(format!("kaleidoscope({})", render_config.kaleidoscope)); }
         if render_config.frosted_glass > 0 { pp.push(format!("frosted-glass({})", render_config.frosted_glass)); }
+        if render_config.spin_blur > 0.0 { pp.push(format!("spin-blur({:.1}°)", render_config.spin_blur)); }
         if render_config.posterize_channels.iter().any(|&l| l >= 2) {
             pp.push(format!("posterize-ch({},{},{})", render_config.posterize_channels[0], render_config.posterize_channels[1], render_config.posterize_channels[2]));
         }
@@ -1066,6 +1071,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         color_halftone: None,
         kaleidoscope: None,
         frosted_glass: None,
+        spin_blur: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1556,6 +1562,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.frosted_glass = args[i].parse().ok();
                 }
             }
+            "--spin-blur" => {
+                i += 1;
+                if i < args.len() {
+                    cli.spin_blur = args[i].parse().ok();
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1686,7 +1698,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 33 geometry types, 73 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 33 geometry types, 74 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1762,6 +1774,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --color-halftone N  CMYK color halftone with rotated screens");
                 eprintln!("      --kaleidoscope N  Kaleidoscope mirror symmetry (N segments)");
                 eprintln!("      --frosted-glass N  Frosted glass displacement (pixel radius)");
+                eprintln!("      --spin-blur N  Rotational motion blur (angle in degrees)");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");

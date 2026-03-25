@@ -381,6 +381,8 @@ pub struct RenderConfig {
     pub kaleidoscope: u32,
     /// Frosted glass displacement radius (0 = off). Randomly displaces pixel sampling.
     pub frosted_glass: u32,
+    /// Spin blur: rotational motion blur angle in degrees (0 = off).
+    pub spin_blur: f64,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -494,6 +496,7 @@ impl Default for RenderConfig {
             color_halftone: 0,
             kaleidoscope: 0,
             frosted_glass: 0,
+            spin_blur: 0.0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2690,6 +2693,41 @@ pub fn render(
                         *pixel = Color::new(0.0, 0.0, 0.0);
                     }
                 }
+            }
+        }
+        result
+    } else { rows };
+
+    // Spin blur: rotational motion blur
+    let rows = if config.spin_blur > 0.0 {
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let cx = w as f64 / 2.0;
+        let cy = h as f64 / 2.0;
+        let max_angle = config.spin_blur.to_radians();
+        let samples = 8;
+        let mut result = vec![vec![Color::new(0.0, 0.0, 0.0); w]; h];
+        for (y, row) in result.iter_mut().enumerate() {
+            for (x, pixel) in row.iter_mut().enumerate() {
+                let dx = x as f64 - cx;
+                let dy = y as f64 - cy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                let max_dist = (cx * cx + cy * cy).sqrt();
+                let angle_range = max_angle * (dist / max_dist); // more blur at edges
+                let base_angle = dy.atan2(dx);
+                let mut sum = Color::new(0.0, 0.0, 0.0);
+                for s in 0..samples {
+                    let t = (s as f64 / (samples - 1) as f64) * 2.0 - 1.0;
+                    let a = base_angle + t * angle_range;
+                    let sx = (cx + dist * a.cos()).round() as isize;
+                    let sy = (cy + dist * a.sin()).round() as isize;
+                    if sx >= 0 && sx < w as isize && sy >= 0 && sy < h as isize {
+                        sum += rows[sy as usize][sx as usize];
+                    } else {
+                        sum += rows[y][x];
+                    }
+                }
+                *pixel = sum / samples as f64;
             }
         }
         result
