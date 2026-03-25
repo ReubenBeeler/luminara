@@ -504,6 +504,72 @@ impl Material for Iridescent {
     }
 }
 
+// --- Clearcoat (lacquered surface — base diffuse + glossy clear layer) ---
+
+/// Clearcoat material simulates a glossy transparent layer over a
+/// colored base, like automotive paint, polished wood, or lacquer.
+/// Combines diffuse base with Fresnel-weighted specular reflection.
+pub struct Clearcoat {
+    pub base_color: Color,
+    /// Clearcoat glossiness (0 = matte base only, 1 = highly glossy coat)
+    pub coat_gloss: f64,
+    /// Clearcoat IOR (typically 1.5 for lacquer)
+    pub coat_ior: f64,
+}
+
+impl Clearcoat {
+    pub fn new(base_color: Color, coat_gloss: f64, coat_ior: f64) -> Self {
+        Self {
+            base_color,
+            coat_gloss: coat_gloss.clamp(0.0, 1.0),
+            coat_ior: coat_ior.max(1.0),
+        }
+    }
+}
+
+impl Material for Clearcoat {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        let unit_dir = ray.direction.unit();
+        let cos_theta = (-unit_dir).dot(hit.normal).abs().min(1.0);
+
+        // Fresnel reflectance for the clearcoat layer (Schlick)
+        let r0 = ((1.0 - self.coat_ior) / (1.0 + self.coat_ior)).powi(2);
+        let fresnel = r0 + (1.0 - r0) * (1.0 - cos_theta).powi(5);
+
+        // Probability of reflecting off the clearcoat vs diffusing from base
+        let coat_prob = fresnel * self.coat_gloss;
+
+        if rng.next_f64() < coat_prob {
+            // Specular reflection off clearcoat
+            let reflected = unit_dir.reflect(hit.normal);
+            // Add slight roughness based on inverse gloss
+            let roughness = (1.0 - self.coat_gloss) * 0.3;
+            let direction = if roughness > 0.001 {
+                let mut rng_adapter = RngAdapter(rng);
+                let fuzzed = reflected + Vec3::random_in_unit_sphere(&mut rng_adapter) * roughness;
+                if fuzzed.dot(hit.normal) > 0.0 { fuzzed } else { reflected }
+            } else {
+                reflected
+            };
+            Some(Scatter {
+                ray: Ray::with_time(hit.point, direction, ray.time),
+                attenuation: Color::new(1.0, 1.0, 1.0), // Clear coat reflects white
+            })
+        } else {
+            // Diffuse reflection from base
+            let mut rng_adapter = RngAdapter(rng);
+            let mut scatter_dir = hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
+            if scatter_dir.near_zero() {
+                scatter_dir = hit.normal;
+            }
+            Some(Scatter {
+                ray: Ray::with_time(hit.point, scatter_dir, ray.time),
+                attenuation: self.base_color,
+            })
+        }
+    }
+}
+
 // --- Velvet (soft fabric with rim lighting) ---
 
 /// Velvet material that produces a characteristic rim-lighting effect.

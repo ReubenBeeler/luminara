@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Blend, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Translucent, Velvet};
+use crate::material::{Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Translucent, Velvet};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -385,6 +385,12 @@ pub enum MaterialDesc {
         color1: [f64; 3],
         color2: [f64; 3],
         scale: Option<f64>,
+    },
+    #[serde(alias = "clearcoat")]
+    Clearcoat {
+        color: [f64; 3],
+        coat_gloss: Option<f64>,
+        coat_ior: Option<f64>,
     },
     #[serde(alias = "velvet")]
     Velvet {
@@ -1113,6 +1119,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 scale.unwrap_or(1.0),
             ))))
         }
+        MaterialDesc::Clearcoat { color, coat_gloss, coat_ior } => {
+            Box::new(Clearcoat::new(
+                Color::new(color[0], color[1], color[2]),
+                coat_gloss.unwrap_or(0.8),
+                coat_ior.unwrap_or(1.5),
+            ))
+        }
         MaterialDesc::Velvet { color, sheen } => {
             Box::new(Velvet::new(
                 Color::new(color[0], color[1], color[2]),
@@ -1494,6 +1507,11 @@ material = { type = "translucent", color = [0.7, 0.9, 0.7], translucency = 0.5, 
 center = [32.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "velvet", color = [0.5, 0.1, 0.1], sheen = 1.2 }
+
+[[sphere]]
+center = [34.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "clearcoat", color = [0.8, 0.1, 0.05], coat_gloss = 0.9 }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
