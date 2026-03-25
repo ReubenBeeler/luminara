@@ -2073,6 +2073,56 @@ opacity = 0.5
 [sphere.material.material]
 type = "lambertian"
 color = [0.8, 0.2, 0.2]
+
+[[sphere]]
+center = [50.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "fbm", color1 = [0.5, 0.5, 0.5], color2 = [0.2, 0.2, 0.2] }
+
+[[sphere]]
+center = [52.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "wavy", color1 = [0.5, 0.0, 0.0], color2 = [0.0, 0.0, 0.5] }
+
+[[sphere]]
+center = [54.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "mix_color", color1 = [1.0, 0.0, 0.0], color2 = [0.0, 0.0, 1.0], factor = 0.5 }
+
+[[sphere]]
+center = [56.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "tri_planar", color1 = [0.5, 0.5, 0.5], color2 = [0.2, 0.2, 0.2] }
+
+[[sphere]]
+center = [58.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "cloud" }
+
+[[sphere]]
+center = [60.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "lava" }
+
+[[sphere]]
+center = [62.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "camo" }
+
+[[sphere]]
+center = [64.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "brick" }
+
+[[sphere]]
+center = [66.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "rust" }
+
+[[sphere]]
+center = [68.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "terrain" }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
