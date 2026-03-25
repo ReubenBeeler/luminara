@@ -7,18 +7,18 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
 - **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic, dielectric (glass with Beer's Law, tint, roughness, dispersion), emissive, blackbody (Kelvin temperature), microfacet/PBR (Cook-Torrance GGX), iridescent (thin-film interference), translucent (subsurface scattering), velvet (rim lighting), clearcoat (lacquer), anisotropic (brushed metal), toon (cel-shading), blend (mix two materials)
-- **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, and image textures (PNG/JPG)
+- **Materials**: Lambertian (diffuse), metallic, dielectric (glass with Beer's Law, tint, roughness, dispersion), emissive, blackbody (Kelvin temperature), microfacet/PBR (Cook-Torrance GGX), iridescent (thin-film interference), translucent, subsurface scattering (random-walk SSS), velvet (rim lighting), clearcoat (lacquer), anisotropic (brushed metal), toon (cel-shading), blend (mix two materials)
+- **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, Voronoi, spiral, hexgrid, noise, color ramp (multi-stop gradient), and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
-- **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling with solid-angle cone sampling), ACES tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
-- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, bilateral denoising, HDR output
+- **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling with solid-angle cone sampling), adaptive sampling (variance-based early termination), pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma
+- **Output**: PNG, PPM, Radiance HDR (.hdr), depth pass, normal pass, stdout piping
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
 - **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, or black
 - **Transforms**: Translate, rotate (X/Y/Z-axis), uniform scale
-- **Output**: PNG images, PPM format, or stdout piping (`-o -`)
 - **Scenes**: Declarative TOML format, plus a built-in demo scene
 
 ## Usage
@@ -59,9 +59,22 @@ cargo run --release -- --help
 | `--bloom N` | Add bloom glow effect (intensity, e.g. 0.3) |
 | `--vignette N` | Darken edges for cinematic look (e.g. 0.5) |
 | `--grain N` | Add film grain noise (e.g. 0.1) |
+| `--sharpen N` | Sharpen details (e.g. 0.5) |
+| `--saturation N` | Saturation (1.0 = normal, 0.0 = grayscale) |
+| `--contrast N` | Contrast (1.0 = normal) |
+| `--white-balance N` | Color temperature shift (negative = cool, positive = warm) |
+| `--hue-shift N` | Rotate hue in degrees |
+| `--dither` | Apply ordered dithering to reduce banding |
+| `--gamma N` | Custom gamma (0 = sRGB default) |
+| `--ca N` | Chromatic aberration strength (e.g. 0.005) |
+| `--filter F` | Pixel filter: box, triangle, gaussian, mitchell |
+| `--adaptive` | Adaptive sampling: fewer samples on smooth areas |
+| `--adaptive-threshold N` | Noise threshold for adaptive (default 0.03) |
 | `--save-hdr F` | Save HDR data to Radiance .hdr file |
+| `--save-depth F` | Save depth pass to image file |
+| `--save-normals F` | Save normal pass to image file |
 | `--crop X,Y,W,H` | Render only a sub-region of the image |
-| `--info` | Show scene info without rendering |
+| `--info` | Show scene info and post-processing pipeline |
 | `-p`, `--preview` | Quick preview (1/4 res, low samples) |
 | `-V`, `--version` | Show version |
 | `-h`, `--help` | Show help |
@@ -153,6 +166,12 @@ color = [0.8, 0.8, 0.8]
 | `anisotropic` / `brushed` | `color`, `roughness_u` (optional), `roughness_v` (optional), `tangent_axis` (optional) |
 | `toon` / `cel` | `color`, `bands` (optional, shading steps), `specular` (optional) |
 | `blackbody` | `temperature` (Kelvin), `intensity` (optional) |
+| `subsurface` / `sss` | `color`, `mean_free_path` (optional, world units), `scatter_color` (optional, per-channel absorption) |
+| `voronoi` | `color1`, `color2`, `scale` (optional) |
+| `spiral` | `color1`, `color2`, `scale` (optional), `arms` (optional) |
+| `hexgrid` | `color1`, `color2`, `scale` (optional), `line_width` (optional) |
+| `noise` | `color1`, `color2`, `scale` (optional) |
+| `color_ramp` / `ramp` | `stops` ([[pos,r,g,b],...]), `axis` (optional), `min_val`/`max_val` (optional) |
 | `image` | `file` (path to PNG/JPG) |
 
 ## Architecture
@@ -164,9 +183,9 @@ color = [0.8, 0.8, 0.8]
 | `aabb` | Axis-aligned bounding boxes |
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
-| `material` | Material trait + 14 material types (Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend, Iridescent, Translucent, Velvet, Clearcoat, Anisotropic, Toon) |
+| `material` | Material trait + 15 material types (Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend, Iridescent, Translucent, Subsurface, Velvet, Clearcoat, Anisotropic, Toon) |
 | `csg` | Constructive Solid Geometry (union, intersection, difference) |
-| `texture` | Texture trait + 12 procedural/image textures |
+| `texture` | Texture trait + 17 procedural/image textures |
 | `sphere` | Sphere and MovingSphere with UV mapping |
 | `ellipsoid` | Ellipsoid with 3-axis radii |
 | `torus` | Torus via SDF ray marching |
@@ -183,7 +202,7 @@ color = [0.8, 0.8, 0.8]
 | `constant_medium` | Volumetric fog/smoke with isotropic scattering |
 | `obj` | OBJ file loading with fan triangulation |
 | `camera` | Perspective camera with depth of field |
-| `render` | Stratified sampling, ACES tone mapping, progress |
+| `render` | Stratified/adaptive sampling, pixel filters, tone mapping, post-processing pipeline, AOV passes |
 | `scene` | TOML scene loading, BVH construction, demo scene |
 
 ## Design decisions
@@ -212,10 +231,10 @@ color = [0.8, 0.8, 0.8]
 
 ## What's next
 
-- Normal mapping
-- Adaptive sampling for faster convergence on complex scenes
+- Image-based normal mapping (loading normal map textures)
+- Multiple importance sampling (MIS) for better light-surface interaction
 - Photon mapping for caustics
-- Multiple importance sampling (MIS)
+- Importance-sampled environment map lighting
 
 ---
 
