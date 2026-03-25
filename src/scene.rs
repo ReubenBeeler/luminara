@@ -101,6 +101,7 @@ pub struct RenderSettings {
     pub pixel_filter: Option<String>,
     pub adaptive: Option<bool>,
     pub adaptive_threshold: Option<f64>,
+    pub firefly_filter: Option<f64>,
     pub chromatic_aberration: Option<f64>,
     pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
@@ -668,6 +669,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(threshold) = r.adaptive_threshold {
             render_config.adaptive_threshold = threshold;
+        }
+        if let Some(ff) = r.firefly_filter {
+            render_config.firefly_filter = ff;
         }
         if let Some(ca) = r.chromatic_aberration {
             render_config.chromatic_aberration = ca;
@@ -1409,6 +1413,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         dither: false,
         gamma: 0.0,
         pixel_filter: crate::render::PixelFilter::default(),
+        firefly_filter: 0.0,
         chromatic_aberration: 0.0,
         save_depth: false,
         save_normals: false,

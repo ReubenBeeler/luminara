@@ -259,6 +259,9 @@ pub struct RenderConfig {
     pub save_depth: bool,
     /// Generate normal pass output.
     pub save_normals: bool,
+    /// Firefly removal threshold (0.0 = off). Higher = more aggressive.
+    /// Replaces pixels whose luminance exceeds neighbors by this factor.
+    pub firefly_filter: f64,
     /// Enable adaptive sampling: concentrate samples on noisy regions.
     pub adaptive: bool,
     /// Adaptive sampling noise threshold (0.01 = aggressive, 0.1 = conservative).
@@ -293,6 +296,7 @@ impl Default for RenderConfig {
             dither: false,
             gamma: 0.0,
             pixel_filter: PixelFilter::default(),
+            firefly_filter: 0.0,
             chromatic_aberration: 0.0,
             save_depth: false,
             save_normals: false,
@@ -392,6 +396,60 @@ fn bilateral_denoise(rows: &[Vec<Color>]) -> Vec<Vec<Color>> {
 /// Apply bloom (glow) post-processing to HDR image data.
 /// Extracts bright pixels above a luminance threshold, applies a multi-pass
 /// Gaussian blur, then blends the result back into the original image.
+/// Remove firefly pixels whose luminance is far above their neighbors.
+/// Uses a 3x3 neighborhood median comparison.
+fn remove_fireflies(rows: &[Vec<Color>], threshold: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+    let mut result = rows.to_vec();
+
+    let luminance = |c: &Color| 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+
+    for j in 0..height {
+        for i in 0..width {
+            let center_lum = luminance(&rows[j][i]);
+            if center_lum < 0.01 {
+                continue;
+            }
+
+            // Collect neighbor luminances (3x3, excluding center)
+            let mut neighbors = Vec::with_capacity(8);
+            for dj in [j.wrapping_sub(1), j, j + 1] {
+                for di in [i.wrapping_sub(1), i, i + 1] {
+                    if dj < height && di < width && !(dj == j && di == i) {
+                        neighbors.push(luminance(&rows[dj][di]));
+                    }
+                }
+            }
+            if neighbors.is_empty() {
+                continue;
+            }
+
+            // Compute median of neighbors
+            neighbors.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let median = neighbors[neighbors.len() / 2];
+
+            // If center pixel is much brighter than median neighbor, replace it
+            if center_lum > median * threshold + 0.1 {
+                // Replace with average of neighbors
+                let mut avg = Color::ZERO;
+                for dj in [j.wrapping_sub(1), j, j + 1] {
+                    for di in [i.wrapping_sub(1), i, i + 1] {
+                        if dj < height && di < width && !(dj == j && di == i) {
+                            avg += rows[dj][di];
+                        }
+                    }
+                }
+                result[j][i] = avg / neighbors.len() as f64;
+            }
+        }
+    }
+    result
+}
+
 fn apply_bloom(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
     let height = rows.len();
     if height == 0 {
@@ -936,6 +994,20 @@ pub fn render(
             eprintln!(" done");
         }
         denoised
+    } else {
+        rows
+    };
+
+    // Optional firefly removal pass (before bloom to prevent glow on outliers)
+    let rows = if config.firefly_filter > 0.0 {
+        if !config.quiet {
+            eprint!("Removing fireflies...");
+        }
+        let cleaned = remove_fireflies(&rows, config.firefly_filter);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        cleaned
     } else {
         rows
     };

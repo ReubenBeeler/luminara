@@ -61,6 +61,7 @@ struct CliArgs {
     gamma: Option<f64>,
     adaptive: bool,
     adaptive_threshold: Option<f64>,
+    firefly_filter: Option<f64>,
     chromatic_aberration: Option<f64>,
     pixel_filter: Option<String>,
     save_depth: Option<PathBuf>,
@@ -164,6 +165,9 @@ fn main() {
             _ => render::PixelFilter::Box,
         };
     }
+    if let Some(ff) = cli.firefly_filter {
+        render_config.firefly_filter = ff;
+    }
     if let Some(ca) = cli.chromatic_aberration {
         render_config.chromatic_aberration = ca;
     }
@@ -239,6 +243,7 @@ fn main() {
         if render_config.denoise { pp.push("denoise".to_string()); }
         if render_config.bloom > 0.0 { pp.push(format!("bloom({:.2})", render_config.bloom)); }
         if render_config.sharpen > 0.0 { pp.push(format!("sharpen({:.2})", render_config.sharpen)); }
+        if render_config.firefly_filter > 0.0 { pp.push(format!("firefly({:.1})", render_config.firefly_filter)); }
         if render_config.chromatic_aberration > 0.0 { pp.push(format!("ca({:.3})", render_config.chromatic_aberration)); }
         if render_config.vignette > 0.0 { pp.push(format!("vignette({:.2})", render_config.vignette)); }
         if render_config.white_balance.abs() > 1e-6 { pp.push(format!("wb({:.1})", render_config.white_balance)); }
@@ -513,6 +518,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         gamma: None,
         adaptive: false,
         adaptive_threshold: None,
+        firefly_filter: None,
         chromatic_aberration: None,
         pixel_filter: None,
         save_depth: None,
@@ -633,6 +639,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.save_normals = Some(PathBuf::from(&args[i]));
                 }
             }
+            "--firefly-filter" | "--firefly" => {
+                i += 1;
+                if i < args.len() {
+                    cli.firefly_filter = args[i].parse().ok();
+                }
+            }
             "--chromatic-aberration" | "--ca" => {
                 i += 1;
                 if i < args.len() {
@@ -727,6 +739,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --filter F    Pixel filter: box, triangle, gaussian, mitchell");
                 eprintln!("      --save-depth F   Save depth pass to image file");
                 eprintln!("      --save-normals F Save normal pass to image file");
+                eprintln!("      --firefly N   Remove firefly outliers (threshold, e.g. 5.0)");
                 eprintln!("      --ca N        Chromatic aberration strength (e.g. 0.005)");
                 eprintln!("      --adaptive    Adaptive sampling: fewer samples on smooth areas");
                 eprintln!("      --adaptive-threshold N  Noise threshold (default 0.03)");
