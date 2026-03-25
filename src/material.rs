@@ -504,6 +504,45 @@ impl Material for Iridescent {
     }
 }
 
+// --- Velvet (soft fabric with rim lighting) ---
+
+/// Velvet material that produces a characteristic rim-lighting effect.
+/// Brighter at grazing angles, darker when viewed head-on — simulates
+/// the appearance of velvet, suede, and other short-fiber fabrics.
+pub struct Velvet {
+    pub color: Color,
+    /// Sheen intensity at grazing angles (0.0 - 1.0)
+    pub sheen: f64,
+}
+
+impl Velvet {
+    pub fn new(color: Color, sheen: f64) -> Self {
+        Self { color, sheen: sheen.clamp(0.0, 2.0) }
+    }
+}
+
+impl Material for Velvet {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        let mut rng_adapter = RngAdapter(rng);
+        let mut scatter_dir = hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
+        if scatter_dir.near_zero() {
+            scatter_dir = hit.normal;
+        }
+
+        // Velvet BRDF: enhanced reflectance at grazing angles
+        let cos_theta = (-ray.direction.unit()).dot(hit.normal).abs();
+        let sin_theta = (1.0 - cos_theta * cos_theta).max(0.0).sqrt();
+        // Rim lighting: intensity increases as viewing angle becomes more grazing
+        let rim = sin_theta.powf(1.5) * self.sheen;
+        let attenuation = self.color * (1.0 + rim);
+
+        Some(Scatter {
+            ray: Ray::with_time(hit.point, scatter_dir, ray.time),
+            attenuation,
+        })
+    }
+}
+
 // --- Translucent (subsurface scattering approximation) ---
 
 /// Translucent material that allows light to pass through and scatter
