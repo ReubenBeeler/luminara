@@ -1096,6 +1096,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         tone_map: crate::render::ToneMap::default(),
         auto_exposure: false,
         denoise: false,
+        save_hdr: false,
     };
 
     let cam_config = CameraConfig {

@@ -173,6 +173,7 @@ pub struct RenderConfig {
     pub tone_map: ToneMap,
     pub auto_exposure: bool,
     pub denoise: bool,
+    pub save_hdr: bool,
 }
 
 impl Default for RenderConfig {
@@ -189,6 +190,7 @@ impl Default for RenderConfig {
             tone_map: ToneMap::default(),
             auto_exposure: false,
             denoise: false,
+            save_hdr: false,
         }
     }
 }
@@ -437,13 +439,20 @@ fn ray_color(
     bg.color(ray)
 }
 
-/// Render the scene and return a flat Vec of RGBA bytes.
+/// Result of rendering: contains both LDR output and optional HDR data.
+pub struct RenderResult {
+    pub pixels: Vec<u8>,
+    /// HDR float data as [R, G, B] per pixel, row-major. Only populated if requested.
+    pub hdr_data: Option<Vec<f32>>,
+}
+
+/// Render the scene and return LDR pixels and optionally HDR data.
 pub fn render(
     config: &RenderConfig,
     camera: &Camera,
     world: &dyn Hittable,
     lights: &[LightInfo],
-) -> Vec<u8> {
+) -> RenderResult {
     let width = config.width as usize;
     let height = config.height as usize;
 
@@ -539,6 +548,22 @@ pub fn render(
         config.exposure
     };
 
+    // Optionally collect HDR float data before tone mapping
+    let hdr_data = if config.save_hdr {
+        let mut hdr = Vec::with_capacity(width * height * 3);
+        for row in &rows {
+            for color in row {
+                // Apply exposure to HDR data too
+                hdr.push((color.x * exposure) as f32);
+                hdr.push((color.y * exposure) as f32);
+                hdr.push((color.z * exposure) as f32);
+            }
+        }
+        Some(hdr)
+    } else {
+        None
+    };
+
     // Convert to RGBA bytes with exposure, tone mapping + gamma correction.
     let tone_fn: fn(f64) -> f64 = match config.tone_map {
         ToneMap::Aces => aces_tonemap,
@@ -556,7 +581,7 @@ pub fn render(
         }
     }
 
-    pixels
+    RenderResult { pixels, hdr_data }
 }
 
 impl Background {

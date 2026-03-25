@@ -46,6 +46,7 @@ struct CliArgs {
     quiet: bool,
     info_only: bool,
     denoise: bool,
+    save_hdr: Option<PathBuf>,
 }
 
 fn main() {
@@ -110,6 +111,9 @@ fn main() {
     if cli.denoise {
         render_config.denoise = true;
     }
+    if cli.save_hdr.is_some() {
+        render_config.save_hdr = true;
+    }
     if let Some(ref tm) = cli.tone_map {
         render_config.tone_map = match tm.as_str() {
             "aces" => render::ToneMap::Aces,
@@ -171,7 +175,8 @@ fn main() {
         render_config.samples_per_pixel, render_config.max_depth, num_threads
     );
 
-    let pixels = render::render(&render_config, &camera, &world, &world.lights);
+    let result = render::render(&render_config, &camera, &world, &world.lights);
+    let pixels = result.pixels;
 
     let elapsed = start.elapsed();
     let secs = elapsed.as_secs_f64();
@@ -216,6 +221,58 @@ fn main() {
         }
         eprintln!("Saved to {}", out.display());
     }
+
+    // Save HDR data if requested
+    if let (Some(hdr_path), Some(hdr_data)) = (&cli.save_hdr, &result.hdr_data) {
+        if let Err(e) = write_radiance_hdr(
+            hdr_path,
+            render_config.width,
+            render_config.height,
+            hdr_data,
+        ) {
+            eprintln!("Error: failed to save HDR '{}': {e}", hdr_path.display());
+            std::process::exit(1);
+        }
+        eprintln!("Saved HDR to {}", hdr_path.display());
+    }
+}
+
+/// Write HDR data in Radiance RGBE (.hdr) format.
+fn write_radiance_hdr(
+    path: &std::path::Path,
+    width: u32,
+    height: u32,
+    data: &[f32],
+) -> Result<(), String> {
+    use std::io::Write;
+
+    let mut buf = Vec::new();
+    // Radiance header
+    write!(buf, "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y {} +X {}\n", height, width)
+        .map_err(|e| e.to_string())?;
+
+    // Convert each pixel to RGBE encoding
+    for i in 0..(width as usize * height as usize) {
+        let r = data[i * 3].max(0.0);
+        let g = data[i * 3 + 1].max(0.0);
+        let b = data[i * 3 + 2].max(0.0);
+
+        let max_val = r.max(g).max(b);
+        if max_val < 1e-32 {
+            buf.extend_from_slice(&[0, 0, 0, 0]);
+        } else {
+            // frexp equivalent: find exponent such that max_val = mantissa * 2^exp
+            let exp = max_val.log2().ceil() as i32;
+            let scale = 256.0 / 2.0_f32.powi(exp);
+            let re = (r * scale).min(255.0) as u8;
+            let ge = (g * scale).min(255.0) as u8;
+            let be = (b * scale).min(255.0) as u8;
+            let ee = (exp + 128) as u8;
+            buf.extend_from_slice(&[re, ge, be, ee]);
+        }
+    }
+
+    std::fs::write(path, &buf).map_err(|e| e.to_string())
 }
 
 fn parse_args(args: &[String]) -> CliArgs {
@@ -235,6 +292,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         quiet: false,
         info_only: false,
         denoise: false,
+        save_hdr: None,
     };
     let mut i = 1;
 
@@ -282,6 +340,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--denoise" => {
                 cli.denoise = true;
             }
+            "--save-hdr" => {
+                i += 1;
+                if i < args.len() {
+                    cli.save_hdr = Some(PathBuf::from(&args[i]));
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -328,6 +392,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --auto-exposure  Automatically compute exposure from scene luminance");
                 eprintln!("      --tone-map TM    Tone mapping: aces, reinhard, filmic, none (default: aces)");
                 eprintln!("      --denoise     Apply bilateral denoiser to reduce noise");
+                eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
