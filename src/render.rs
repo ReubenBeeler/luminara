@@ -379,6 +379,8 @@ pub struct RenderConfig {
     pub color_halftone: u32,
     /// Kaleidoscope segments (0 = off). Creates rotational mirror symmetry.
     pub kaleidoscope: u32,
+    /// Frosted glass displacement radius (0 = off). Randomly displaces pixel sampling.
+    pub frosted_glass: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -491,6 +493,7 @@ impl Default for RenderConfig {
             noise_overlay: 0.0,
             color_halftone: 0,
             kaleidoscope: 0,
+            frosted_glass: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2687,6 +2690,27 @@ pub fn render(
                         *pixel = Color::new(0.0, 0.0, 0.0);
                     }
                 }
+            }
+        }
+        result
+    } else { rows };
+
+    // Frosted glass: random pixel displacement
+    let rows = if config.frosted_glass > 0 {
+        let radius = config.frosted_glass as isize;
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let mut result = vec![vec![Color::new(0.0, 0.0, 0.0); w]; h];
+        for (y, row) in result.iter_mut().enumerate() {
+            for (x, pixel) in row.iter_mut().enumerate() {
+                // Deterministic pseudo-random displacement based on position
+                let hash1 = ((x as i64).wrapping_mul(73856093) ^ (y as i64).wrapping_mul(19349663)) as u64;
+                let hash2 = ((x as i64).wrapping_mul(83492791) ^ (y as i64).wrapping_mul(39916801)) as u64;
+                let dx = (hash1 % (2 * radius as u64 + 1)) as isize - radius;
+                let dy = (hash2 % (2 * radius as u64 + 1)) as isize - radius;
+                let sx = (x as isize + dx).clamp(0, w as isize - 1) as usize;
+                let sy = (y as isize + dy).clamp(0, h as isize - 1) as usize;
+                *pixel = rows[sy][sx];
             }
         }
         result
