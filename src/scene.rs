@@ -23,6 +23,7 @@ use crate::rect::{XyRect, XzRect, YzRect, make_box};
 use crate::render::{Background, LightInfo, RenderConfig};
 use crate::sphere::{MovingSphere, Sphere};
 use crate::obj;
+use crate::mobius::Mobius;
 use crate::rounded_box::RoundedBox;
 use crate::spring::Spring;
 use crate::superellipsoid::Superellipsoid;
@@ -83,6 +84,8 @@ pub struct SceneFile {
     pub superellipsoid: Vec<SuperellipsoidDesc>,
     #[serde(default)]
     pub spring: Vec<SpringDesc>,
+    #[serde(default)]
+    pub mobius: Vec<MobiusDesc>,
     #[serde(default)]
     pub csg: Vec<CsgDesc>,
 }
@@ -244,6 +247,15 @@ pub struct RoundedBoxDesc {
     pub center: [f64; 3],
     pub half_size: [f64; 3],
     pub radius: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct MobiusDesc {
+    pub center: [f64; 3],
+    pub radius: f64,
+    pub width: f64,
+    pub thickness: Option<f64>,
     pub material: MaterialDesc,
 }
 
@@ -987,6 +999,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(rb.center),
             arr_to_vec3(rb.half_size),
             rb.radius,
+            mat,
+        )));
+    }
+
+    for mb in &scene.mobius {
+        let mat = build_material(&mb.material);
+        world.add(Box::new(Mobius::new(
+            arr_to_vec3(mb.center),
+            mb.radius,
+            mb.width,
+            mb.thickness.unwrap_or(0.05),
             mat,
         )));
     }

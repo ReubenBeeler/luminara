@@ -13,6 +13,7 @@ mod ellipsoid;
 mod hemisphere;
 mod hit;
 mod material;
+mod mobius;
 mod obj;
 mod plane;
 mod quad;
