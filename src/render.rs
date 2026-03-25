@@ -188,6 +188,8 @@ pub struct RenderConfig {
     pub contrast: f64,
     /// White balance temperature shift (0 = neutral, negative = cooler/blue, positive = warmer/orange).
     pub white_balance: f64,
+    /// Sharpen intensity (0.0 = off). Enhances detail via unsharp mask.
+    pub sharpen: f64,
 }
 
 impl Default for RenderConfig {
@@ -212,6 +214,7 @@ impl Default for RenderConfig {
             saturation: 1.0,
             contrast: 1.0,
             white_balance: 0.0,
+            sharpen: 0.0,
         }
     }
 }
@@ -368,6 +371,43 @@ fn apply_bloom(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
                 .iter()
                 .zip(bloom_row.iter())
                 .map(|(orig, bloom)| *orig + *bloom * intensity)
+                .collect()
+        })
+        .collect()
+}
+
+/// Apply unsharp mask sharpening to HDR image data.
+/// Subtracts a blurred version from the original to enhance edges.
+fn apply_sharpen(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+
+    // 3x3 box blur for the "unsharp" reference
+    rows.iter()
+        .enumerate()
+        .map(|(j, row)| {
+            row.iter()
+                .enumerate()
+                .map(|(i, orig)| {
+                    let mut blur = Color::ZERO;
+                    let mut count = 0.0;
+                    for dy in -1i64..=1 {
+                        for dx in -1i64..=1 {
+                            let ny = (j as i64 + dy).clamp(0, height as i64 - 1) as usize;
+                            let nx = (i as i64 + dx).clamp(0, width as i64 - 1) as usize;
+                            blur += rows[ny][nx];
+                            count += 1.0;
+                        }
+                    }
+                    blur = blur / count;
+                    // Unsharp mask: original + intensity * (original - blur)
+                    let sharpened = *orig + (*orig - blur) * intensity;
+                    // Prevent negative values
+                    Color::new(sharpened.x.max(0.0), sharpened.y.max(0.0), sharpened.z.max(0.0))
+                })
                 .collect()
         })
         .collect()
@@ -683,6 +723,20 @@ pub fn render(
             eprintln!(" done");
         }
         bloomed
+    } else {
+        rows
+    };
+
+    // Optional sharpen pass (operates on HDR data before tone mapping)
+    let rows = if config.sharpen > 0.0 {
+        if !config.quiet {
+            eprint!("Sharpening...");
+        }
+        let sharpened = apply_sharpen(&rows, config.sharpen);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        sharpened
     } else {
         rows
     };
