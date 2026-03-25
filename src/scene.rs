@@ -1377,6 +1377,8 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         dither: false,
         gamma: 0.0,
         chromatic_aberration: 0.0,
+        save_depth: false,
+        save_normals: false,
         adaptive: false,
         adaptive_threshold: 0.03,
     };

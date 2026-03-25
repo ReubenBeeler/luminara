@@ -61,6 +61,8 @@ struct CliArgs {
     adaptive: bool,
     adaptive_threshold: Option<f64>,
     chromatic_aberration: Option<f64>,
+    save_depth: Option<PathBuf>,
+    save_normals: Option<PathBuf>,
 }
 
 fn main() {
@@ -154,6 +156,12 @@ fn main() {
     }
     if let Some(ca) = cli.chromatic_aberration {
         render_config.chromatic_aberration = ca;
+    }
+    if cli.save_depth.is_some() {
+        render_config.save_depth = true;
+    }
+    if cli.save_normals.is_some() {
+        render_config.save_normals = true;
     }
     if cli.adaptive {
         render_config.adaptive = true;
@@ -298,6 +306,42 @@ fn main() {
     }
 
     // Save HDR data if requested
+    // Save depth pass
+    if let (Some(depth_path), Some(depth_data)) = (&cli.save_depth, &result.depth_pass) {
+        // Normalize depth to [0, 255] using max depth
+        let max_depth = depth_data.iter().cloned().fold(0.0f32, f32::max);
+        let norm = if max_depth > 0.0 { 255.0 / max_depth } else { 1.0 };
+        let depth_pixels: Vec<u8> = depth_data
+            .iter()
+            .flat_map(|d| {
+                let v = (d * norm).clamp(0.0, 255.0) as u8;
+                [v, v, v, 255]
+            })
+            .collect();
+        let depth_img = image::RgbaImage::from_raw(out_w, out_h, depth_pixels)
+            .expect("Failed to create depth image");
+        if let Err(e) = depth_img.save(depth_path) {
+            eprintln!("Error: failed to save depth pass '{}': {e}", depth_path.display());
+        } else {
+            eprintln!("Saved depth pass to {}", depth_path.display());
+        }
+    }
+
+    // Save normal pass
+    if let (Some(normal_path), Some(normal_data)) = (&cli.save_normals, &result.normal_pass) {
+        let normal_pixels: Vec<u8> = normal_data
+            .chunks(3)
+            .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 255])
+            .collect();
+        let normal_img = image::RgbaImage::from_raw(out_w, out_h, normal_pixels)
+            .expect("Failed to create normal image");
+        if let Err(e) = normal_img.save(normal_path) {
+            eprintln!("Error: failed to save normal pass '{}': {e}", normal_path.display());
+        } else {
+            eprintln!("Saved normal pass to {}", normal_path.display());
+        }
+    }
+
     if let (Some(hdr_path), Some(hdr_data)) = (&cli.save_hdr, &result.hdr_data) {
         if let Err(e) = write_radiance_hdr(
             hdr_path,
@@ -394,6 +438,8 @@ fn parse_args(args: &[String]) -> CliArgs {
         adaptive: false,
         adaptive_threshold: None,
         chromatic_aberration: None,
+        save_depth: None,
+        save_normals: None,
     };
     let mut i = 1;
 
@@ -492,6 +538,18 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--dither" => {
                 cli.dither = true;
             }
+            "--save-depth" => {
+                i += 1;
+                if i < args.len() {
+                    cli.save_depth = Some(PathBuf::from(&args[i]));
+                }
+            }
+            "--save-normals" => {
+                i += 1;
+                if i < args.len() {
+                    cli.save_normals = Some(PathBuf::from(&args[i]));
+                }
+            }
             "--chromatic-aberration" | "--ca" => {
                 i += 1;
                 if i < args.len() {
@@ -580,6 +638,8 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --sharpen N   Sharpen details (e.g. 0.5)");
                 eprintln!("      --hue-shift N Rotate hue in degrees (e.g. 30, 180)");
                 eprintln!("      --dither      Apply ordered dithering to reduce banding");
+                eprintln!("      --save-depth F   Save depth pass to image file");
+                eprintln!("      --save-normals F Save normal pass to image file");
                 eprintln!("      --ca N        Chromatic aberration strength (e.g. 0.005)");
                 eprintln!("      --adaptive    Adaptive sampling: fewer samples on smooth areas");
                 eprintln!("      --adaptive-threshold N  Noise threshold (default 0.03)");
