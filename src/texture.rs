@@ -631,6 +631,53 @@ impl Texture for Hexgrid {
     }
 }
 
+/// Fractal Brownian Motion texture — layers of Perlin noise at increasing frequencies.
+/// Produces smooth, organic patterns like clouds, terrain, or plasma.
+pub struct Fbm {
+    perlin: Perlin,
+    color1: Color,
+    color2: Color,
+    scale: f64,
+    octaves: u32,
+    lacunarity: f64,
+    persistence: f64,
+}
+
+impl Fbm {
+    pub fn new(color1: Color, color2: Color, scale: f64, octaves: u32) -> Self {
+        Self {
+            perlin: Perlin::new(),
+            color1,
+            color2,
+            scale: if scale.abs() < 1e-10 { 1.0 } else { scale },
+            octaves: octaves.clamp(1, 16),
+            lacunarity: 2.0,   // frequency multiplier per octave
+            persistence: 0.5,  // amplitude multiplier per octave
+        }
+    }
+}
+
+impl Texture for Fbm {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+        let mut accum = 0.0;
+        let mut freq = 1.0;
+        let mut amp = 1.0;
+        let mut max_amp = 0.0;
+
+        for _ in 0..self.octaves {
+            accum += amp * self.perlin.noise(&(p * freq));
+            max_amp += amp;
+            freq *= self.lacunarity;
+            amp *= self.persistence;
+        }
+
+        // Normalize to [0, 1]
+        let t = ((accum / max_amp) * 0.5 + 0.5).clamp(0.0, 1.0);
+        self.color1 * (1.0 - t) + self.color2 * t
+    }
+}
+
 /// A multi-stop color gradient texture. Colors are interpolated between stops
 /// based on position along a specified axis.
 pub struct ColorRamp {

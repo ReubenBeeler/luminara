@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Transparent, Velvet};
-use crate::texture::{Checker, ColorRamp, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
+use crate::texture::{Checker, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -519,6 +519,13 @@ pub enum MaterialDesc {
         color2: [f64; 3],
         scale: Option<f64>,
         line_width: Option<f64>,
+    },
+    #[serde(alias = "fbm", alias = "fractal")]
+    Fbm {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
+        octaves: Option<u32>,
     },
     #[serde(alias = "color_ramp", alias = "ramp")]
     ColorRamp {
@@ -1328,6 +1335,14 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
                 line_width.unwrap_or(0.1),
+            ))))
+        }
+        MaterialDesc::Fbm { color1, color2, scale, octaves } => {
+            Box::new(Lambertian::with_texture(Box::new(Fbm::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                scale.unwrap_or(1.0),
+                octaves.unwrap_or(6),
             ))))
         }
         MaterialDesc::ColorRamp { stops, axis, min_val, max_val } => {
