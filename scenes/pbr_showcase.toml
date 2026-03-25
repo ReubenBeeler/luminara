@@ -1,0 +1,101 @@
+# PBR Material Showcase — demonstrating microfacet BRDF
+
+[render]
+width = 960
+height = 540
+samples = 128
+max_depth = 50
+exposure = 1.2
+background = { type = "sky" }
+
+[camera]
+look_from = [0.0, 4.0, 10.0]
+look_at = [0.0, 0.5, 0.0]
+vup = [0.0, 1.0, 0.0]
+vfov = 35.0
+aperture = 0.02
+focus_dist = 10.0
+
+# Ground
+[[sphere]]
+center = [0.0, -1000.0, 0.0]
+radius = 1000.0
+material = { type = "checker", color1 = [0.95, 0.95, 0.95], color2 = [0.6, 0.6, 0.6], scale = 0.5 }
+
+# --- Roughness gradient (metallic = 1.0) ---
+# Gold, increasing roughness left to right
+[[sphere]]
+center = [-4.0, 0.7, 0.0]
+radius = 0.7
+material = { type = "pbr", color = [1.0, 0.84, 0.0], roughness = 0.05, metallic = 1.0 }
+
+[[sphere]]
+center = [-2.0, 0.7, 0.0]
+radius = 0.7
+material = { type = "pbr", color = [1.0, 0.84, 0.0], roughness = 0.2, metallic = 1.0 }
+
+[[sphere]]
+center = [0.0, 0.7, 0.0]
+radius = 0.7
+material = { type = "pbr", color = [1.0, 0.84, 0.0], roughness = 0.4, metallic = 1.0 }
+
+[[sphere]]
+center = [2.0, 0.7, 0.0]
+radius = 0.7
+material = { type = "pbr", color = [1.0, 0.84, 0.0], roughness = 0.7, metallic = 1.0 }
+
+[[sphere]]
+center = [4.0, 0.7, 0.0]
+radius = 0.7
+material = { type = "pbr", color = [1.0, 0.84, 0.0], roughness = 1.0, metallic = 1.0 }
+
+# --- Metallic gradient (roughness = 0.3) ---
+# Red, increasing metallic front row
+[[sphere]]
+center = [-4.0, 0.7, 2.5]
+radius = 0.7
+material = { type = "pbr", color = [0.9, 0.1, 0.1], roughness = 0.3, metallic = 0.0 }
+
+[[sphere]]
+center = [-2.0, 0.7, 2.5]
+radius = 0.7
+material = { type = "pbr", color = [0.9, 0.1, 0.1], roughness = 0.3, metallic = 0.25 }
+
+[[sphere]]
+center = [0.0, 0.7, 2.5]
+radius = 0.7
+material = { type = "pbr", color = [0.9, 0.1, 0.1], roughness = 0.3, metallic = 0.5 }
+
+[[sphere]]
+center = [2.0, 0.7, 2.5]
+radius = 0.7
+material = { type = "pbr", color = [0.9, 0.1, 0.1], roughness = 0.3, metallic = 0.75 }
+
+[[sphere]]
+center = [4.0, 0.7, 2.5]
+radius = 0.7
+material = { type = "pbr", color = [0.9, 0.1, 0.1], roughness = 0.3, metallic = 1.0 }
+
+# Big reference spheres in back
+[[sphere]]
+center = [-2.5, 1.5, -3.0]
+radius = 1.5
+material = { type = "pbr", color = [0.95, 0.93, 0.88], roughness = 0.05, metallic = 1.0 }
+
+[[sphere]]
+center = [2.5, 1.5, -3.0]
+radius = 1.5
+material = { type = "pbr", color = [0.56, 0.57, 0.58], roughness = 0.15, metallic = 1.0 }
+
+# Lights
+[[light]]
+position = [3.0, 8.0, 5.0]
+color = [1.0, 0.98, 0.95]
+intensity = 40.0
+radius = 1.5
+
+[[light]]
+position = [-5.0, 6.0, 3.0]
+color = [0.8, 0.85, 1.0]
+intensity = 20.0
+radius = 1.0
