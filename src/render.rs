@@ -161,6 +161,61 @@ pub enum ToneMap {
     None,
 }
 
+/// Pixel reconstruction filter for anti-aliasing.
+#[derive(Default, Clone, Copy)]
+pub enum PixelFilter {
+    /// Box filter — uniform weighting (fastest, default).
+    #[default]
+    Box,
+    /// Triangle (tent) filter — linear falloff from center.
+    Triangle,
+    /// Gaussian filter — smooth bell curve weighting.
+    Gaussian,
+    /// Mitchell-Netravali filter — balanced sharpness/smoothness.
+    Mitchell,
+}
+
+impl PixelFilter {
+    /// Evaluate the filter weight for a sample at offset (dx, dy) from pixel center.
+    /// Offsets are in [-0.5, 0.5] range within the pixel.
+    fn weight(&self, dx: f64, dy: f64) -> f64 {
+        match self {
+            PixelFilter::Box => 1.0,
+            PixelFilter::Triangle => {
+                (1.0 - dx.abs() * 2.0).max(0.0) * (1.0 - dy.abs() * 2.0).max(0.0)
+            }
+            PixelFilter::Gaussian => {
+                let sigma = 0.35;
+                let r2 = dx * dx + dy * dy;
+                (-r2 / (2.0 * sigma * sigma)).exp()
+            }
+            PixelFilter::Mitchell => {
+                mitchell_1d(dx * 2.0) * mitchell_1d(dy * 2.0)
+            }
+        }
+    }
+}
+
+/// Mitchell-Netravali 1D filter with B=1/3, C=1/3.
+fn mitchell_1d(x: f64) -> f64 {
+    let x = x.abs();
+    let (b, c) = (1.0 / 3.0, 1.0 / 3.0);
+    if x < 1.0 {
+        ((12.0 - 9.0 * b - 6.0 * c) * x * x * x
+            + (-18.0 + 12.0 * b + 6.0 * c) * x * x
+            + (6.0 - 2.0 * b))
+            / 6.0
+    } else if x < 2.0 {
+        ((-b - 6.0 * c) * x * x * x
+            + (6.0 * b + 30.0 * c) * x * x
+            + (-12.0 * b - 48.0 * c) * x
+            + (8.0 * b + 24.0 * c))
+            / 6.0
+    } else {
+        0.0
+    }
+}
+
 pub struct RenderConfig {
     pub width: u32,
     pub height: u32,
@@ -196,6 +251,8 @@ pub struct RenderConfig {
     pub dither: bool,
     /// Custom gamma value (0 = use sRGB transfer function, >0 = simple power curve).
     pub gamma: f64,
+    /// Pixel reconstruction filter for anti-aliasing.
+    pub pixel_filter: PixelFilter,
     /// Chromatic aberration strength (0.0 = off). Shifts RGB channels radially.
     pub chromatic_aberration: f64,
     /// Generate depth pass output.
@@ -235,6 +292,7 @@ impl Default for RenderConfig {
             hue_shift: 0.0,
             dither: false,
             gamma: 0.0,
+            pixel_filter: PixelFilter::default(),
             chromatic_aberration: 0.0,
             save_depth: false,
             save_normals: false,
@@ -802,26 +860,32 @@ pub fn render(
                         row_rays += n as u64;
                         mean
                     } else {
-                        // Non-adaptive: original stratified sampling
+                        // Non-adaptive: stratified sampling with pixel filter
                         let mut color = Color::ZERO;
+                        let mut total_weight = 0.0;
                         for sy in 0..sqrt_spp {
                             for sx in 0..sqrt_spp {
-                                let u_coord = (global_i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_width - 1) as f64;
-                                let v_coord = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (full_height - 1) as f64;
+                                let jx = (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64;
+                                let jy = (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64;
+                                let u_coord = (global_i as f64 + jx) / (full_width - 1) as f64;
+                                let v_coord = (y + jy) / (full_height - 1) as f64;
                                 let ray = camera.get_ray(u_coord, v_coord, &mut rng);
                                 let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth, false);
                                 // Clamp per-sample luminance to prevent firefly artifacts
                                 let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
-                                if luminance > 100.0 {
-                                    let scale = 100.0 / luminance;
-                                    color += sample * scale;
+                                let clamped = if luminance > 100.0 {
+                                    sample * (100.0 / luminance)
                                 } else {
-                                    color += sample;
-                                }
+                                    sample
+                                };
+                                // Apply pixel filter weight based on distance from pixel center
+                                let w = config.pixel_filter.weight(jx - 0.5, jy - 0.5);
+                                color += clamped * w;
+                                total_weight += w;
                             }
                         }
                         row_rays += actual_spp as u64;
-                        color / actual_spp as f64
+                        if total_weight > 0.0 { color / total_weight } else { color }
                     }
                 })
                 .collect();

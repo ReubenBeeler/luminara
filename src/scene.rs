@@ -98,6 +98,7 @@ pub struct RenderSettings {
     pub hue_shift: Option<f64>,
     pub dither: Option<bool>,
     pub gamma: Option<f64>,
+    pub pixel_filter: Option<String>,
     pub adaptive: Option<bool>,
     pub adaptive_threshold: Option<f64>,
     pub chromatic_aberration: Option<f64>,
@@ -652,6 +653,14 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(gamma) = r.gamma {
             render_config.gamma = gamma;
+        }
+        if let Some(ref pf) = r.pixel_filter {
+            render_config.pixel_filter = match pf.as_str() {
+                "triangle" | "tent" => crate::render::PixelFilter::Triangle,
+                "gaussian" | "gauss" => crate::render::PixelFilter::Gaussian,
+                "mitchell" => crate::render::PixelFilter::Mitchell,
+                _ => crate::render::PixelFilter::Box,
+            };
         }
         if let Some(adaptive) = r.adaptive {
             render_config.adaptive = adaptive;
@@ -1395,6 +1404,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         hue_shift: 0.0,
         dither: false,
         gamma: 0.0,
+        pixel_filter: crate::render::PixelFilter::default(),
         chromatic_aberration: 0.0,
         save_depth: false,
         save_normals: false,

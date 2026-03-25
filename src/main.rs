@@ -61,6 +61,7 @@ struct CliArgs {
     adaptive: bool,
     adaptive_threshold: Option<f64>,
     chromatic_aberration: Option<f64>,
+    pixel_filter: Option<String>,
     save_depth: Option<PathBuf>,
     save_normals: Option<PathBuf>,
 }
@@ -153,6 +154,14 @@ fn main() {
     }
     if cli.dither {
         render_config.dither = true;
+    }
+    if let Some(ref pf) = cli.pixel_filter {
+        render_config.pixel_filter = match pf.as_str() {
+            "triangle" | "tent" => render::PixelFilter::Triangle,
+            "gaussian" | "gauss" => render::PixelFilter::Gaussian,
+            "mitchell" => render::PixelFilter::Mitchell,
+            _ => render::PixelFilter::Box,
+        };
     }
     if let Some(ca) = cli.chromatic_aberration {
         render_config.chromatic_aberration = ca;
@@ -465,6 +474,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         adaptive: false,
         adaptive_threshold: None,
         chromatic_aberration: None,
+        pixel_filter: None,
         save_depth: None,
         save_normals: None,
     };
@@ -564,6 +574,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "--dither" => {
                 cli.dither = true;
+            }
+            "--filter" | "--pixel-filter" => {
+                i += 1;
+                if i < args.len() {
+                    cli.pixel_filter = Some(args[i].clone());
+                }
             }
             "--save-depth" => {
                 i += 1;
@@ -665,6 +681,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --sharpen N   Sharpen details (e.g. 0.5)");
                 eprintln!("      --hue-shift N Rotate hue in degrees (e.g. 30, 180)");
                 eprintln!("      --dither      Apply ordered dithering to reduce banding");
+                eprintln!("      --filter F    Pixel filter: box, triangle, gaussian, mitchell");
                 eprintln!("      --save-depth F   Save depth pass to image file");
                 eprintln!("      --save-normals F Save normal pass to image file");
                 eprintln!("      --ca N        Chromatic aberration strength (e.g. 0.005)");
