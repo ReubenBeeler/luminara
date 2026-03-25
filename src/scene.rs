@@ -108,6 +108,7 @@ pub struct RenderSettings {
     pub posterize: Option<u32>,
     pub sepia: Option<f64>,
     pub edge_detect: Option<f64>,
+    pub pixelate: Option<u32>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -726,6 +727,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ed) = r.edge_detect {
             render_config.edge_detect = ed;
+        }
+        if let Some(px) = r.pixelate {
+            render_config.pixelate = px;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1553,6 +1557,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         posterize: 0,
         sepia: 0.0,
         edge_detect: 0.0,
+        pixelate: 0,
     };
 
     let cam_config = CameraConfig {

@@ -72,6 +72,7 @@ struct CliArgs {
     posterize: Option<u32>,
     sepia: Option<f64>,
     edge_detect: Option<f64>,
+    pixelate: Option<u32>,
 }
 
 fn main() {
@@ -209,6 +210,9 @@ fn main() {
     }
     if let Some(ed) = cli.edge_detect {
         render_config.edge_detect = ed;
+    }
+    if let Some(px) = cli.pixelate {
+        render_config.pixelate = px;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -588,6 +592,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         posterize: None,
         sepia: None,
         edge_detect: None,
+        pixelate: None,
     };
     let mut i = 1;
 
@@ -771,6 +776,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.edge_detect = args[i].parse().ok();
+                }
+            }
+            "--pixelate" => {
+                i += 1;
+                if i < args.len() {
+                    cli.pixelate = args[i].parse().ok();
                 }
             }
             "--info" => {

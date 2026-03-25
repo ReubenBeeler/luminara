@@ -297,6 +297,8 @@ pub struct RenderConfig {
     pub sepia: f64,
     /// Edge detection / outline strength (0.0 = off). Darkens edges for toon look.
     pub edge_detect: f64,
+    /// Pixelate block size (0 = off, N = NxN pixel blocks for retro look).
+    pub pixelate: u32,
 }
 
 impl Default for RenderConfig {
@@ -337,6 +339,7 @@ impl Default for RenderConfig {
             posterize: 0,
             sepia: 0.0,
             edge_detect: 0.0,
+            pixelate: 0,
         }
     }
 }
@@ -726,6 +729,40 @@ fn apply_edge_detect(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
                 .collect()
         })
         .collect()
+}
+
+/// Pixelate: average NxN blocks for a retro pixel-art effect.
+fn apply_pixelate(rows: &[Vec<Color>], block: u32) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 || block < 2 {
+        return rows.to_vec();
+    }
+    let width = rows[0].len();
+    let bs = block as usize;
+    let mut result: Vec<Vec<Color>> = rows.to_vec();
+
+    // Average each block
+    for by in (0..height).step_by(bs) {
+        for bx in (0..width).step_by(bs) {
+            let mut sum = Color::ZERO;
+            let mut count = 0.0;
+            let ey = (by + bs).min(height);
+            let ex = (bx + bs).min(width);
+            for y in by..ey {
+                for x in bx..ex {
+                    sum += rows[y][x];
+                    count += 1.0;
+                }
+            }
+            let avg = sum / count;
+            for y in by..ey {
+                for x in bx..ex {
+                    result[y][x] = avg;
+                }
+            }
+        }
+    }
+    result
 }
 
 /// Build an orthonormal basis from a given direction (Frisvad's method).
@@ -1187,6 +1224,20 @@ pub fn render(
             eprintln!(" done");
         }
         sharpened
+    } else {
+        rows
+    };
+
+    // Optional pixelation pass
+    let rows = if config.pixelate >= 2 {
+        if !config.quiet {
+            eprint!("Pixelating...");
+        }
+        let pixelated = apply_pixelate(&rows, config.pixelate);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        pixelated
     } else {
         rows
     };
