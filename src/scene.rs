@@ -11,6 +11,7 @@ use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
 use crate::prism::Prism;
+use crate::pyramid::Pyramid;
 use crate::wedge::Wedge;
 use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
@@ -69,6 +70,8 @@ pub struct SceneFile {
     pub prism: Vec<PrismDesc>,
     #[serde(default)]
     pub wedge: Vec<WedgeDesc>,
+    #[serde(default)]
+    pub pyramid: Vec<PyramidDesc>,
     #[serde(default)]
     pub annulus: Vec<AnnulusDesc>,
     #[serde(default)]
@@ -409,6 +412,18 @@ pub struct PrismDesc {
     pub bump_scale: Option<f64>,
     pub normal_map: Option<String>,
     pub normal_map_strength: Option<f64>,
+    pub rotate_x: Option<f64>,
+    pub rotate_y: Option<f64>,
+    pub rotate_z: Option<f64>,
+    pub translate: Option<[f64; 3]>,
+}
+
+#[derive(Deserialize)]
+pub struct PyramidDesc {
+    pub center: [f64; 3],
+    pub base_size: f64,
+    pub height: f64,
+    pub material: MaterialDesc,
     pub rotate_x: Option<f64>,
     pub rotate_y: Option<f64>,
     pub rotate_z: Option<f64>,
@@ -1441,6 +1456,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         if let Some(angle) = w.rotate_y { obj = Box::new(RotateY::new(obj, angle)); }
         if let Some(angle) = w.rotate_z { obj = Box::new(RotateZ::new(obj, angle)); }
         if let Some(offset) = w.translate { obj = Box::new(Translate::new(obj, arr_to_vec3(offset))); }
+        world.add(obj);
+    }
+
+    for p in &scene.pyramid {
+        let mat = build_material(&p.material);
+        let center = arr_to_vec3(p.center);
+        let mut obj: Box<dyn Hittable> = Box::new(Pyramid::new(center, p.base_size, p.height, mat));
+        if let Some(angle) = p.rotate_x { obj = Box::new(RotateX::new(obj, angle)); }
+        if let Some(angle) = p.rotate_y { obj = Box::new(RotateY::new(obj, angle)); }
+        if let Some(angle) = p.rotate_z { obj = Box::new(RotateZ::new(obj, angle)); }
+        if let Some(offset) = p.translate { obj = Box::new(Translate::new(obj, arr_to_vec3(offset))); }
         world.add(obj);
     }
 
