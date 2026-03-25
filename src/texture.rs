@@ -824,6 +824,48 @@ impl Texture for Cloud {
     }
 }
 
+/// Lava texture: glowing molten rock with dark/bright cracks.
+pub struct Lava {
+    perlin: Perlin,
+    pub scale: f64,
+}
+
+impl Lava {
+    pub fn new(scale: f64) -> Self {
+        Self { perlin: Perlin::new(), scale }
+    }
+}
+
+impl Texture for Lava {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+        // Use absolute-value turbulence for sharp crack patterns
+        let mut turb = 0.0;
+        let mut amp = 1.0;
+        let mut freq = 1.0;
+        for _ in 0..6 {
+            turb += self.perlin.noise(&(p * freq)).abs() * amp;
+            amp *= 0.5;
+            freq *= 2.0;
+        }
+        // Map turbulence to lava colors (dark rock → orange → bright yellow)
+        let t = turb.clamp(0.0, 2.0) / 2.0;
+        if t < 0.4 {
+            // Dark rock
+            let s = t / 0.4;
+            Color::new(0.1 + s * 0.3, 0.02 + s * 0.05, 0.01)
+        } else if t < 0.7 {
+            // Orange glow
+            let s = (t - 0.4) / 0.3;
+            Color::new(0.4 + s * 0.6, 0.07 + s * 0.3, 0.01 + s * 0.02)
+        } else {
+            // Bright yellow-white hot
+            let s = (t - 0.7) / 0.3;
+            Color::new(1.0, 0.37 + s * 0.5, 0.03 + s * 0.5)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
