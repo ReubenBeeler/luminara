@@ -86,6 +86,7 @@ struct CliArgs {
     halftone: Option<u32>,
     emboss: Option<f64>,
     oil_paint: Option<u32>,
+    color_map: Option<String>,
 }
 
 fn main() {
@@ -251,6 +252,9 @@ fn main() {
     if let Some(op) = cli.oil_paint {
         render_config.oil_paint = op;
     }
+    if let Some(ref cm) = cli.color_map {
+        render_config.color_map = cm.clone();
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -347,6 +351,7 @@ fn main() {
         if render_config.edge_detect > 0.0 { pp.push(format!("edges({:.1})", render_config.edge_detect)); }
         if render_config.emboss > 0.0 { pp.push(format!("emboss({:.1})", render_config.emboss)); }
         if render_config.oil_paint > 0 { pp.push(format!("oil-paint({})", render_config.oil_paint)); }
+        if !render_config.color_map.is_empty() { pp.push(format!("color-map({})", render_config.color_map)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -678,6 +683,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         halftone: None,
         emboss: None,
         oil_paint: None,
+        color_map: None,
     };
     let mut i = 1;
 
@@ -920,6 +926,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.oil_paint = args[i].parse().ok();
                 }
             }
+            "--color-map" | "--colormap" => {
+                i += 1;
+                if i < args.len() {
+                    cli.color_map = Some(args[i].clone());
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1001,6 +1013,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --benchmark   Run standardized performance benchmark");
                 eprintln!("      --emboss N    Emboss effect intensity (e.g. 0.5)");
                 eprintln!("      --oil-paint N Oil painting Kuwahara filter radius (e.g. 3)");
+                eprintln!("      --color-map S False color: inferno, viridis, turbo, heat, grayscale");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

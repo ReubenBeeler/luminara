@@ -321,6 +321,8 @@ pub struct RenderConfig {
     pub emboss: f64,
     /// Oil paint effect radius (0 = off). Kuwahara filter for painterly look.
     pub oil_paint: u32,
+    /// False color mapping: "inferno", "viridis", "turbo", "grayscale", or empty for off.
+    pub color_map: String,
 }
 
 impl Default for RenderConfig {
@@ -373,6 +375,7 @@ impl Default for RenderConfig {
             halftone: 0,
             emboss: 0.0,
             oil_paint: 0,
+            color_map: String::new(),
         }
     }
 }
@@ -975,6 +978,43 @@ fn apply_oil_paint(rows: &[Vec<Color>], radius: u32) -> Vec<Vec<Color>> {
                 .collect()
         })
         .collect()
+}
+
+/// Map a [0,1] luminance value through a named colormap, returning (R, G, B) in [0,1].
+fn apply_color_map(t: f64, name: &str) -> (f64, f64, f64) {
+    let t = t.clamp(0.0, 1.0);
+    match name {
+        "inferno" => {
+            // Simplified inferno: black → purple → orange → yellow
+            let r = (1.5 * t - 0.2).clamp(0.0, 1.0);
+            let g = (1.8 * t * t).clamp(0.0, 1.0);
+            let b = ((1.0 - (t - 0.35).abs() * 3.0).max(0.0) * 0.8).clamp(0.0, 1.0);
+            (r, g, b)
+        }
+        "viridis" => {
+            // Simplified viridis: purple → teal → yellow
+            let r = (t * t * 0.8 + t * 0.2).clamp(0.0, 1.0);
+            let g = (0.15 + t * 0.85).clamp(0.0, 1.0);
+            let b = (0.55 - t * 0.55 + (1.0 - t) * 0.3).clamp(0.0, 1.0);
+            (r, g, b)
+        }
+        "turbo" => {
+            // Simplified turbo rainbow: blue → cyan → green → yellow → red
+            let r = (1.0 - (t - 0.75).abs() * 4.0).clamp(0.0, 1.0);
+            let g = (1.0 - (t - 0.5).abs() * 3.0).clamp(0.0, 1.0);
+            let b = (1.0 - (t - 0.2).abs() * 4.0).clamp(0.0, 1.0);
+            (r, g, b)
+        }
+        "grayscale" => (t, t, t),
+        "heat" => {
+            // Heat: black → red → yellow → white
+            let r = (t * 3.0).clamp(0.0, 1.0);
+            let g = ((t - 0.33) * 3.0).clamp(0.0, 1.0);
+            let b = ((t - 0.67) * 3.0).clamp(0.0, 1.0);
+            (r, g, b)
+        }
+        _ => (t, t, t), // fallback to grayscale
+    }
 }
 
 /// Build an orthonormal basis from a given direction (Frisvad's method).
@@ -1744,6 +1784,15 @@ pub fn render(
                     b = 255;
                 }
                 // else keep original color (or darken slightly)
+            }
+
+            // False color mapping
+            if !config.color_map.is_empty() {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                let (mr, mg, mb) = apply_color_map(lum, &config.color_map);
+                r = (mr * 255.0) as u8;
+                g = (mg * 255.0) as u8;
+                b = (mb * 255.0) as u8;
             }
 
             // Color inversion

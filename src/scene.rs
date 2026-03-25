@@ -1767,6 +1767,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         halftone: 0,
         emboss: 0.0,
         oil_paint: 0,
+        color_map: String::new(),
     };
 
     let cam_config = CameraConfig {
