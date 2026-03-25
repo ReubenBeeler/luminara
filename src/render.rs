@@ -1123,51 +1123,51 @@ pub fn render(
         }
     }
 
-    // Generate AOV passes (depth, normals) with single-ray-per-pixel
+    // Generate AOV passes (depth, normals) with single-ray-per-pixel, parallelized
     let (depth_pass, normal_pass) = if config.save_depth || config.save_normals {
         if !config.quiet {
             eprint!("Generating AOV passes...");
         }
-        let mut depth_buf = if config.save_depth {
-            Some(vec![0.0f32; width * height])
-        } else {
-            None
-        };
-        let mut normal_buf = if config.save_normals {
-            Some(vec![0u8; width * height * 3])
-        } else {
-            None
-        };
 
-        for j in 0..height {
-            let global_j = j + crop_y;
-            let y = (full_height - 1 - global_j) as f64;
-            for i in 0..width {
-                let global_i = i + crop_x;
-                let u_coord = (global_i as f64 + 0.5) / (full_width - 1) as f64;
-                let v_coord = (y + 0.5) / (full_height - 1) as f64;
-                let mut rng = SmallRng::seed_from_u64(
-                    (global_j as u64 * full_width as u64 + global_i as u64).wrapping_mul(config.seed),
-                );
-                let ray = camera.get_ray(u_coord, v_coord, &mut rng);
+        // Per-row parallel AOV generation
+        let aov_rows: Vec<(Vec<f32>, Vec<u8>)> = (0..height)
+            .into_par_iter()
+            .map(|j| {
+                let global_j = j + crop_y;
+                let y = (full_height - 1 - global_j) as f64;
+                let mut row_depth = vec![0.0f32; width];
+                let mut row_normals = vec![0u8; width * 3];
 
-                if let Some(hit) = world.hit(&ray, 0.001, f64::INFINITY) {
-                    let idx = j * width + i;
-                    if let Some(ref mut depth) = depth_buf {
-                        depth[idx] = hit.t as f32;
-                    }
-                    if let Some(ref mut normals) = normal_buf {
-                        // Map normal [-1,1] to [0,255]
-                        let nx = ((hit.normal.x * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
-                        let ny = ((hit.normal.y * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
-                        let nz = ((hit.normal.z * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
-                        normals[idx * 3] = nx;
-                        normals[idx * 3 + 1] = ny;
-                        normals[idx * 3 + 2] = nz;
+                for i in 0..width {
+                    let global_i = i + crop_x;
+                    let u_coord = (global_i as f64 + 0.5) / (full_width - 1) as f64;
+                    let v_coord = (y + 0.5) / (full_height - 1) as f64;
+                    let mut rng = SmallRng::seed_from_u64(
+                        (global_j as u64 * full_width as u64 + global_i as u64).wrapping_mul(config.seed),
+                    );
+                    let ray = camera.get_ray(u_coord, v_coord, &mut rng);
+
+                    if let Some(hit) = world.hit(&ray, 0.001, f64::INFINITY) {
+                        row_depth[i] = hit.t as f32;
+                        row_normals[i * 3] = ((hit.normal.x * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+                        row_normals[i * 3 + 1] = ((hit.normal.y * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+                        row_normals[i * 3 + 2] = ((hit.normal.z * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
                     }
                 }
-            }
-        }
+                (row_depth, row_normals)
+            })
+            .collect();
+
+        let depth_buf = if config.save_depth {
+            Some(aov_rows.iter().flat_map(|(d, _)| d.iter().copied()).collect())
+        } else {
+            None
+        };
+        let normal_buf = if config.save_normals {
+            Some(aov_rows.iter().flat_map(|(_, n)| n.iter().copied()).collect())
+        } else {
+            None
+        };
 
         if !config.quiet {
             eprintln!(" done");
