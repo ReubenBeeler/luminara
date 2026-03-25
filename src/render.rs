@@ -336,6 +336,10 @@ pub struct RenderConfig {
     pub crosshatch: u32,
     /// Glitch effect intensity (0.0 = off). Simulates digital data corruption.
     pub glitch: f64,
+    /// Depth fog: fog density (0.0 = off). Blends scene toward fog color by depth.
+    pub depth_fog: f64,
+    /// Depth fog color [R, G, B] (default: white).
+    pub depth_fog_color: [f64; 3],
 }
 
 impl Default for RenderConfig {
@@ -395,6 +399,8 @@ impl Default for RenderConfig {
             median: 0,
             crosshatch: 0,
             glitch: 0.0,
+            depth_fog: 0.0,
+            depth_fog_color: [0.8, 0.85, 0.9],
         }
     }
 }
@@ -1828,6 +1834,40 @@ pub fn render(
         ToneMap::Filmic => filmic_tonemap,
         ToneMap::None => |x: f64| x.clamp(0.0, 1.0),
     };
+    // Pre-compute depth buffer for depth fog (if needed)
+    let fog_depth_buf: Option<Vec<f32>> = if config.depth_fog > 0.0 {
+        if !config.quiet {
+            eprint!("Computing depth for fog...");
+        }
+        let buf: Vec<f32> = (0..height)
+            .into_par_iter()
+            .flat_map(|j| {
+                let global_j = j + crop_y;
+                let y = (full_height - 1 - global_j) as f64;
+                (0..width).map(move |i| {
+                    let global_i = i + crop_x;
+                    let u_coord = (global_i as f64 + 0.5) / (full_width - 1) as f64;
+                    let v_coord = (y + 0.5) / (full_height - 1) as f64;
+                    let mut rng = SmallRng::seed_from_u64(
+                        (global_j as u64 * full_width as u64 + global_i as u64).wrapping_mul(config.seed),
+                    );
+                    let ray = camera.get_ray(u_coord, v_coord, &mut rng);
+                    if let Some(hit) = world.hit(&ray, 0.001, f64::INFINITY) {
+                        hit.t as f32
+                    } else {
+                        f32::INFINITY
+                    }
+                }).collect::<Vec<f32>>()
+            })
+            .collect();
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        Some(buf)
+    } else {
+        None
+    };
+
     // Parse duo-tone colors if specified: "R,G,B;R,G,B"
     let duo_tone_colors: Option<([f64; 3], [f64; 3])> = if !config.duo_tone.is_empty() {
         let parts: Vec<&str> = config.duo_tone.split(';').collect();
@@ -1859,6 +1899,16 @@ pub fn render(
             let (mut cr, mut cg, mut cb) = (color.x * exposure * vignette_factor,
                                               color.y * exposure * vignette_factor,
                                               color.z * exposure * vignette_factor);
+
+            // Depth fog: blend scene color toward fog color based on depth
+            if let Some(ref depth_data) = fog_depth_buf {
+                let depth = depth_data[j * width + i] as f64;
+                let fog_factor = 1.0 - (-config.depth_fog * depth).exp();
+                let fc = &config.depth_fog_color;
+                cr = cr * (1.0 - fog_factor) + fc[0] * fog_factor;
+                cg = cg * (1.0 - fog_factor) + fc[1] * fog_factor;
+                cb = cb * (1.0 - fog_factor) + fc[2] * fog_factor;
+            }
 
             // White balance: shift color temperature in HDR space
             if config.white_balance.abs() > 1e-6 {

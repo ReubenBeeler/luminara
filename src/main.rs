@@ -94,6 +94,7 @@ struct CliArgs {
     median: Option<u32>,
     crosshatch: Option<u32>,
     glitch: Option<f64>,
+    depth_fog: Option<f64>,
 }
 
 fn main() {
@@ -280,6 +281,9 @@ fn main() {
     if let Some(gl) = cli.glitch {
         render_config.glitch = gl;
     }
+    if let Some(df) = cli.depth_fog {
+        render_config.depth_fog = df;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -383,6 +387,7 @@ fn main() {
         if render_config.median > 0 { pp.push(format!("median({})", render_config.median)); }
         if render_config.crosshatch > 0 { pp.push(format!("crosshatch({})", render_config.crosshatch)); }
         if render_config.glitch > 0.0 { pp.push(format!("glitch({:.1})", render_config.glitch)); }
+        if render_config.depth_fog > 0.0 { pp.push(format!("depth-fog({:.2})", render_config.depth_fog)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -721,6 +726,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         median: None,
         crosshatch: None,
         glitch: None,
+        depth_fog: None,
     };
     let mut i = 1;
 
@@ -1002,6 +1008,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.glitch = args[i].parse().ok();
                 }
             }
+            "--depth-fog" => {
+                i += 1;
+                if i < args.len() {
+                    cli.depth_fog = args[i].parse().ok();
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1090,6 +1102,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --median N    Median filter radius for noise removal (e.g. 1)");
                 eprintln!("      --crosshatch N Pen-and-ink crosshatch spacing (e.g. 4)");
                 eprintln!("      --glitch N    Digital glitch effect intensity (e.g. 0.5)");
+                eprintln!("      --depth-fog N Atmospheric depth fog density (e.g. 0.1)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
