@@ -373,6 +373,8 @@ pub struct RenderConfig {
     pub pencil: u32,
     /// Dot matrix cell size (0 = off). Simulates dot matrix printer output.
     pub dot_matrix: u32,
+    /// Perlin noise overlay intensity (0.0 = off). Adds procedural noise texture.
+    pub noise_overlay: f64,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -482,6 +484,7 @@ impl Default for RenderConfig {
             hex_pixelate: 0,
             pencil: 0,
             dot_matrix: 0,
+            noise_overlay: 0.0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -3226,6 +3229,35 @@ pub fn render(
                 r = posterize_ch(r, config.posterize_channels[0]);
                 g = posterize_ch(g, config.posterize_channels[1]);
                 b = posterize_ch(b, config.posterize_channels[2]);
+            }
+
+            // Perlin-like noise overlay
+            if config.noise_overlay > 0.0 {
+                let scale = 0.05;
+                let fx = i as f64 * scale;
+                let fy = j as f64 * scale;
+                // Simple value noise via hash
+                let hash = |ix: i64, iy: i64| -> f64 {
+                    let h = ix.wrapping_mul(73856093) ^ iy.wrapping_mul(19349663);
+                    ((h as u64 % 10000) as f64 / 10000.0) * 2.0 - 1.0
+                };
+                let ix = fx.floor() as i64;
+                let iy = fy.floor() as i64;
+                let tx = fx - fx.floor();
+                let ty = fy - fy.floor();
+                let st = |t: f64| t * t * (3.0 - 2.0 * t); // smoothstep
+                let v00 = hash(ix, iy);
+                let v10 = hash(ix + 1, iy);
+                let v01 = hash(ix, iy + 1);
+                let v11 = hash(ix + 1, iy + 1);
+                let n = v00 * (1.0 - st(tx)) * (1.0 - st(ty))
+                    + v10 * st(tx) * (1.0 - st(ty))
+                    + v01 * (1.0 - st(tx)) * st(ty)
+                    + v11 * st(tx) * st(ty);
+                let adjust = (n * config.noise_overlay * 255.0) as i16;
+                r = (r as i16 + adjust).clamp(0, 255) as u8;
+                g = (g as i16 + adjust).clamp(0, 255) as u8;
+                b = (b as i16 + adjust).clamp(0, 255) as u8;
             }
 
             // Color inversion

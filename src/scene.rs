@@ -158,6 +158,7 @@ pub struct RenderSettings {
     pub hex_pixelate: Option<u32>,
     pub pencil: Option<u32>,
     pub dot_matrix: Option<u32>,
+    pub noise_overlay: Option<f64>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -1009,6 +1010,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(dm) = r.dot_matrix {
             render_config.dot_matrix = dm;
+        }
+        if let Some(no) = r.noise_overlay {
+            render_config.noise_overlay = no;
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -2072,6 +2076,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         hex_pixelate: 0,
         pencil: 0,
         dot_matrix: 0,
+        noise_overlay: 0.0,
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,
