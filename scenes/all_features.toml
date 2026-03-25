@@ -188,3 +188,57 @@ type = "gradient_tex"
 color1 = [0.2, 0.2, 0.8]
 color2 = [0.8, 0.2, 0.2]
 axis = "y"
+
+# PBR metallic sphere (Cook-Torrance GGX)
+[[sphere]]
+center = [4.0, 0.8, 3.0]
+radius = 0.8
+[sphere.material]
+type = "pbr"
+color = [1.0, 0.84, 0.0]
+roughness = 0.15
+metallic = 1.0
+
+# PBR dielectric sphere (rough plastic)
+[[sphere]]
+center = [-4.0, 0.6, 4.0]
+radius = 0.6
+[sphere.material]
+type = "pbr"
+color = [0.1, 0.7, 0.3]
+roughness = 0.6
+metallic = 0.0
+
+# Dispersive glass prism
+[[sphere]]
+center = [2.0, 0.5, 5.0]
+radius = 0.5
+[sphere.material]
+type = "dielectric"
+refraction_index = 1.52
+dispersion = 0.03
+
+# CSG: sphere with spherical hole
+[[csg]]
+operation = "difference"
+a = { shape = "sphere", center = [-2.0, 0.8, 5.0], radius = 0.8, material = { type = "pbr", color = [0.9, 0.1, 0.1], roughness = 0.2, metallic = 0.9 } }
+b = { shape = "sphere", center = [-1.5, 0.8, 5.3], radius = 0.6, material = { type = "matte", color = [1.0, 1.0, 1.0] } }
+
+# Bumpy torus
+[[torus]]
+center = [-6.0, 0.5, 1.0]
+major_radius = 0.5
+minor_radius = 0.2
+bump_strength = 0.3
+bump_scale = 8.0
+[torus.material]
+type = "marble"
+color = [0.8, 0.75, 0.7]
+scale = 3.0
+
+# Explicit light for NEE
+[[light]]
+position = [3.0, 6.0, 4.0]
+color = [1.0, 0.95, 0.9]
+intensity = 30.0
+radius = 0.8
