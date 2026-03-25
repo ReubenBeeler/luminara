@@ -1,0 +1,72 @@
+# Organic materials showcase — subsurface scattering, translucent, color ramp
+# Demonstrates SSS for skin/wax/jade and multi-stop color gradients
+
+[render]
+width = 800
+height = 450
+samples = 256
+max_depth = 50
+background = { type = "gradient", bottom = [0.05, 0.05, 0.08], top = [0.1, 0.12, 0.2] }
+bloom = 0.15
+denoise = true
+
+[camera]
+look_from = [0, 3, 8]
+look_at = [0, 1, 0]
+vfov = 35
+aperture = 0.05
+focus_dist = 8.5
+
+# Ground plane with color ramp (simulates mossy terrain)
+[[plane]]
+point = [0, 0, 0]
+normal = [0, 1, 0]
+material = { type = "color_ramp", stops = [[0.0, 0.15, 0.1, 0.05], [0.3, 0.2, 0.25, 0.1], [0.7, 0.1, 0.15, 0.05], [1.0, 0.05, 0.08, 0.03]], axis = 2, min_val = -5, max_val = 5 }
+
+# Wax candle — warm SSS
+[[sphere]]
+center = [-3, 1.2, 0]
+radius = 1.2
+material = { type = "subsurface", color = [0.95, 0.85, 0.6], mean_free_path = 0.8, scatter_color = [0.95, 0.6, 0.3] }
+
+# Jade sphere — cool SSS
+[[sphere]]
+center = [0, 1, 0]
+radius = 1.0
+material = { type = "subsurface", color = [0.3, 0.7, 0.4], mean_free_path = 0.3, scatter_color = [0.2, 0.9, 0.3] }
+
+# Skin-tone sphere — realistic SSS
+[[sphere]]
+center = [3, 1.2, 0]
+radius = 1.2
+material = { type = "subsurface", color = [0.9, 0.7, 0.6], mean_free_path = 0.5, scatter_color = [0.9, 0.4, 0.3] }
+
+# Marble sphere — dense SSS
+[[sphere]]
+center = [-1.5, 0.5, 2.5]
+radius = 0.5
+material = { type = "subsurface", color = [0.95, 0.95, 0.9], mean_free_path = 0.15, scatter_color = [0.85, 0.8, 0.75] }
+
+# Translucent leaf-like sphere
+[[sphere]]
+center = [1.5, 0.5, 2.5]
+radius = 0.5
+material = { type = "translucent", color = [0.3, 0.6, 0.15], translucency = 0.7, scatter_width = 0.6 }
+
+# Warm backlight
+[[sphere]]
+center = [0, 6, -3]
+radius = 2
+material = { type = "emissive", color = [1.0, 0.9, 0.7], intensity = 8 }
+
+# Cool fill light
+[[sphere]]
+center = [-5, 3, 5]
+radius = 1.5
+material = { type = "emissive", color = [0.7, 0.8, 1.0], intensity = 4 }
+
+# Accent light
+[[sphere]]
+center = [5, 2, 4]
+radius = 0.8
+material = { type = "emissive", color = [1.0, 0.6, 0.3], intensity = 6 }
