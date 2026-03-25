@@ -778,6 +778,52 @@ impl Texture for ColorRamp {
     }
 }
 
+/// Procedural cloud texture using layered FBM noise with density threshold.
+pub struct Cloud {
+    perlin: Perlin,
+    pub color: Color,
+    pub sky_color: Color,
+    pub scale: f64,
+    pub density: f64,
+    pub octaves: u32,
+}
+
+impl Cloud {
+    pub fn new(color: Color, sky_color: Color, scale: f64, density: f64, octaves: u32) -> Self {
+        Self {
+            perlin: Perlin::new(),
+            color,
+            sky_color,
+            scale,
+            density: density.clamp(0.0, 1.0),
+            octaves,
+        }
+    }
+}
+
+impl Texture for Cloud {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+        let mut noise_val = 0.0;
+        let mut amplitude = 1.0;
+        let mut frequency = 1.0;
+        let mut max_amp = 0.0;
+
+        for _ in 0..self.octaves {
+            noise_val += self.perlin.noise(&(p * frequency)) * amplitude;
+            max_amp += amplitude;
+            amplitude *= 0.5;
+            frequency *= 2.0;
+        }
+
+        noise_val = (noise_val / max_amp + 1.0) * 0.5; // normalize to [0, 1]
+        let cloud = ((noise_val - (1.0 - self.density)) / self.density).clamp(0.0, 1.0);
+        // Smooth edges
+        let cloud = cloud * cloud * (3.0 - 2.0 * cloud);
+        self.sky_color * (1.0 - cloud) + self.color * cloud
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Transparent, Velvet};
-use crate::texture::{Checker, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, MixTexture, Noise, Rings, Spiral, Stripe, TransformedTexture, TriPlanar, Turbulence, UvChecker, Voronoi, Wavy, Wood};
+use crate::texture::{Checker, Cloud, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, MixTexture, Noise, Rings, Spiral, Stripe, TransformedTexture, TriPlanar, Turbulence, UvChecker, Voronoi, Wavy, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -535,6 +535,14 @@ pub enum MaterialDesc {
         color2: [f64; 3],
         scale: Option<f64>,
         line_width: Option<f64>,
+    },
+    #[serde(alias = "cloud", alias = "clouds")]
+    Cloud {
+        color: Option<[f64; 3]>,
+        sky_color: Option<[f64; 3]>,
+        scale: Option<f64>,
+        density: Option<f64>,
+        octaves: Option<u32>,
     },
     #[serde(alias = "tri_planar", alias = "triplanar")]
     TriPlanar {
@@ -1456,6 +1464,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
                 octaves.unwrap_or(6),
+            ))))
+        }
+        MaterialDesc::Cloud { color, sky_color, scale, density, octaves } => {
+            let c = color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(1.0, 1.0, 1.0));
+            let sc = sky_color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(0.5, 0.7, 1.0));
+            Box::new(Lambertian::with_texture(Box::new(Cloud::new(
+                c, sc, scale.unwrap_or(1.0), density.unwrap_or(0.5), octaves.unwrap_or(6),
             ))))
         }
         MaterialDesc::TriPlanar { color1, color2, scale, sharpness } => {
