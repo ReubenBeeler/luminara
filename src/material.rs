@@ -504,6 +504,70 @@ impl Material for Iridescent {
     }
 }
 
+// --- Anisotropic (brushed metal / directional roughness) ---
+
+/// Anisotropic material that simulates brushed metal, hair, and silk.
+/// Reflections are stretched along one direction (tangent), creating
+/// characteristic elongated highlights.
+pub struct Anisotropic {
+    pub color: Color,
+    /// Roughness along the tangent direction (stretch direction)
+    pub roughness_u: f64,
+    /// Roughness perpendicular to the tangent
+    pub roughness_v: f64,
+    /// Tangent axis: 0=X, 1=Y, 2=Z (world space)
+    pub tangent_axis: usize,
+}
+
+impl Anisotropic {
+    pub fn new(color: Color, roughness_u: f64, roughness_v: f64, tangent_axis: usize) -> Self {
+        Self {
+            color,
+            roughness_u: roughness_u.clamp(0.001, 1.0),
+            roughness_v: roughness_v.clamp(0.001, 1.0),
+            tangent_axis: tangent_axis.min(2),
+        }
+    }
+}
+
+impl Material for Anisotropic {
+    fn is_specular(&self) -> bool {
+        true
+    }
+
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        let reflected = ray.direction.unit().reflect(hit.normal);
+
+        // Build local frame with tangent aligned to specified axis
+        let world_tangent = match self.tangent_axis {
+            0 => Vec3::new(1.0, 0.0, 0.0),
+            1 => Vec3::new(0.0, 1.0, 0.0),
+            _ => Vec3::new(0.0, 0.0, 1.0),
+        };
+        // Project tangent onto surface plane
+        let t = (world_tangent - hit.normal * world_tangent.dot(hit.normal)).unit();
+        let b = hit.normal.cross(t);
+
+        // Anisotropic perturbation: different roughness in tangent vs bitangent
+        let r1 = rng.next_f64() * 2.0 * std::f64::consts::PI;
+        let r2 = rng.next_f64();
+        let r2_sqrt = r2.sqrt();
+
+        let perturb = t * (r1.cos() * r2_sqrt * self.roughness_u)
+            + b * (r1.sin() * r2_sqrt * self.roughness_v);
+
+        let scattered = (reflected + perturb).unit();
+        if scattered.dot(hit.normal) > 0.0 {
+            Some(Scatter {
+                ray: Ray::with_time(hit.point, scattered, ray.time),
+                attenuation: self.color,
+            })
+        } else {
+            None
+        }
+    }
+}
+
 // --- Clearcoat (lacquered surface — base diffuse + glossy clear layer) ---
 
 /// Clearcoat material simulates a glossy transparent layer over a

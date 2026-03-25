@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Translucent, Velvet};
+use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Translucent, Velvet};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -386,6 +386,13 @@ pub enum MaterialDesc {
         color1: [f64; 3],
         color2: [f64; 3],
         scale: Option<f64>,
+    },
+    #[serde(alias = "anisotropic", alias = "brushed")]
+    Anisotropic {
+        color: [f64; 3],
+        roughness_u: Option<f64>,
+        roughness_v: Option<f64>,
+        tangent_axis: Option<usize>,
     },
     /// Blackbody emitter — specify light color by temperature in Kelvin
     #[serde(alias = "blackbody")]
@@ -1197,6 +1204,14 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 scale.unwrap_or(1.0),
             ))))
         }
+        MaterialDesc::Anisotropic { color, roughness_u, roughness_v, tangent_axis } => {
+            Box::new(Anisotropic::new(
+                Color::new(color[0], color[1], color[2]),
+                roughness_u.unwrap_or(0.1),
+                roughness_v.unwrap_or(0.5),
+                tangent_axis.unwrap_or(1),
+            ))
+        }
         MaterialDesc::Blackbody { temperature, intensity } => {
             let color = blackbody_to_rgb(*temperature);
             Box::new(Emissive::new(color, intensity.unwrap_or(1.0)))
@@ -1624,6 +1639,11 @@ material = { type = "clearcoat", color = [0.8, 0.1, 0.05], coat_gloss = 0.9 }
 center = [36.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "blackbody", temperature = 3200, intensity = 5.0 }
+
+[[sphere]]
+center = [38.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "anisotropic", color = [0.8, 0.8, 0.85], roughness_u = 0.05, roughness_v = 0.4 }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
