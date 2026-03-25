@@ -383,13 +383,15 @@ pub fn render(
                 if done % 20 == 0 || done == height {
                     let pct = done * 100 / height;
                     let elapsed = start_time.elapsed().as_secs_f64();
+                    let rays_so_far = done as u64 * width as u64 * actual_spp as u64;
+                    let mrays = rays_so_far as f64 / elapsed / 1_000_000.0;
                     let eta = if done < height {
                         let remaining = elapsed / done as f64 * (height - done) as f64;
                         format!(" ETA {:.0}s", remaining)
                     } else {
                         String::new()
                     };
-                    eprint!("\rProgress: {pct:3}% [{done}/{height} rows]{eta}   ");
+                    eprint!("\rProgress: {pct:3}% [{done}/{height} rows] {mrays:.1} Mrays/s{eta}   ");
                 }
             }
 
