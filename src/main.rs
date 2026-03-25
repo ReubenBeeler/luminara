@@ -40,6 +40,7 @@ struct CliArgs {
     threads: Option<usize>,
     seed: Option<u64>,
     exposure: Option<f64>,
+    auto_exposure: bool,
     quiet: bool,
     info_only: bool,
 }
@@ -93,6 +94,9 @@ fn main() {
         render_config.exposure = e;
     }
     render_config.quiet = cli.quiet;
+    if cli.auto_exposure {
+        render_config.auto_exposure = true;
+    }
     if let Some(t) = cli.threads {
         rayon::ThreadPoolBuilder::new()
             .num_threads(t)
@@ -186,6 +190,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         threads: None,
         seed: None,
         exposure: None,
+        auto_exposure: false,
         quiet: false,
         info_only: false,
     };
@@ -216,6 +221,9 @@ fn parse_args(args: &[String]) -> CliArgs {
                 if i < args.len() {
                     cli.samples = args[i].parse().ok();
                 }
+            }
+            "--auto-exposure" => {
+                cli.auto_exposure = true;
             }
             "-q" | "--quiet" => {
                 cli.quiet = true;
@@ -263,6 +271,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -t, --threads     Number of render threads (default: all cores)");
                 eprintln!("      --seed        Set RNG seed for deterministic rendering");
                 eprintln!("  -e, --exposure    Exposure multiplier (default: 1.0)");
+                eprintln!("      --auto-exposure  Automatically compute exposure from scene luminance");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
                 eprintln!("  -V, --version     Show version");

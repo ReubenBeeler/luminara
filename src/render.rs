@@ -158,6 +158,7 @@ pub struct RenderConfig {
     pub quiet: bool,
     pub exposure: f64,
     pub tone_map: ToneMap,
+    pub auto_exposure: bool,
 }
 
 impl Default for RenderConfig {
@@ -172,8 +173,28 @@ impl Default for RenderConfig {
             quiet: false,
             exposure: 1.0,
             tone_map: ToneMap::default(),
+            auto_exposure: false,
         }
     }
+}
+
+/// Compute the log-average luminance of the rendered image.
+/// Uses geometric mean: exp(avg(log(delta + luminance)))
+fn compute_log_average_luminance(rows: &[Vec<Color>]) -> f64 {
+    let delta = 1e-4; // Small constant to avoid log(0)
+    let mut sum = 0.0;
+    let mut count = 0u64;
+    for row in rows {
+        for color in row {
+            let luminance = 0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
+            sum += (delta + luminance.max(0.0)).ln();
+            count += 1;
+        }
+    }
+    if count == 0 {
+        return 0.0;
+    }
+    (sum / count as f64).exp()
 }
 
 /// Sample direct illumination from a random light source (Next Event Estimation).
@@ -369,8 +390,23 @@ pub fn render(
         eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
     }
 
+    // Auto-exposure: compute exposure from scene luminance if not manually overridden.
+    let exposure = if config.auto_exposure {
+        let log_avg = compute_log_average_luminance(&rows);
+        let auto_exp = if log_avg > 1e-6 {
+            0.18 / log_avg // Key value mapping
+        } else {
+            1.0
+        };
+        if !config.quiet {
+            eprintln!("Auto-exposure: {auto_exp:.3} (scene avg luminance: {log_avg:.4})");
+        }
+        auto_exp * config.exposure // Allow manual fine-tuning on top
+    } else {
+        config.exposure
+    };
+
     // Convert to RGBA bytes with exposure, tone mapping + gamma correction.
-    let exposure = config.exposure;
     let tone_fn: fn(f64) -> f64 = match config.tone_map {
         ToneMap::Aces => aces_tonemap,
         ToneMap::Reinhard => reinhard_tonemap,
@@ -477,6 +513,25 @@ mod tests {
             assert!(y < 1.0);
             prev = y;
         }
+    }
+
+    #[test]
+    fn log_avg_luminance_basic() {
+        // Uniform gray image: all pixels = (0.5, 0.5, 0.5)
+        let gray = Color::new(0.5, 0.5, 0.5);
+        let rows = vec![vec![gray; 10]; 10];
+        let avg = compute_log_average_luminance(&rows);
+        let expected_lum = 0.2126 * 0.5 + 0.7152 * 0.5 + 0.0722 * 0.5;
+        assert!((avg - expected_lum).abs() < 0.01, "Expected ~{expected_lum}, got {avg}");
+    }
+
+    #[test]
+    fn log_avg_luminance_dark_scene() {
+        // Very dark scene should have low luminance
+        let dark = Color::new(0.01, 0.01, 0.01);
+        let rows = vec![vec![dark; 10]; 10];
+        let avg = compute_log_average_luminance(&rows);
+        assert!(avg < 0.05, "Dark scene should have low avg luminance, got {avg}");
     }
 
     #[test]
