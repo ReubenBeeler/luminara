@@ -504,6 +504,43 @@ impl Texture for Voronoi {
     }
 }
 
+/// Spiral pattern in the XZ plane.
+pub struct Spiral {
+    pub color1: Color,
+    pub color2: Color,
+    pub scale: f64,
+    /// Number of spiral arms
+    pub arms: u32,
+}
+
+impl Spiral {
+    pub fn new(color1: Color, color2: Color, scale: f64, arms: u32) -> Self {
+        Self {
+            color1,
+            color2,
+            scale: if scale.abs() < 1e-10 { 1.0 } else { scale },
+            arms: arms.max(1),
+        }
+    }
+}
+
+impl Texture for Spiral {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let x = point.x / self.scale;
+        let z = point.z / self.scale;
+        let angle = z.atan2(x); // -PI to PI
+        let dist = (x * x + z * z).sqrt();
+
+        // Spiral: angle + distance creates rotating arms
+        let spiral_val = (angle * self.arms as f64 / (2.0 * std::f64::consts::PI) + dist).fract();
+        if spiral_val < 0.5 {
+            self.color1
+        } else {
+            self.color2
+        }
+    }
+}
+
 /// Hexagonal grid pattern in the XZ plane.
 pub struct Hexgrid {
     pub color1: Color,
