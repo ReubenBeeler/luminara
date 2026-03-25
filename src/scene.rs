@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal, Microfacet};
+use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal, Microfacet, Translucent};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -383,6 +383,12 @@ pub enum MaterialDesc {
         color1: [f64; 3],
         color2: [f64; 3],
         scale: Option<f64>,
+    },
+    #[serde(alias = "translucent")]
+    Translucent {
+        color: [f64; 3],
+        translucency: Option<f64>,
+        scatter_width: Option<f64>,
     },
     #[serde(alias = "blend")]
     BlendMat {
@@ -1086,6 +1092,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
             ))))
+        }
+        MaterialDesc::Translucent { color, translucency, scatter_width } => {
+            Box::new(Translucent::new(
+                Color::new(color[0], color[1], color[2]),
+                translucency.unwrap_or(0.5),
+                scatter_width.unwrap_or(0.8),
+            ))
         }
     }
 }

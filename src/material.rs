@@ -420,6 +420,59 @@ impl Material for Blend {
     }
 }
 
+// --- Translucent (subsurface scattering approximation) ---
+
+/// Translucent material that allows light to pass through and scatter
+/// underneath the surface. Approximates subsurface scattering for
+/// materials like wax, jade, skin, leaves, and thin fabric.
+pub struct Translucent {
+    pub color: Color,
+    /// Fraction of light that transmits through (0 = opaque, 1 = fully translucent)
+    pub translucency: f64,
+    /// How much the transmitted light scatters (0 = straight through, 1 = fully diffuse)
+    pub scatter_width: f64,
+}
+
+impl Translucent {
+    pub fn new(color: Color, translucency: f64, scatter_width: f64) -> Self {
+        Self {
+            color,
+            translucency: translucency.clamp(0.0, 1.0),
+            scatter_width: scatter_width.clamp(0.0, 1.0),
+        }
+    }
+}
+
+impl Material for Translucent {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        if rng.next_f64() < self.translucency {
+            // Transmitted: scatter through the surface
+            let through = ray.direction.unit();
+            let mut rng_adapter = RngAdapter(rng);
+            let random_below = -hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
+            let mut dir = through * (1.0 - self.scatter_width) + random_below * self.scatter_width;
+            if dir.near_zero() {
+                dir = -hit.normal;
+            }
+            Some(Scatter {
+                ray: Ray::with_time(hit.point, dir, ray.time),
+                attenuation: self.color,
+            })
+        } else {
+            // Reflected: diffuse reflection on the surface
+            let mut rng_adapter = RngAdapter(rng);
+            let mut scatter_dir = hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
+            if scatter_dir.near_zero() {
+                scatter_dir = hit.normal;
+            }
+            Some(Scatter {
+                ray: Ray::with_time(hit.point, scatter_dir, ray.time),
+                attenuation: self.color,
+            })
+        }
+    }
+}
+
 /// Adapter to use our `RngCore` trait with functions expecting `impl Rng`.
 struct RngAdapter<'a>(&'a mut dyn RngCore);
 
@@ -724,6 +777,30 @@ mod tests {
         assert!(got_red_only, "Dispersion should produce red-only samples");
         assert!(got_green_only, "Dispersion should produce green-only samples");
         assert!(got_blue_only, "Dispersion should produce blue-only samples");
+    }
+
+    #[test]
+    fn translucent_transmits_and_reflects() {
+        let mat = Translucent::new(Color::new(0.8, 0.9, 0.7), 0.5, 0.8);
+        let hit = make_hit_record(&mat);
+        let incoming = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let mut transmitted = 0;
+        let mut reflected = 0;
+        for _ in 0..200 {
+            let scatter = mat.scatter(&incoming, &hit, &mut rng).unwrap();
+            // Check if ray goes below surface (transmitted) or above (reflected)
+            if scatter.ray.direction.dot(Vec3::new(0.0, 1.0, 0.0)) < 0.0 {
+                transmitted += 1;
+            } else {
+                reflected += 1;
+            }
+            // Attenuation should match color
+            assert!((scatter.attenuation.x - 0.8).abs() < 1e-6);
+        }
+        assert!(transmitted > 30, "Should have some transmitted rays, got {transmitted}");
+        assert!(reflected > 30, "Should have some reflected rays, got {reflected}");
     }
 
     #[test]
