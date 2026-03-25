@@ -377,6 +377,8 @@ pub struct RenderConfig {
     pub noise_overlay: f64,
     /// CMYK color halftone dot size (0 = off). Simulates color printing with rotated screens.
     pub color_halftone: u32,
+    /// Kaleidoscope segments (0 = off). Creates rotational mirror symmetry.
+    pub kaleidoscope: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -488,6 +490,7 @@ impl Default for RenderConfig {
             dot_matrix: 0,
             noise_overlay: 0.0,
             color_halftone: 0,
+            kaleidoscope: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2683,6 +2686,38 @@ pub fn render(
                     if (gx * gx + gy * gy).sqrt() > 0.15 {
                         *pixel = Color::new(0.0, 0.0, 0.0);
                     }
+                }
+            }
+        }
+        result
+    } else { rows };
+
+    // Kaleidoscope: rotational mirror symmetry
+    let rows = if config.kaleidoscope >= 2 {
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let cx = w as f64 / 2.0;
+        let cy = h as f64 / 2.0;
+        let segments = config.kaleidoscope as f64;
+        let segment_angle = 2.0 * std::f64::consts::PI / segments;
+        let mut result = vec![vec![Color::new(0.0, 0.0, 0.0); w]; h];
+        for (y, row) in result.iter_mut().enumerate() {
+            for (x, pixel) in row.iter_mut().enumerate() {
+                let dx = x as f64 - cx;
+                let dy = y as f64 - cy;
+                let mut angle = dy.atan2(dx);
+                if angle < 0.0 { angle += 2.0 * std::f64::consts::PI; }
+                let r = (dx * dx + dy * dy).sqrt();
+                // Map angle to first segment
+                let seg_angle = angle % segment_angle;
+                // Mirror alternate segments
+                let seg_idx = (angle / segment_angle) as u32;
+                let mirrored = if seg_idx % 2 == 1 { segment_angle - seg_angle } else { seg_angle };
+                // Convert back to cartesian
+                let sx = (cx + r * mirrored.cos()) as usize;
+                let sy = (cy + r * mirrored.sin()) as usize;
+                if sy < h && sx < w {
+                    *pixel = rows[sy][sx];
                 }
             }
         }

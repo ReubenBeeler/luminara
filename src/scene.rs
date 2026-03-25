@@ -163,6 +163,7 @@ pub struct RenderSettings {
     pub dot_matrix: Option<u32>,
     pub noise_overlay: Option<f64>,
     pub color_halftone: Option<u32>,
+    pub kaleidoscope: Option<u32>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -1032,6 +1033,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ch) = r.color_halftone {
             render_config.color_halftone = ch;
+        }
+        if let Some(k) = r.kaleidoscope {
+            render_config.kaleidoscope = k;
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -2108,6 +2112,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         dot_matrix: 0,
         noise_overlay: 0.0,
         color_halftone: 0,
+        kaleidoscope: 0,
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,

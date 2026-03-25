@@ -118,6 +118,7 @@ struct CliArgs {
     dot_matrix: Option<u32>,
     noise_overlay: Option<f64>,
     color_halftone: Option<u32>,
+    kaleidoscope: Option<u32>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -390,6 +391,9 @@ fn main() {
     if let Some(ch) = cli.color_halftone {
         render_config.color_halftone = ch;
     }
+    if let Some(k) = cli.kaleidoscope {
+        render_config.kaleidoscope = k;
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -614,6 +618,7 @@ fn main() {
         if render_config.dot_matrix >= 2 { pp.push(format!("dot-matrix({})", render_config.dot_matrix)); }
         if render_config.noise_overlay > 0.0 { pp.push(format!("noise({:.2})", render_config.noise_overlay)); }
         if render_config.color_halftone >= 2 { pp.push(format!("color-halftone({})", render_config.color_halftone)); }
+        if render_config.kaleidoscope >= 2 { pp.push(format!("kaleidoscope({})", render_config.kaleidoscope)); }
         if render_config.posterize_channels.iter().any(|&l| l >= 2) {
             pp.push(format!("posterize-ch({},{},{})", render_config.posterize_channels[0], render_config.posterize_channels[1], render_config.posterize_channels[2]));
         }
@@ -1054,6 +1059,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         dot_matrix: None,
         noise_overlay: None,
         color_halftone: None,
+        kaleidoscope: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1532,6 +1538,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.color_halftone = args[i].parse().ok();
                 }
             }
+            "--kaleidoscope" => {
+                i += 1;
+                if i < args.len() {
+                    cli.kaleidoscope = args[i].parse().ok();
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1662,7 +1674,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 33 geometry types, 71 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 33 geometry types, 72 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1736,6 +1748,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --dot-matrix N  Dot matrix printer effect (cell size)");
                 eprintln!("      --noise-overlay N  Procedural noise texture overlay");
                 eprintln!("      --color-halftone N  CMYK color halftone with rotated screens");
+                eprintln!("      --kaleidoscope N  Kaleidoscope mirror symmetry (N segments)");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");
