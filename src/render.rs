@@ -274,6 +274,9 @@ fn sample_direct_light(
 }
 
 /// Trace a single ray through the scene.
+///
+/// `skip_emission`: when true, don't count emitted light on first hit.
+/// This prevents double-counting when NEE already sampled this light.
 fn ray_color(
     ray: &Ray,
     world: &dyn Hittable,
@@ -281,6 +284,7 @@ fn ray_color(
     bg: &Background,
     rng: &mut dyn RngCore,
     depth: u32,
+    skip_emission: bool,
 ) -> Color {
     if depth == 0 {
         return Color::ZERO;
@@ -288,10 +292,17 @@ fn ray_color(
 
     // 0.001 to avoid shadow acne
     if let Some(hit) = world.hit(ray, 0.001, f64::INFINITY) {
-        let emitted = hit.material.emitted(hit.u, hit.v, &hit.point);
+        let emitted = if skip_emission {
+            Color::ZERO
+        } else {
+            hit.material.emitted(hit.u, hit.v, &hit.point)
+        };
+
         if let Some(scatter) = hit.material.scatter(ray, &hit, rng) {
+            let use_nee = !hit.material.is_specular() && !lights.is_empty();
+
             // For diffuse materials, add direct light sampling (NEE)
-            let direct = if !hit.material.is_specular() && !lights.is_empty() {
+            let direct = if use_nee {
                 sample_direct_light(
                     &hit.point,
                     &hit.normal,
@@ -304,9 +315,10 @@ fn ray_color(
                 Color::ZERO
             };
 
+            // For the indirect bounce after NEE, skip emission to avoid double-counting
             let indirect = scatter
                 .attenuation
-                .hadamard(ray_color(&scatter.ray, world, lights, bg, rng, depth - 1));
+                .hadamard(ray_color(&scatter.ray, world, lights, bg, rng, depth - 1, use_nee));
             let result = emitted + direct + indirect;
             // Guard against NaN propagation from degenerate geometry or materials
             return if result.x.is_nan() || result.y.is_nan() || result.z.is_nan() {
@@ -350,7 +362,7 @@ pub fn render(
                             let u = (i as f64 + (sx as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (width - 1) as f64;
                             let v = (y + (sy as f64 + rng.random::<f64>()) / sqrt_spp as f64) / (height - 1) as f64;
                             let ray = camera.get_ray(u, v, &mut rng);
-                            let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth);
+                            let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth, false);
                             // Clamp per-sample luminance to prevent firefly artifacts
                             let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
                             if luminance > 100.0 {
