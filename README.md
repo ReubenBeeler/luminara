@@ -7,12 +7,13 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
 - **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with Beer's Law absorption, tint, and roughness), emissive (solid or textured lights), microfacet/PBR (Cook-Torrance GGX with roughness and metallic), blend (mix two materials)
+- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with Beer's Law absorption, tint, and roughness), emissive (solid or textured lights), microfacet/PBR (Cook-Torrance GGX with roughness and metallic), blend (mix two materials), iridescent (thin-film interference), translucent (subsurface scattering)
 - **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
-- **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling), ACES tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
+- **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling with solid-angle cone sampling), ACES tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
+- **Post-processing**: Bloom (glow), vignette, film grain, bilateral denoising, HDR output
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
 - **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, or black
@@ -54,7 +55,14 @@ cargo run --release -- --help
 | `--auto-exposure` | Automatically compute exposure from scene luminance |
 | `--tone-map` | Tone mapping: aces, reinhard, filmic, none |
 | `-q`, `--quiet` | Suppress progress output |
+| `--denoise` | Apply bilateral denoiser to reduce noise |
+| `--bloom N` | Add bloom glow effect (intensity, e.g. 0.3) |
+| `--vignette N` | Darken edges for cinematic look (e.g. 0.5) |
+| `--grain N` | Add film grain noise (e.g. 0.1) |
+| `--save-hdr F` | Save HDR data to Radiance .hdr file |
+| `--crop X,Y,W,H` | Render only a sub-region of the image |
 | `--info` | Show scene info without rendering |
+| `-p`, `--preview` | Quick preview (1/4 res, low samples) |
 | `-V`, `--version` | Show version |
 | `-h`, `--help` | Show help |
 
@@ -138,6 +146,8 @@ color = [0.8, 0.8, 0.8]
 | `gradient_tex` | `color1`, `color2`, `axis` (optional), `min`/`max` (optional) |
 | `marble` | `color`, `scale` (optional) |
 | `turbulence` | `color`, `scale` (optional) |
+| `iridescent` | `color` (optional), `thickness` (nm, optional), `film_ior` (optional), `roughness` (optional) |
+| `translucent` | `color`, `translucency` (optional, 0.0-1.0), `scatter_width` (optional, 0.0-1.0) |
 | `image` | `file` (path to PNG/JPG) |
 
 ## Architecture
@@ -149,7 +159,7 @@ color = [0.8, 0.8, 0.8]
 | `aabb` | Axis-aligned bounding boxes |
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
-| `material` | Material trait + Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend |
+| `material` | Material trait + Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend, Iridescent, Translucent |
 | `csg` | Constructive Solid Geometry (union, intersection, difference) |
 | `texture` | Texture trait + 12 procedural/image textures |
 | `sphere` | Sphere and MovingSphere with UV mapping |
@@ -193,13 +203,14 @@ color = [0.8, 0.8, 0.8]
 - **csg_demo.toml**: CSG boolean operations (union, intersection, difference) with PBR materials
 - **pbr_showcase.toml**: PBR material roughness and metallic parameter gradients
 - **prism.toml**: Chromatic dispersion rainbow effects in glass
+- **materials_showcase.toml**: Iridescent and translucent materials with bloom and vignette
 
 ## What's next
 
 - Normal mapping
 - Adaptive sampling for faster convergence on complex scenes
 - Photon mapping for caustics
-- Subsurface scattering for translucent materials
+- Multiple importance sampling (MIS)
 
 ---
 
