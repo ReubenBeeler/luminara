@@ -189,7 +189,10 @@ pub struct SphereDesc {
     pub bump_scale: Option<f64>,
     pub normal_map: Option<String>,
     pub normal_map_strength: Option<f64>,
+    pub rotate_x: Option<f64>,
     pub rotate_y: Option<f64>,
+    pub rotate_z: Option<f64>,
+    pub translate: Option<[f64; 3]>,
     pub scale: Option<f64>,
 }
 
@@ -333,6 +336,10 @@ pub struct ConeDesc {
     pub radius: f64,
     pub height: f64,
     pub material: MaterialDesc,
+    pub rotate_x: Option<f64>,
+    pub rotate_y: Option<f64>,
+    pub rotate_z: Option<f64>,
+    pub translate: Option<[f64; 3]>,
 }
 
 #[derive(Deserialize)]
@@ -345,6 +352,10 @@ pub struct CylinderDesc {
     pub bump_scale: Option<f64>,
     pub normal_map: Option<String>,
     pub normal_map_strength: Option<f64>,
+    pub rotate_x: Option<f64>,
+    pub rotate_y: Option<f64>,
+    pub rotate_z: Option<f64>,
+    pub translate: Option<[f64; 3]>,
 }
 
 #[derive(Deserialize)]
@@ -994,8 +1005,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
                 Err(e) => eprintln!("Warning: {e}"),
             }
         }
+        if let Some(angle) = s.rotate_x {
+            obj = Box::new(RotateX::new(obj, angle));
+        }
         if let Some(angle) = s.rotate_y {
             obj = Box::new(RotateY::new(obj, angle));
+        }
+        if let Some(angle) = s.rotate_z {
+            obj = Box::new(RotateZ::new(obj, angle));
+        }
+        if let Some(offset) = s.translate {
+            obj = Box::new(Translate::new(obj, arr_to_vec3(offset)));
         }
         if let Some(s_val) = s.scale {
             obj = Box::new(Scale::new(obj, s_val));
@@ -1136,13 +1156,14 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     for c in &scene.cone {
         let mat = build_material(&c.material);
         let center = arr_to_vec3(c.center);
-        world.add(Box::new(Cone::new(
-            center,
-            c.radius,
-            center.y,
-            center.y + c.height,
-            mat,
-        )));
+        let mut obj: Box<dyn Hittable> = Box::new(Cone::new(
+            center, c.radius, center.y, center.y + c.height, mat,
+        ));
+        if let Some(angle) = c.rotate_x { obj = Box::new(RotateX::new(obj, angle)); }
+        if let Some(angle) = c.rotate_y { obj = Box::new(RotateY::new(obj, angle)); }
+        if let Some(angle) = c.rotate_z { obj = Box::new(RotateZ::new(obj, angle)); }
+        if let Some(offset) = c.translate { obj = Box::new(Translate::new(obj, arr_to_vec3(offset))); }
+        world.add(obj);
     }
 
     for a in &scene.annulus {
@@ -1211,6 +1232,10 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
                 Err(e) => eprintln!("Warning: {e}"),
             }
         }
+        if let Some(angle) = c.rotate_x { obj = Box::new(RotateX::new(obj, angle)); }
+        if let Some(angle) = c.rotate_y { obj = Box::new(RotateY::new(obj, angle)); }
+        if let Some(angle) = c.rotate_z { obj = Box::new(RotateZ::new(obj, angle)); }
+        if let Some(offset) = c.translate { obj = Box::new(Translate::new(obj, arr_to_vec3(offset))); }
         world.add(obj);
     }
 
