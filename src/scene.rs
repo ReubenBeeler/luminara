@@ -141,6 +141,8 @@ pub struct RenderSettings {
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
     pub palette: Option<String>,
+    pub border: Option<u32>,
+    pub border_color: Option<[f64; 3]>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -915,6 +917,12 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref p) = r.palette {
             render_config.palette = p.clone();
+        }
+        if let Some(b) = r.border {
+            render_config.border = b;
+        }
+        if let Some(bc) = r.border_color {
+            render_config.border_color = bc;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1884,6 +1892,8 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
         palette: String::new(),
+        border: 0,
+        border_color: [0.0, 0.0, 0.0],
     };
 
     let cam_config = CameraConfig {

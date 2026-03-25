@@ -101,6 +101,8 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    border: Option<u32>,
+    border_color: Option<[f64; 3]>,
 }
 
 fn main() {
@@ -305,6 +307,12 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(b) = cli.border {
+        render_config.border = b;
+    }
+    if let Some(bc) = cli.border_color {
+        render_config.border_color = bc;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -416,6 +424,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if render_config.border > 0 { pp.push(format!("border({}px)", render_config.border)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -786,6 +795,8 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        border: None,
+        border_color: None,
     };
     let mut i = 1;
 
@@ -1109,6 +1120,21 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--ascii" => {
                 cli.ascii = true;
             }
+            "--border" => {
+                i += 1;
+                if i < args.len() {
+                    cli.border = args[i].parse().ok();
+                }
+            }
+            "--border-color" => {
+                i += 1;
+                if i < args.len() {
+                    let parts: Vec<f64> = args[i].split(',').filter_map(|s| s.trim().parse().ok()).collect();
+                    if parts.len() == 3 {
+                        cli.border_color = Some([parts[0], parts[1], parts[2]]);
+                    }
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1144,7 +1170,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 39 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 40 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1204,6 +1230,8 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --border N    Add N-pixel border frame");
+                eprintln!("      --border-color R,G,B  Border color (0-1 each, default: black)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

@@ -350,6 +350,10 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Border width in pixels (0 = off).
+    pub border: u32,
+    /// Border color [R, G, B] in 0..1 range.
+    pub border_color: [f64; 3],
 }
 
 impl Default for RenderConfig {
@@ -416,6 +420,8 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            border: 0,
+            border_color: [0.0, 0.0, 0.0],
         }
     }
 }
@@ -1802,6 +1808,25 @@ pub fn render(
         }
         if mirror_v {
             result.reverse();
+        }
+        result
+    } else {
+        rows
+    };
+
+    // Optional border pass
+    let rows = if config.border > 0 {
+        let bw = config.border as usize;
+        let bc = Color::new(config.border_color[0], config.border_color[1], config.border_color[2]);
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let mut result = rows;
+        for (y, row) in result.iter_mut().enumerate().take(height) {
+            for (x, pixel) in row.iter_mut().enumerate().take(width) {
+                if y < bw || y >= height - bw || x < bw || x >= width - bw {
+                    *pixel = bc;
+                }
+            }
         }
         result
     } else {
