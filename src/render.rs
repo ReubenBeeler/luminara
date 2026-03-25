@@ -346,25 +346,25 @@ fn apply_bloom(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
     for _ in 0..4 {
         // Horizontal pass
         let mut temp = vec![vec![Color::ZERO; width]; height];
-        for y in 0..height {
-            for x in 0..width {
+        for (temp_row, bright_row) in temp.iter_mut().zip(bright.iter()) {
+            for (x, temp_px) in temp_row.iter_mut().enumerate() {
                 let mut sum = Color::ZERO;
                 for (k, &w) in kernel.iter().enumerate() {
                     let sx = (x as i64 + k as i64 - 2).clamp(0, width as i64 - 1) as usize;
-                    sum += bright[y][sx] * w;
+                    sum += bright_row[sx] * w;
                 }
-                temp[y][x] = sum;
+                *temp_px = sum;
             }
         }
         // Vertical pass
-        for y in 0..height {
-            for x in 0..width {
+        for (y, bright_row) in bright.iter_mut().enumerate() {
+            for (x, bright_px) in bright_row.iter_mut().enumerate() {
                 let mut sum = Color::ZERO;
                 for (k, &w) in kernel.iter().enumerate() {
                     let sy = (y as i64 + k as i64 - 2).clamp(0, height as i64 - 1) as usize;
                     sum += temp[sy][x] * w;
                 }
-                bright[y][x] = sum;
+                *bright_px = sum;
             }
         }
     }
@@ -408,7 +408,7 @@ fn apply_sharpen(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
                             count += 1.0;
                         }
                     }
-                    blur = blur / count;
+                    blur /= count;
                     // Unsharp mask: original + intensity * (original - blur)
                     let sharpened = *orig + (*orig - blur) * intensity;
                     // Prevent negative values
