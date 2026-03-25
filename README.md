@@ -13,8 +13,10 @@ Luminara traces rays of light through a virtual scene, simulating how photons in
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
 - **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling for sphere, rect, and disk lights), adaptive sampling (variance-based early termination), Russian roulette path termination, pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats, time-budgeted rendering
-- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping, solarize, duo-tone, pencil sketch, median filter, crosshatch, digital glitch, depth fog, channel swap, color quantization (median-cut), color tint, named palettes (gameboy/cga/nes/pastel/cyberpunk/etc), radial blur, border frame, resize, rotation, warm/cool presets, ASCII art output
-- **Output**: PNG, PPM, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, albedo pass, stdout piping
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping, solarize, duo-tone, pencil sketch, median filter, crosshatch, digital glitch, depth fog, channel swap, color quantization (median-cut), color tint, named palettes (gameboy/cga/nes/pastel/cyberpunk/etc), radial blur, border frame, resize, rotation, warm/cool presets, ASCII art output, mosaic, swirl, wave, fisheye, night vision, stipple, watercolor, auto-levels, brightness, color balance, thermal/neon color maps
+- **Camera modes**: Perspective (standard), panoramic (360° equirectangular)
+- **Presets**: Vintage (sepia+grain+vignette), cinematic (bloom+warm+vignette)
+- **Output**: PNG, PPM, JPEG, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, albedo pass, JSON stats, stdout piping
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
 - **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, starfield, HDRI environment maps (bilinear interpolated), or black
@@ -106,6 +108,21 @@ cargo run --release -- --help
 | `--warm` | Warm white balance preset |
 | `--cool` | Cool white balance preset |
 | `--ascii` | Print ASCII art to terminal |
+| `--mosaic N` | Voronoi stained-glass mosaic (cell size) |
+| `--swirl N` | Swirl/twist distortion |
+| `--wave N` | Wave/ripple distortion (amplitude) |
+| `--fisheye N` | Barrel (positive) or pincushion (negative) distortion |
+| `--night-vision` | Green-tinted night vision simulation |
+| `--stipple N` | Pointillism/stipple dot effect |
+| `--watercolor N` | Watercolor painting effect |
+| `--auto-levels` | Auto-stretch histogram for full dynamic range |
+| `--brightness N` | Brightness adjustment (-1.0 to 1.0) |
+| `--color-balance R,G,B` | Per-channel level adjustment |
+| `--fog-color R,G,B` | Depth fog color |
+| `--panorama` | 360° equirectangular panoramic camera |
+| `--vintage` | Vintage photo preset |
+| `--cinematic` | Cinematic look preset |
+| `--save-json F` | Save render statistics as JSON |
 | `--benchmark` | Run built-in benchmark and report Mrays/s |
 | `--list-scenes` | List available .toml scene files |
 | `-p`, `--preview` | Quick preview (1/4 res, low samples) |
