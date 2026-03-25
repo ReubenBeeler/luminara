@@ -313,6 +313,8 @@ pub struct RenderConfig {
     pub grade_shadows: [f64; 3],
     /// Color grading: tint highlights (RGB multiplier, [1,1,1] = neutral).
     pub grade_highlights: [f64; 3],
+    /// Halftone dot size (0 = off). Simulates newspaper halftone printing.
+    pub halftone: u32,
 }
 
 impl Default for RenderConfig {
@@ -361,6 +363,7 @@ impl Default for RenderConfig {
             tilt_shift: 0.0,
             grade_shadows: [1.0, 1.0, 1.0],
             grade_highlights: [1.0, 1.0, 1.0],
+            halftone: 0,
         }
     }
 }
@@ -1591,6 +1594,22 @@ pub fn render(
                 r = posterize_ch(r);
                 g = posterize_ch(g);
                 b = posterize_ch(b);
+            }
+
+            // Halftone: circular dots based on luminance
+            if config.halftone >= 2 {
+                let hs = config.halftone as f64;
+                let cx = (i as f64 % hs) - hs / 2.0;
+                let cy = (j as f64 % hs) - hs / 2.0;
+                let dist = (cx * cx + cy * cy).sqrt();
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                let dot_radius = lum * hs * 0.6;
+                if dist > dot_radius {
+                    r = 255;
+                    g = 255;
+                    b = 255;
+                }
+                // else keep original color (or darken slightly)
             }
 
             // Color inversion

@@ -78,6 +78,7 @@ struct CliArgs {
     threshold: Option<f64>,
     blur: Option<f64>,
     tilt_shift: Option<f64>,
+    halftone: Option<u32>,
 }
 
 fn main() {
@@ -233,6 +234,9 @@ fn main() {
     }
     if let Some(ts) = cli.tilt_shift {
         render_config.tilt_shift = ts;
+    }
+    if let Some(ht) = cli.halftone {
+        render_config.halftone = ht;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -620,6 +624,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         threshold: None,
         blur: None,
         tilt_shift: None,
+        halftone: None,
     };
     let mut i = 1;
 
@@ -836,6 +841,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.tilt_shift = args[i].parse().ok();
+                }
+            }
+            "--halftone" => {
+                i += 1;
+                if i < args.len() {
+                    cli.halftone = args[i].parse().ok();
                 }
             }
             "--info" => {
