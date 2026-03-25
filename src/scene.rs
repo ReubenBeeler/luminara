@@ -141,6 +141,7 @@ pub struct RenderSettings {
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
     pub palette: Option<String>,
+    pub swirl: Option<f64>,
     pub mosaic: Option<u32>,
     pub radial_blur: Option<f64>,
     pub border: Option<u32>,
@@ -921,6 +922,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref p) = r.palette {
             render_config.palette = p.clone();
+        }
+        if let Some(sw) = r.swirl {
+            render_config.swirl = sw;
         }
         if let Some(m) = r.mosaic {
             render_config.mosaic = m;
@@ -1908,6 +1912,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
         palette: String::new(),
+        swirl: 0.0,
         mosaic: 0,
         radial_blur: 0.0,
         border: 0,

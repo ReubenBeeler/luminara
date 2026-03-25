@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Swirl distortion intensity (0 = off). Twists image around center.
+    pub swirl: f64,
     /// Mosaic cell size (0 = off). Creates Voronoi stained-glass mosaic effect.
     pub mosaic: u32,
     /// Radial blur intensity (0 = off). Creates zoom blur centered on image.
@@ -428,6 +430,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            swirl: 0.0,
             mosaic: 0,
             radial_blur: 0.0,
             border: 0,
@@ -1859,6 +1862,50 @@ pub fn render(
             }
             _ => rows,
         }
+    } else {
+        rows
+    };
+
+    // Optional swirl distortion pass
+    let rows = if config.swirl.abs() > 1e-6 {
+        if !config.quiet {
+            eprint!("Applying swirl...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let cx = width as f64 * 0.5;
+        let cy = height as f64 * 0.5;
+        let max_radius = (cx * cx + cy * cy).sqrt();
+
+        let result: Vec<Vec<Color>> = (0..height).into_par_iter().map(|y| {
+            (0..width).map(|x| {
+                let dx = x as f64 - cx;
+                let dy = y as f64 - cy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                let angle = config.swirl * (1.0 - dist / max_radius).max(0.0);
+                let cos_a = angle.cos();
+                let sin_a = angle.sin();
+                let sx = cx + dx * cos_a - dy * sin_a;
+                let sy = cy + dx * sin_a + dy * cos_a;
+                let sx = sx.clamp(0.0, (width - 1) as f64);
+                let sy = sy.clamp(0.0, (height - 1) as f64);
+                // Bilinear interpolation
+                let x0 = sx.floor() as usize;
+                let y0 = sy.floor() as usize;
+                let x1 = (x0 + 1).min(width - 1);
+                let y1 = (y0 + 1).min(height - 1);
+                let fx = sx - x0 as f64;
+                let fy = sy - y0 as f64;
+                let top = rows[y0][x0] * (1.0 - fx) + rows[y0][x1] * fx;
+                let bot = rows[y1][x0] * (1.0 - fx) + rows[y1][x1] * fx;
+                top * (1.0 - fy) + bot * fy
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };
