@@ -166,6 +166,7 @@ pub struct RenderSettings {
     pub kaleidoscope: Option<u32>,
     pub frosted_glass: Option<u32>,
     pub spin_blur: Option<f64>,
+    pub tile: Option<[u32; 2]>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -1044,6 +1045,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(sb) = r.spin_blur {
             render_config.spin_blur = sb;
+        }
+        if let Some(t) = r.tile {
+            render_config.tile = t;
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -2123,6 +2127,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         kaleidoscope: 0,
         frosted_glass: 0,
         spin_blur: 0.0,
+        tile: [0, 0],
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,

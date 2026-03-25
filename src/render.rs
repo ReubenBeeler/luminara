@@ -383,6 +383,8 @@ pub struct RenderConfig {
     pub frosted_glass: u32,
     /// Spin blur: rotational motion blur angle in degrees (0 = off).
     pub spin_blur: f64,
+    /// Tile repeat [cols, rows]. [0,0] = off. Repeats the image as a tiled grid.
+    pub tile: [u32; 2],
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -497,6 +499,7 @@ impl Default for RenderConfig {
             kaleidoscope: 0,
             frosted_glass: 0,
             spin_blur: 0.0,
+            tile: [0, 0],
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2730,6 +2733,28 @@ pub fn render(
             }).collect()
         }).collect();
         result
+    } else { rows };
+
+    // Tile: repeat image as a grid
+    let rows = if config.tile[0] >= 2 || config.tile[1] >= 2 {
+        let cols = config.tile[0].max(1) as usize;
+        let tile_rows = config.tile[1].max(1) as usize;
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let tile_w = w / cols;
+        let tile_h = h / tile_rows;
+        if tile_w > 0 && tile_h > 0 {
+            // First, shrink original to tile size using nearest-neighbor
+            let mut result = vec![vec![Color::new(0.0, 0.0, 0.0); w]; h];
+            for (y, row) in result.iter_mut().enumerate() {
+                for (x, pixel) in row.iter_mut().enumerate() {
+                    let src_x = ((x % tile_w) as f64 / tile_w as f64 * w as f64) as usize;
+                    let src_y = ((y % tile_h) as f64 / tile_h as f64 * h as f64) as usize;
+                    *pixel = rows[src_y.min(h - 1)][src_x.min(w - 1)];
+                }
+            }
+            result
+        } else { rows }
     } else { rows };
 
     // Frosted glass: random pixel displacement
