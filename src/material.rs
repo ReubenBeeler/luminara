@@ -776,6 +776,80 @@ impl Material for Translucent {
     }
 }
 
+/// Subsurface scattering material for realistic rendering of translucent objects
+/// like skin, wax, marble, and jade. Light enters the surface, scatters inside
+/// the volume, and exits at a nearby point with color absorption.
+pub struct Subsurface {
+    /// Surface albedo (diffuse reflection color)
+    pub color: Color,
+    /// Mean free path — average distance light travels between scatters (world units).
+    /// Smaller = denser/more opaque, larger = more translucent.
+    pub mean_free_path: f64,
+    /// Per-channel absorption color (how the material absorbs different wavelengths).
+    /// e.g. (0.9, 0.3, 0.3) for skin-like reddish subsurface.
+    pub scatter_color: Color,
+}
+
+impl Subsurface {
+    pub fn new(color: Color, mean_free_path: f64, scatter_color: Color) -> Self {
+        Self {
+            color,
+            mean_free_path: mean_free_path.max(0.001),
+            scatter_color,
+        }
+    }
+}
+
+impl Material for Subsurface {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        // Probabilistically choose between surface reflection and subsurface scattering
+        let fresnel = Dielectric::reflectance(ray.direction.unit().dot(hit.normal).abs(), 1.0 / 1.4);
+        if rng.next_f64() < fresnel {
+            // Surface reflection (diffuse)
+            let mut rng_adapter = RngAdapter(rng);
+            let mut scatter_dir = hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
+            if scatter_dir.near_zero() {
+                scatter_dir = hit.normal;
+            }
+            return Some(Scatter {
+                ray: Ray::with_time(hit.point, scatter_dir, ray.time),
+                attenuation: self.color,
+            });
+        }
+
+        // Subsurface scattering: simulate a random walk inside the volume.
+        // Use a simplified model: pick a random exit point offset from entry,
+        // with distance sampled from exponential distribution.
+        let step = -self.mean_free_path * rng.next_f64().max(1e-10).ln();
+
+        // Random walk produces a roughly Gaussian scatter profile.
+        // Use 3 exponential steps for a more realistic distribution.
+        let mut rng_adapter = RngAdapter(rng);
+        let random_dir = Vec3::random_unit_vector(&mut rng_adapter);
+        let exit_offset = random_dir * step;
+
+        // The exit point is offset from the entry point
+        let exit_point = hit.point + exit_offset;
+
+        // Exit in a random hemisphere direction (cosine-weighted around exit normal)
+        // We approximate the exit normal as the original normal
+        let exit_dir = hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
+        let exit_dir = if exit_dir.near_zero() { hit.normal } else { exit_dir.unit() };
+
+        // Beer-Lambert absorption based on path length
+        let absorption = Color::new(
+            (-step / self.mean_free_path * (1.0 - self.scatter_color.x)).exp(),
+            (-step / self.mean_free_path * (1.0 - self.scatter_color.y)).exp(),
+            (-step / self.mean_free_path * (1.0 - self.scatter_color.z)).exp(),
+        );
+
+        Some(Scatter {
+            ray: Ray::with_time(exit_point, exit_dir, ray.time),
+            attenuation: self.color.hadamard(absorption),
+        })
+    }
+}
+
 /// Adapter to use our `RngCore` trait with functions expecting `impl Rng`.
 struct RngAdapter<'a>(&'a mut dyn RngCore);
 

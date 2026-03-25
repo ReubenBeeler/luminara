@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Toon, Translucent, Velvet};
+use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Velvet};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -437,6 +437,12 @@ pub enum MaterialDesc {
         color: [f64; 3],
         translucency: Option<f64>,
         scatter_width: Option<f64>,
+    },
+    #[serde(alias = "subsurface", alias = "sss")]
+    Subsurface {
+        color: [f64; 3],
+        mean_free_path: Option<f64>,
+        scatter_color: Option<[f64; 3]>,
     },
     #[serde(alias = "blend")]
     BlendMat {
@@ -1333,6 +1339,14 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 scatter_width.unwrap_or(0.8),
             ))
         }
+        MaterialDesc::Subsurface { color, mean_free_path, scatter_color } => {
+            let sc = scatter_color.unwrap_or([0.8, 0.5, 0.5]);
+            Box::new(Subsurface::new(
+                Color::new(color[0], color[1], color[2]),
+                mean_free_path.unwrap_or(0.5),
+                Color::new(sc[0], sc[1], sc[2]),
+            ))
+        }
     }
 }
 
@@ -1750,6 +1764,11 @@ material = { type = "toon", color = [0.2, 0.5, 0.9], bands = 4, specular = 0.8 }
 center = [42.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "hexgrid", color1 = [0.9, 0.9, 0.9], color2 = [0.2, 0.2, 0.2] }
+
+[[sphere]]
+center = [44.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "subsurface", color = [0.9, 0.7, 0.6], mean_free_path = 0.3, scatter_color = [0.9, 0.4, 0.3] }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
