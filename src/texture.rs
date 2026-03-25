@@ -850,4 +850,72 @@ mod tests {
         let c_mid = ramp.value(0.0, 0.0, &Point3::new(0.0, 0.5, 0.0));
         assert!((c_mid.y - 1.0).abs() < 0.01, "Expected green at y=0.5, got {c_mid:?}");
     }
+
+    #[test]
+    fn transformed_texture_offset() {
+        let tex = TransformedTexture::new(
+            Box::new(SolidColor::new(Color::new(1.0, 0.0, 0.0))),
+            0.5, 0.25, 0.0, 1.0, 1.0,
+        );
+        // SolidColor ignores UV, so just verify it doesn't panic
+        let c = tex.value(0.0, 0.0, &Point3::new(0.0, 0.0, 0.0));
+        assert!((c.x - 1.0).abs() < 1e-9);
+    }
+}
+
+/// A texture wrapper that applies UV transforms: offset, rotation, and tiling.
+pub struct TransformedTexture {
+    pub inner: Box<dyn Texture>,
+    pub offset_u: f64,
+    pub offset_v: f64,
+    pub rotation: f64, // radians
+    pub tile_u: f64,
+    pub tile_v: f64,
+}
+
+impl TransformedTexture {
+    pub fn new(
+        inner: Box<dyn Texture>,
+        offset_u: f64,
+        offset_v: f64,
+        rotation_deg: f64,
+        tile_u: f64,
+        tile_v: f64,
+    ) -> Self {
+        Self {
+            inner,
+            offset_u,
+            offset_v,
+            rotation: rotation_deg.to_radians(),
+            tile_u,
+            tile_v,
+        }
+    }
+}
+
+impl Texture for TransformedTexture {
+    fn value(&self, u: f64, v: f64, point: &Point3) -> Color {
+        // Apply tiling
+        let mut tu = u * self.tile_u;
+        let mut tv = v * self.tile_v;
+
+        // Apply rotation around (0.5, 0.5)
+        if self.rotation.abs() > 1e-12 {
+            let cu = tu - 0.5;
+            let cv = tv - 0.5;
+            let (sin_r, cos_r) = self.rotation.sin_cos();
+            tu = cu * cos_r - cv * sin_r + 0.5;
+            tv = cu * sin_r + cv * cos_r + 0.5;
+        }
+
+        // Apply offset
+        tu += self.offset_u;
+        tv += self.offset_v;
+
+        // Wrap to [0, 1)
+        tu = tu.rem_euclid(1.0);
+        tv = tv.rem_euclid(1.0);
+
+        self.inner.value(tu, tv, point)
+    }
 }

@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Transparent, Velvet};
-use crate::texture::{Checker, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wavy, Wood};
+use crate::texture::{Checker, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, TransformedTexture, Turbulence, UvChecker, Voronoi, Wavy, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -382,6 +382,9 @@ pub enum MaterialDesc {
     #[serde(alias = "image")]
     Image {
         file: String,
+        uv_offset: Option<[f64; 2]>,
+        uv_rotation: Option<f64>,
+        uv_tile: Option<[f64; 2]>,
     },
     #[serde(alias = "mirror")]
     Mirror,
@@ -1226,13 +1229,23 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 scale.unwrap_or(4.0),
             ))))
         }
-        MaterialDesc::Image { file } => {
+        MaterialDesc::Image { file, uv_offset, uv_rotation, uv_tile } => {
             let tex = ImageTexture::load(file)
                 .unwrap_or_else(|e| {
                     eprintln!("Warning: Failed to load image texture '{file}': {e}, using fallback");
                     ImageTexture::fallback()
                 });
-            Box::new(Lambertian::with_texture(Box::new(tex)))
+            let has_transform = uv_offset.is_some() || uv_rotation.is_some() || uv_tile.is_some();
+            if has_transform {
+                let off = uv_offset.unwrap_or([0.0, 0.0]);
+                let rot = uv_rotation.unwrap_or(0.0);
+                let tile = uv_tile.unwrap_or([1.0, 1.0]);
+                Box::new(Lambertian::with_texture(Box::new(TransformedTexture::new(
+                    Box::new(tex), off[0], off[1], rot, tile[0], tile[1],
+                ))))
+            } else {
+                Box::new(Lambertian::with_texture(Box::new(tex)))
+            }
         }
         MaterialDesc::Mirror => {
             Box::new(Metal::new(Color::new(0.95, 0.95, 0.95), 0.0))
