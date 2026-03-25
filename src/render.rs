@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Auto-levels: stretch histogram to use full dynamic range.
+    pub auto_levels: bool,
     /// Brightness adjustment (-1.0 to 1.0, 0 = no change). Added to each channel in LDR space.
     pub brightness: f64,
     /// Color balance: per-channel multiplier [R, G, B]. Values > 1.0 boost, < 1.0 reduce.
@@ -442,6 +444,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            auto_levels: false,
             brightness: 0.0,
             color_balance: [1.0, 1.0, 1.0],
             stipple: 0,
@@ -1918,6 +1921,59 @@ pub fn render(
             }
             _ => rows,
         }
+    } else {
+        rows
+    };
+
+    // Optional auto-levels pass: stretch histogram to full range
+    let rows = if config.auto_levels {
+        if !config.quiet {
+            eprint!("Auto-leveling...");
+        }
+        // Find min and max for each channel (ignoring extreme outliers at 1% and 99%)
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let total = height * width;
+        let mut r_vals: Vec<f64> = Vec::with_capacity(total);
+        let mut g_vals: Vec<f64> = Vec::with_capacity(total);
+        let mut b_vals: Vec<f64> = Vec::with_capacity(total);
+        for row in &rows {
+            for c in row {
+                r_vals.push(c.x.clamp(0.0, 1.0));
+                g_vals.push(c.y.clamp(0.0, 1.0));
+                b_vals.push(c.z.clamp(0.0, 1.0));
+            }
+        }
+        r_vals.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        g_vals.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        b_vals.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        let lo = total / 100; // 1st percentile
+        let hi = total - 1 - lo; // 99th percentile
+        let r_min = r_vals[lo];
+        let r_max = r_vals[hi];
+        let g_min = g_vals[lo];
+        let g_max = g_vals[hi];
+        let b_min = b_vals[lo];
+        let b_max = b_vals[hi];
+
+        let stretch = |v: f64, lo: f64, hi: f64| -> f64 {
+            if (hi - lo).abs() < 1e-6 { v } else { ((v - lo) / (hi - lo)).clamp(0.0, 1.0) }
+        };
+
+        let result: Vec<Vec<Color>> = rows.iter().map(|row| {
+            row.iter().map(|c| {
+                Color::new(
+                    stretch(c.x.clamp(0.0, 1.0), r_min, r_max),
+                    stretch(c.y.clamp(0.0, 1.0), g_min, g_max),
+                    stretch(c.z.clamp(0.0, 1.0), b_min, b_max),
+                )
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };
