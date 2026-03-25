@@ -178,6 +178,8 @@ pub struct RenderConfig {
     pub crop: Option<(u32, u32, u32, u32)>,
     /// Bloom intensity (0.0 = off). Adds glow around bright areas.
     pub bloom: f64,
+    /// Vignette strength (0.0 = off). Darkens edges for cinematic look.
+    pub vignette: f64,
 }
 
 impl Default for RenderConfig {
@@ -197,6 +199,7 @@ impl Default for RenderConfig {
             save_hdr: false,
             crop: None,
             bloom: 0.0,
+            vignette: 0.0,
         }
     }
 }
@@ -712,11 +715,21 @@ pub fn render(
         ToneMap::None => |x: f64| x.clamp(0.0, 1.0),
     };
     let mut pixels = Vec::with_capacity(width * height * 4);
-    for row in &rows {
-        for color in row {
-            let r = linear_to_srgb(tone_fn(color.x * exposure));
-            let g = linear_to_srgb(tone_fn(color.y * exposure));
-            let b = linear_to_srgb(tone_fn(color.z * exposure));
+    for (j, row) in rows.iter().enumerate() {
+        for (i, color) in row.iter().enumerate() {
+            // Vignette: darken edges based on distance from center
+            let vignette_factor = if config.vignette > 0.0 {
+                let cx = (i as f64 + 0.5) / width as f64 - 0.5;
+                let cy = (j as f64 + 0.5) / height as f64 - 0.5;
+                let dist_sq = cx * cx + cy * cy;
+                // Smooth falloff: 1 at center, decreasing toward edges
+                (1.0 - dist_sq * config.vignette * 4.0).max(0.0)
+            } else {
+                1.0
+            };
+            let r = linear_to_srgb(tone_fn(color.x * exposure * vignette_factor));
+            let g = linear_to_srgb(tone_fn(color.y * exposure * vignette_factor));
+            let b = linear_to_srgb(tone_fn(color.z * exposure * vignette_factor));
             pixels.extend_from_slice(&[r, g, b, 255]);
         }
     }
