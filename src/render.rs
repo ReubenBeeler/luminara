@@ -305,6 +305,16 @@ fn ray_color(
         };
 
         if let Some(scatter) = hit.material.scatter(ray, &hit, rng) {
+            // Russian Roulette: probabilistically terminate low-contribution paths
+            // after a minimum number of bounces, without introducing bias.
+            let max_component = scatter.attenuation.x.max(scatter.attenuation.y).max(scatter.attenuation.z);
+            let survival_prob = max_component.clamp(0.05, 1.0);
+            if depth < 47 && rng.next_f64() > survival_prob {
+                // Path terminated — return only emitted light
+                return emitted;
+            }
+            let rr_weight = if depth < 47 { 1.0 / survival_prob } else { 1.0 };
+
             let use_nee = !hit.material.is_specular() && !lights.is_empty();
 
             // For diffuse materials, add direct light sampling (NEE)
@@ -324,7 +334,8 @@ fn ray_color(
             // For the indirect bounce after NEE, skip emission to avoid double-counting
             let indirect = scatter
                 .attenuation
-                .hadamard(ray_color(&scatter.ray, world, lights, bg, rng, depth - 1, use_nee));
+                .hadamard(ray_color(&scatter.ray, world, lights, bg, rng, depth - 1, use_nee))
+                * rr_weight;
             let result = emitted + direct + indirect;
             // Guard against NaN propagation from degenerate geometry or materials
             return if result.x.is_nan() || result.y.is_nan() || result.z.is_nan() {
