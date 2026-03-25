@@ -1,0 +1,53 @@
+# Toon / Cel-shaded Scene
+# Demonstrates edge detection + posterize for cartoon-style rendering
+
+[render]
+width = 800
+height = 600
+samples = 64
+max_depth = 8
+edge_detect = 1.5
+posterize = 6
+saturation = 1.3
+background = { type = "gradient", bottom = [0.1, 0.15, 0.3], top = [0.4, 0.6, 0.9] }
+
+[camera]
+look_from = [0, 4, 10]
+look_at = [0, 1, 0]
+vfov = 40
+
+# Ground plane
+[[sphere]]
+center = [0, -1000, 0]
+radius = 1000
+material = { type = "toon", color = [0.3, 0.7, 0.3], bands = 3, edge_width = 0.15 }
+
+# Main sphere - red toon
+[[sphere]]
+center = [0, 1.2, 0]
+radius = 1.2
+material = { type = "toon", color = [0.9, 0.2, 0.15], bands = 4, edge_width = 0.1 }
+
+# Left sphere - blue toon
+[[sphere]]
+center = [-2.5, 0.8, 1]
+radius = 0.8
+material = { type = "toon", color = [0.2, 0.3, 0.9], bands = 3, edge_width = 0.15 }
+
+# Right sphere - yellow toon
+[[sphere]]
+center = [2.5, 0.8, 1]
+radius = 0.8
+material = { type = "toon", color = [0.95, 0.85, 0.2], bands = 3, edge_width = 0.15 }
+
+# Small background sphere
+[[sphere]]
+center = [-1, 0.5, -2]
+radius = 0.5
+material = { type = "toon", color = [0.8, 0.4, 0.8], bands = 4, edge_width = 0.1 }
+
+# Overhead light
+[[sphere]]
+center = [3, 8, 5]
+radius = 2
+material = { type = "emissive", color = [1, 1, 0.95], intensity = 8 }
