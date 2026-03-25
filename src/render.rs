@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Color balance: per-channel multiplier [R, G, B]. Values > 1.0 boost, < 1.0 reduce.
+    pub color_balance: [f64; 3],
     /// Stipple dot size (0 = off). Creates pointillism/stippling effect.
     pub stipple: u32,
     /// Night vision simulation (0 = off, 1 = full effect).
@@ -438,6 +440,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            color_balance: [1.0, 1.0, 1.0],
             stipple: 0,
             night_vision: false,
             fisheye: 0.0,
@@ -2636,6 +2639,16 @@ pub fn render(
                 r = ((r as f64 / 255.0 * config.tint[0]) * 255.0).clamp(0.0, 255.0) as u8;
                 g = ((g as f64 / 255.0 * config.tint[1]) * 255.0).clamp(0.0, 255.0) as u8;
                 b = ((b as f64 / 255.0 * config.tint[2]) * 255.0).clamp(0.0, 255.0) as u8;
+            }
+
+            // Color balance: per-channel level adjustment (can boost above 1.0)
+            if (config.color_balance[0] - 1.0).abs() > 1e-6
+                || (config.color_balance[1] - 1.0).abs() > 1e-6
+                || (config.color_balance[2] - 1.0).abs() > 1e-6
+            {
+                r = ((r as f64 * config.color_balance[0]).clamp(0.0, 255.0)) as u8;
+                g = ((g as f64 * config.color_balance[1]).clamp(0.0, 255.0)) as u8;
+                b = ((b as f64 * config.color_balance[2]).clamp(0.0, 255.0)) as u8;
             }
 
             // Posterize: reduce color levels per channel
