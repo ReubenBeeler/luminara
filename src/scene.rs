@@ -157,6 +157,7 @@ pub struct RenderSettings {
     pub frame: Option<u32>,
     pub hex_pixelate: Option<u32>,
     pub pencil: Option<u32>,
+    pub dot_matrix: Option<u32>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -1005,6 +1006,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(p) = r.pencil {
             render_config.pencil = p;
+        }
+        if let Some(dm) = r.dot_matrix {
+            render_config.dot_matrix = dm;
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -2067,6 +2071,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         frame: 0,
         hex_pixelate: 0,
         pencil: 0,
+        dot_matrix: 0,
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,

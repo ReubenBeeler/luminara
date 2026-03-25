@@ -114,6 +114,7 @@ struct CliArgs {
     frame: Option<u32>,
     hex_pixelate: Option<u32>,
     pencil: Option<u32>,
+    dot_matrix: Option<u32>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -375,6 +376,9 @@ fn main() {
     if let Some(p) = cli.pencil {
         render_config.pencil = p;
     }
+    if let Some(dm) = cli.dot_matrix {
+        render_config.dot_matrix = dm;
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -583,6 +587,7 @@ fn main() {
         if render_config.frame > 0 { pp.push(format!("frame({}px)", render_config.frame)); }
         if render_config.hex_pixelate >= 2 { pp.push(format!("hex-pixelate({})", render_config.hex_pixelate)); }
         if render_config.pencil > 0 { pp.push(format!("pencil({})", render_config.pencil)); }
+        if render_config.dot_matrix >= 2 { pp.push(format!("dot-matrix({})", render_config.dot_matrix)); }
         if render_config.posterize_channels.iter().any(|&l| l >= 2) {
             pp.push(format!("posterize-ch({},{},{})", render_config.posterize_channels[0], render_config.posterize_channels[1], render_config.posterize_channels[2]));
         }
@@ -1014,6 +1019,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         frame: None,
         hex_pixelate: None,
         pencil: None,
+        dot_matrix: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1466,6 +1472,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.pencil = args[i].parse().ok();
                 }
             }
+            "--dot-matrix" => {
+                i += 1;
+                if i < args.len() {
+                    cli.dot_matrix = args[i].parse().ok();
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1596,7 +1608,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 32 geometry types, 68 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 32 geometry types, 69 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1667,6 +1679,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --frame N     Picture frame with bevel (N pixel width)");
                 eprintln!("      --hex-pixelate N  Hexagonal pixelation (cell size)");
                 eprintln!("      --pencil N    Pencil cross-hatching drawing (line spacing)");
+                eprintln!("      --dot-matrix N  Dot matrix printer effect (cell size)");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");

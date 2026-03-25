@@ -371,6 +371,8 @@ pub struct RenderConfig {
     pub hex_pixelate: u32,
     /// Pencil drawing effect: hatching density (0 = off). Simulates pencil cross-hatching.
     pub pencil: u32,
+    /// Dot matrix cell size (0 = off). Simulates dot matrix printer output.
+    pub dot_matrix: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -479,6 +481,7 @@ impl Default for RenderConfig {
             frame: 0,
             hex_pixelate: 0,
             pencil: 0,
+            dot_matrix: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2704,6 +2707,47 @@ pub fn render(
                 // Layer 3: horizontal hatching for very dark areas
                 if darkness > 0.75 && y % spacing == 0 {
                     *pixel = ink;
+                }
+            }
+        }
+        result
+    } else { rows };
+
+    // Dot matrix: circular dots sized by luminance
+    let rows = if config.dot_matrix >= 2 {
+        let cell = config.dot_matrix as usize;
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let bg = Color::new(0.95, 0.95, 0.92);
+        let mut result = vec![vec![bg; w]; h];
+        let half = cell as f64 / 2.0;
+        let max_r = half * 0.9; // max dot radius
+        for cy in (0..h).step_by(cell) {
+            for cx in (0..w).step_by(cell) {
+                // Average color in cell
+                let mut sum = Color::new(0.0, 0.0, 0.0);
+                let mut count = 0.0;
+                for dy in 0..cell.min(h - cy) {
+                    for dx in 0..cell.min(w - cx) {
+                        sum += rows[cy + dy][cx + dx];
+                        count += 1.0;
+                    }
+                }
+                let avg = sum / count;
+                let lum = avg.x * 0.2126 + avg.y * 0.7152 + avg.z * 0.0722;
+                let dot_r = (1.0 - lum.clamp(0.0, 1.0)) * max_r;
+                // Draw circular dot
+                let center_x = cx as f64 + half;
+                let center_y = cy as f64 + half;
+                for dy in 0..cell.min(h - cy) {
+                    for dx in 0..cell.min(w - cx) {
+                        let px = cx + dx;
+                        let py = cy + dy;
+                        let dist = ((px as f64 + 0.5 - center_x).powi(2) + (py as f64 + 0.5 - center_y).powi(2)).sqrt();
+                        if dist <= dot_r {
+                            result[py][px] = Color::new(0.05, 0.05, 0.05);
+                        }
+                    }
                 }
             }
         }
