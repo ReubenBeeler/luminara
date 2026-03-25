@@ -658,14 +658,26 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
 
     for s in &scene.sphere {
         // Track emissive spheres for NEE
-        if let MaterialDesc::Emissive { color, intensity, .. } = &s.material {
-            let emission_color = Color::new(color[0], color[1], color[2]);
-            let int = intensity.unwrap_or(1.0);
-            lights.push(LightInfo::Sphere {
-                center: arr_to_vec3(s.center),
-                radius: s.radius,
-                emission: emission_color * int,
-            });
+        match &s.material {
+            MaterialDesc::Emissive { color, intensity, .. } => {
+                let emission_color = Color::new(color[0], color[1], color[2]);
+                let int = intensity.unwrap_or(1.0);
+                lights.push(LightInfo::Sphere {
+                    center: arr_to_vec3(s.center),
+                    radius: s.radius,
+                    emission: emission_color * int,
+                });
+            }
+            MaterialDesc::Blackbody { temperature, intensity } => {
+                let emission_color = blackbody_to_rgb(*temperature);
+                let int = intensity.unwrap_or(1.0);
+                lights.push(LightInfo::Sphere {
+                    center: arr_to_vec3(s.center),
+                    radius: s.radius,
+                    emission: emission_color * int,
+                });
+            }
+            _ => {}
         }
         let mat = build_material(&s.material);
         let sphere: Box<dyn Hittable> = Box::new(Sphere::new(arr_to_vec3(s.center), s.radius, mat));
@@ -825,13 +837,37 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     }
 
     for q in &scene.quad {
+        // Track emissive quads for NEE
+        let origin = arr_to_vec3(q.q);
+        let u_vec = arr_to_vec3(q.u);
+        let v_vec = arr_to_vec3(q.v);
+        match &q.material {
+            MaterialDesc::Emissive { color, intensity, .. } => {
+                let emission_color = Color::new(color[0], color[1], color[2]);
+                let int = intensity.unwrap_or(1.0);
+                lights.push(LightInfo::Rect {
+                    origin,
+                    u: u_vec,
+                    v: v_vec,
+                    normal: u_vec.cross(v_vec).unit(),
+                    emission: emission_color * int,
+                });
+            }
+            MaterialDesc::Blackbody { temperature, intensity } => {
+                let emission_color = blackbody_to_rgb(*temperature);
+                let int = intensity.unwrap_or(1.0);
+                lights.push(LightInfo::Rect {
+                    origin,
+                    u: u_vec,
+                    v: v_vec,
+                    normal: u_vec.cross(v_vec).unit(),
+                    emission: emission_color * int,
+                });
+            }
+            _ => {}
+        }
         let mat = build_material(&q.material);
-        world.add(Box::new(Quad::new(
-            arr_to_vec3(q.q),
-            arr_to_vec3(q.u),
-            arr_to_vec3(q.v),
-            mat,
-        )));
+        world.add(Box::new(Quad::new(origin, u_vec, v_vec, mat)));
     }
 
     for m in &scene.mesh {
