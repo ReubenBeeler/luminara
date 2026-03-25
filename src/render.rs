@@ -285,6 +285,19 @@ fn bilateral_denoise(rows: &[Vec<Color>]) -> Vec<Vec<Color>> {
     result
 }
 
+/// Build an orthonormal basis from a given direction (Frisvad's method).
+fn build_onb(n: Vec3) -> (Vec3, Vec3) {
+    if n.z < -0.9999999 {
+        return (Vec3::new(0.0, -1.0, 0.0), Vec3::new(-1.0, 0.0, 0.0));
+    }
+    let a = 1.0 / (1.0 + n.z);
+    let b = -n.x * n.y * a;
+    (
+        Vec3::new(1.0 - n.x * n.x * a, b, -n.x),
+        Vec3::new(b, 1.0 - n.y * n.y * a, -n.y),
+    )
+}
+
 /// Sample direct illumination from a random light source (Next Event Estimation).
 fn sample_direct_light(
     hit_point: &Point3,
@@ -308,29 +321,51 @@ fn sample_direct_light(
         LightInfo::Sphere { center, radius, emission } => {
             // Skip if hit point is inside the light sphere
             let to_center = *center - *hit_point;
-            if to_center.length_squared() < radius * radius {
+            let dist_to_center_sq = to_center.length_squared();
+            if dist_to_center_sq < radius * radius {
                 return Color::ZERO;
             }
-            // Sample random point on sphere surface
-            let mut lx;
-            let mut ly;
-            let mut lz;
-            loop {
-                lx = rng.next_f64() * 2.0 - 1.0;
-                ly = rng.next_f64() * 2.0 - 1.0;
-                lz = rng.next_f64() * 2.0 - 1.0;
-                if lx * lx + ly * ly + lz * lz < 1.0 {
-                    break;
-                }
-            }
-            let len = (lx * lx + ly * ly + lz * lz).sqrt();
-            let p = Point3::new(
-                center.x + radius * lx / len,
-                center.y + radius * ly / len,
-                center.z + radius * lz / len,
-            );
-            let n = (p - *center) / *radius;
-            let a = 4.0 * std::f64::consts::PI * radius * radius;
+            let dist_to_center = dist_to_center_sq.sqrt();
+
+            // Solid-angle cone sampling: sample directions within the cone
+            // subtended by the sphere as seen from the hit point.
+            let sin_theta_max = radius / dist_to_center;
+            let cos_theta_max = (1.0 - sin_theta_max * sin_theta_max).max(0.0).sqrt();
+
+            // Sample uniform direction within cone
+            let r1 = rng.next_f64();
+            let r2 = rng.next_f64();
+            let cos_theta = 1.0 - r1 * (1.0 - cos_theta_max);
+            let sin_theta = (1.0 - cos_theta * cos_theta).max(0.0).sqrt();
+            let phi = 2.0 * std::f64::consts::PI * r2;
+
+            // Build local frame with z-axis toward light center
+            let w = to_center / dist_to_center;
+            let (a_vec, b_vec) = build_onb(w);
+
+            let dir = a_vec * (sin_theta * phi.cos())
+                + b_vec * (sin_theta * phi.sin())
+                + w * cos_theta;
+            let dir = dir.unit();
+
+            // Intersect ray with sphere to find the actual point
+            let oc = *hit_point - *center;
+            let b_coeff = oc.dot(dir);
+            let c_coeff = oc.length_squared() - radius * radius;
+            let discriminant = b_coeff * b_coeff - c_coeff;
+            let t = if discriminant > 0.0 {
+                let sqrt_d = discriminant.sqrt();
+                let t1 = -b_coeff - sqrt_d;
+                if t1 > 0.001 { t1 } else { -b_coeff + sqrt_d }
+            } else {
+                dist_to_center // fallback
+            };
+
+            let p = *hit_point + dir * t;
+            let n = (p - *center).unit();
+            // Solid angle PDF → convert to area measure for consistency
+            let solid_angle = 2.0 * std::f64::consts::PI * (1.0 - cos_theta_max);
+            let a = solid_angle * t * t / (-dir).dot(n).abs().max(0.001);
             (p, n, a, *emission)
         }
         LightInfo::Rect { origin, u, v, normal: n, emission } => {
