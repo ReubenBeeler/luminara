@@ -301,6 +301,8 @@ pub struct RenderConfig {
     pub pixelate: u32,
     /// Invert colors (false = normal, true = negative image).
     pub invert: bool,
+    /// Scanline intensity (0.0 = off). Simulates CRT scanlines.
+    pub scanlines: f64,
 }
 
 impl Default for RenderConfig {
@@ -343,6 +345,7 @@ impl Default for RenderConfig {
             edge_detect: 0.0,
             pixelate: 0,
             invert: false,
+            scanlines: 0.0,
         }
     }
 }
@@ -1445,6 +1448,14 @@ pub fn render(
                 r = 255 - r;
                 g = 255 - g;
                 b = 255 - b;
+            }
+
+            // CRT scanlines: darken alternating rows
+            if config.scanlines > 0.0 {
+                let factor = if j % 2 == 0 { 1.0 } else { 1.0 - config.scanlines.min(1.0) };
+                r = (r as f64 * factor) as u8;
+                g = (g as f64 * factor) as u8;
+                b = (b as f64 * factor) as u8;
             }
 
             // Film grain: add deterministic luminance noise

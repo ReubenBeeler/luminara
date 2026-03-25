@@ -110,6 +110,7 @@ pub struct RenderSettings {
     pub edge_detect: Option<f64>,
     pub pixelate: Option<u32>,
     pub invert: Option<bool>,
+    pub scanlines: Option<f64>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -734,6 +735,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(inv) = r.invert {
             render_config.invert = inv;
+        }
+        if let Some(sl) = r.scanlines {
+            render_config.scanlines = sl;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1563,6 +1567,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         edge_detect: 0.0,
         pixelate: 0,
         invert: false,
+        scanlines: 0.0,
     };
 
     let cam_config = CameraConfig {

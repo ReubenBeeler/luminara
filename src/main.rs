@@ -74,6 +74,7 @@ struct CliArgs {
     edge_detect: Option<f64>,
     pixelate: Option<u32>,
     invert: bool,
+    scanlines: Option<f64>,
 }
 
 fn main() {
@@ -217,6 +218,9 @@ fn main() {
     }
     if cli.invert {
         render_config.invert = true;
+    }
+    if let Some(sl) = cli.scanlines {
+        render_config.scanlines = sl;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -598,6 +602,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         edge_detect: None,
         pixelate: None,
         invert: false,
+        scanlines: None,
     };
     let mut i = 1;
 
@@ -791,6 +796,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "--invert" => {
                 cli.invert = true;
+            }
+            "--scanlines" => {
+                i += 1;
+                if i < args.len() {
+                    cli.scanlines = args[i].parse().ok();
+                }
             }
             "--info" => {
                 cli.info_only = true;
