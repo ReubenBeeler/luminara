@@ -45,6 +45,7 @@ struct CliArgs {
     preview: bool,
     quiet: bool,
     info_only: bool,
+    benchmark: bool,
     denoise: bool,
     save_hdr: Option<PathBuf>,
     crop: Option<String>,
@@ -262,6 +263,29 @@ fn main() {
         std::process::exit(0);
     }
 
+    // Benchmark mode: run a standardized performance test
+    if cli.benchmark {
+        eprintln!("Benchmark: rendering demo scene at 400x225 @ 64 spp...");
+        let (mut bench_config, bench_cam, bench_world) = scene::demo_scene();
+        bench_config.width = 400;
+        bench_config.height = 225;
+        bench_config.samples_per_pixel = 64;
+        bench_config.quiet = true;
+
+        let bench_start = Instant::now();
+        let _ = render::render(&bench_config, &bench_cam, &bench_world, &bench_world.lights);
+        let bench_elapsed = bench_start.elapsed().as_secs_f64();
+
+        let sqrt_spp = (bench_config.samples_per_pixel as f64).sqrt().ceil() as u64;
+        let actual_spp = sqrt_spp * sqrt_spp;
+        let total_rays = 400u64 * 225 * actual_spp;
+        let mrays = total_rays as f64 / bench_elapsed / 1_000_000.0;
+        let threads = rayon::current_num_threads();
+        eprintln!("Benchmark result: {mrays:.1} Mrays/s ({bench_elapsed:.2}s, {threads} threads)");
+        eprintln!("  {total_rays} primary rays, {actual_spp} spp (stratified {sqrt_spp}x{sqrt_spp})");
+        std::process::exit(0);
+    }
+
     // Validate render config
     if render_config.width == 0 || render_config.height == 0 {
         eprintln!("Error: width and height must be > 0");
@@ -458,6 +482,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         preview: false,
         quiet: false,
         info_only: false,
+        benchmark: false,
         denoise: false,
         save_hdr: None,
         crop: None,
@@ -629,6 +654,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--info" => {
                 cli.info_only = true;
             }
+            "--benchmark" | "--bench" => {
+                cli.benchmark = true;
+            }
             "--seed" => {
                 i += 1;
                 if i < args.len() {
@@ -693,6 +721,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
+                eprintln!("      --benchmark   Run standardized performance benchmark");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
                 std::process::exit(0);
