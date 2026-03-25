@@ -102,6 +102,7 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    tri_tone: Option<String>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -331,6 +332,9 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(ref tt) = cli.tri_tone {
+        render_config.tri_tone = tt.clone();
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -514,6 +518,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if !render_config.tri_tone.is_empty() { pp.push("tri-tone".to_string()); }
         if render_config.pop_art >= 2 { pp.push(format!("pop-art({})", render_config.pop_art)); }
         if render_config.watercolor > 0 { pp.push(format!("watercolor({})", render_config.watercolor)); }
         if render_config.auto_levels { pp.push("auto-levels".to_string()); }
@@ -932,6 +937,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        tri_tone: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1313,6 +1319,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.save_json = Some(PathBuf::from(&args[i]));
                 }
             }
+            "--tri-tone" => {
+                i += 1;
+                if i < args.len() {
+                    cli.tri_tone = Some(args[i].clone());
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1443,7 +1455,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 58 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 59 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1504,6 +1516,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --tri-tone S  Three-color toning (\"R,G,B;R,G,B;R,G,B\")");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");

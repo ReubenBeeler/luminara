@@ -141,6 +141,7 @@ pub struct RenderSettings {
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
     pub palette: Option<String>,
+    pub tri_tone: Option<String>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -932,6 +933,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref p) = r.palette {
             render_config.palette = p.clone();
+        }
+        if let Some(ref tt) = r.tri_tone {
+            render_config.tri_tone = tt.clone();
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -1952,6 +1956,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
         palette: String::new(),
+        tri_tone: String::new(),
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,

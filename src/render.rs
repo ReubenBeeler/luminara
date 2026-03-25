@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Tri-tone: map shadows/midtones/highlights to three colors. "R,G,B;R,G,B;R,G,B"
+    pub tri_tone: String,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -448,6 +450,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            tri_tone: String::new(),
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2627,6 +2630,21 @@ pub fn render(
         } else { None }
     } else { None };
 
+    // Parse tri-tone colors if specified: "R,G,B;R,G,B;R,G,B"
+    let tri_tone_colors: Option<([f64; 3], [f64; 3], [f64; 3])> = if !config.tri_tone.is_empty() {
+        let parts: Vec<&str> = config.tri_tone.split(';').collect();
+        if parts.len() == 3 {
+            let parse_rgb = |s: &str| -> Option<[f64; 3]> {
+                let c: Vec<f64> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                if c.len() == 3 { Some([c[0] / 255.0, c[1] / 255.0, c[2] / 255.0]) } else { None }
+            };
+            match (parse_rgb(parts[0]), parse_rgb(parts[1]), parse_rgb(parts[2])) {
+                (Some(a), Some(b), Some(c)) => Some((a, b, c)),
+                _ => None,
+            }
+        } else { None }
+    } else { None };
+
     let mut pixels = Vec::with_capacity(width * height * 4);
     for (j, row) in rows.iter().enumerate() {
         for (i, color) in row.iter().enumerate() {
@@ -2870,6 +2888,19 @@ pub fn render(
                 r = ((shadow[0] * (1.0 - lum) + highlight[0] * lum) * 255.0).clamp(0.0, 255.0) as u8;
                 g = ((shadow[1] * (1.0 - lum) + highlight[1] * lum) * 255.0).clamp(0.0, 255.0) as u8;
                 b = ((shadow[2] * (1.0 - lum) + highlight[2] * lum) * 255.0).clamp(0.0, 255.0) as u8;
+            }
+
+            // Tri-tone: map luminance to three-color gradient (shadows/midtones/highlights)
+            if let Some((shadow, mid, highlight)) = &tri_tone_colors {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                let (c0, c1, t) = if lum < 0.5 {
+                    (shadow, mid, lum * 2.0)
+                } else {
+                    (mid, highlight, (lum - 0.5) * 2.0)
+                };
+                r = ((c0[0] * (1.0 - t) + c1[0] * t) * 255.0).clamp(0.0, 255.0) as u8;
+                g = ((c0[1] * (1.0 - t) + c1[1] * t) * 255.0).clamp(0.0, 255.0) as u8;
+                b = ((c0[2] * (1.0 - t) + c1[2] * t) * 255.0).clamp(0.0, 255.0) as u8;
             }
 
             // Color inversion
