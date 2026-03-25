@@ -255,6 +255,8 @@ pub struct RenderConfig {
     pub pixel_filter: PixelFilter,
     /// Chromatic aberration strength (0.0 = off). Shifts RGB channels radially.
     pub chromatic_aberration: f64,
+    /// Lens distortion (0.0 = off, positive = barrel, negative = pincushion).
+    pub lens_distortion: f64,
     /// Generate depth pass output.
     pub save_depth: bool,
     /// Generate normal pass output.
@@ -300,6 +302,7 @@ impl Default for RenderConfig {
             pixel_filter: PixelFilter::default(),
             firefly_filter: 0.0,
             chromatic_aberration: 0.0,
+            lens_distortion: 0.0,
             save_depth: false,
             save_normals: false,
             adaptive: false,
@@ -522,6 +525,40 @@ fn apply_bloom(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
 
 /// Apply unsharp mask sharpening to HDR image data.
 /// Subtracts a blurred version from the original to enhance edges.
+/// Apply barrel/pincushion lens distortion.
+/// Positive k = barrel (edges bend outward), negative k = pincushion (edges bend inward).
+fn apply_lens_distortion(rows: &[Vec<Color>], k: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+    let cx = width as f64 / 2.0;
+    let cy = height as f64 / 2.0;
+    let max_r = (cx * cx + cy * cy).sqrt();
+
+    let mut result = vec![vec![Color::ZERO; width]; height];
+
+    for j in 0..height {
+        for i in 0..width {
+            let dx = (i as f64 + 0.5 - cx) / max_r;
+            let dy = (j as f64 + 0.5 - cy) / max_r;
+            let r2 = dx * dx + dy * dy;
+            // Brown-Conrady distortion model (radial only)
+            let factor = 1.0 + k * r2;
+            let src_x = cx + dx * factor * max_r;
+            let src_y = cy + dy * factor * max_r;
+
+            // Bilinear sample all channels
+            let r = sample_channel_bilinear(rows, src_x, src_y, width, height, 0);
+            let g = sample_channel_bilinear(rows, src_x, src_y, width, height, 1);
+            let b = sample_channel_bilinear(rows, src_x, src_y, width, height, 2);
+            result[j][i] = Color::new(r, g, b);
+        }
+    }
+    result
+}
+
 /// Apply chromatic aberration by radially shifting R, G, B channels.
 /// Red shifts outward, blue shifts inward, green stays centered.
 fn apply_chromatic_aberration(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
@@ -1058,6 +1095,20 @@ pub fn render(
             eprintln!(" done");
         }
         sharpened
+    } else {
+        rows
+    };
+
+    // Optional lens distortion pass
+    let rows = if config.lens_distortion.abs() > 1e-6 {
+        if !config.quiet {
+            eprint!("Applying lens distortion...");
+        }
+        let distorted = apply_lens_distortion(&rows, config.lens_distortion);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        distorted
     } else {
         rows
     };

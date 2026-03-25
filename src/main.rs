@@ -63,6 +63,7 @@ struct CliArgs {
     adaptive_threshold: Option<f64>,
     time_limit: Option<f64>,
     firefly_filter: Option<f64>,
+    lens_distortion: Option<f64>,
     chromatic_aberration: Option<f64>,
     pixel_filter: Option<String>,
     save_depth: Option<PathBuf>,
@@ -165,6 +166,9 @@ fn main() {
             "mitchell" => render::PixelFilter::Mitchell,
             _ => render::PixelFilter::Box,
         };
+    }
+    if let Some(ld) = cli.lens_distortion {
+        render_config.lens_distortion = ld;
     }
     if let Some(ff) = cli.firefly_filter {
         render_config.firefly_filter = ff;
@@ -524,6 +528,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         adaptive_threshold: None,
         time_limit: None,
         firefly_filter: None,
+        lens_distortion: None,
         chromatic_aberration: None,
         pixel_filter: None,
         save_depth: None,
@@ -644,6 +649,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.save_normals = Some(PathBuf::from(&args[i]));
                 }
             }
+            "--lens-distortion" | "--distortion" => {
+                i += 1;
+                if i < args.len() {
+                    cli.lens_distortion = args[i].parse().ok();
+                }
+            }
             "--firefly-filter" | "--firefly" => {
                 i += 1;
                 if i < args.len() {
@@ -750,6 +761,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --filter F    Pixel filter: box, triangle, gaussian, mitchell");
                 eprintln!("      --save-depth F   Save depth pass to image file");
                 eprintln!("      --save-normals F Save normal pass to image file");
+                eprintln!("      --distortion N  Lens distortion (+barrel, -pincushion, e.g. 0.3)");
                 eprintln!("      --firefly N   Remove firefly outliers (threshold, e.g. 5.0)");
                 eprintln!("      --ca N        Chromatic aberration strength (e.g. 0.005)");
                 eprintln!("      --time-limit N  Max render time in seconds");
