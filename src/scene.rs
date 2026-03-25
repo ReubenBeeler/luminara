@@ -130,6 +130,11 @@ pub struct RenderSettings {
     pub grade_highlights: Option<[f64; 3]>,
     pub halftone: Option<u32>,
     pub emboss: Option<f64>,
+    pub oil_paint: Option<u32>,
+    pub color_map: Option<String>,
+    pub solarize: Option<f64>,
+    pub duo_tone: Option<String>,
+    pub sketch: Option<bool>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -860,6 +865,21 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(em) = r.emboss {
             render_config.emboss = em;
+        }
+        if let Some(op) = r.oil_paint {
+            render_config.oil_paint = op;
+        }
+        if let Some(ref cm) = r.color_map {
+            render_config.color_map = cm.clone();
+        }
+        if let Some(s) = r.solarize {
+            render_config.solarize = s;
+        }
+        if let Some(ref dt) = r.duo_tone {
+            render_config.duo_tone = dt.clone();
+        }
+        if r.sketch == Some(true) {
+            render_config.sketch = true;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
