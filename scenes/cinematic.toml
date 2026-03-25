@@ -1,0 +1,73 @@
+# Cinematic Scene — Orange/Teal Color Grading
+# Demonstrates shadow/highlight grading for movie-style look
+
+[render]
+width = 960
+height = 540
+samples = 64
+max_depth = 10
+bloom = 0.15
+vignette = 0.4
+grain = 0.03
+contrast = 1.1
+saturation = 1.2
+grade_shadows = [0.7, 0.85, 1.2]    # Cool blue shadows
+grade_highlights = [1.2, 1.0, 0.8]   # Warm orange highlights
+tone_map = "filmic"
+background = { type = "gradient", bottom = [0.02, 0.02, 0.05], top = [0.05, 0.08, 0.15] }
+
+[camera]
+look_from = [5, 3, 8]
+look_at = [0, 0.5, 0]
+vfov = 35
+aperture = 0.08
+focus_dist = 9.5
+
+# Dark reflective ground
+[[sphere]]
+center = [0, -1000, 0]
+radius = 1000
+material = { type = "metal", color = [0.15, 0.15, 0.2], fuzz = 0.3 }
+
+# Hero sphere — bright emissive core
+[[sphere]]
+center = [0, 1.2, 0]
+radius = 1.2
+material = { type = "dielectric", refraction_index = 1.5, tint = [0.95, 0.9, 0.85] }
+
+# Interior glow
+[[sphere]]
+center = [0, 1.2, 0]
+radius = 0.8
+material = { type = "emissive", color = [1, 0.7, 0.3], intensity = 5 }
+
+# Brushed metal pillar
+[[cylinder]]
+center = [-3, 0, -1]
+radius = 0.4
+height = 3
+material = { type = "anisotropic", color = [0.8, 0.75, 0.7], roughness_u = 0.05, roughness_v = 0.3 }
+
+# PBR sphere
+[[sphere]]
+center = [3, 0.8, 1]
+radius = 0.8
+material = { type = "pbr", color = [0.9, 0.5, 0.2], roughness = 0.2, metallic = 0.9 }
+
+# Small glass accent
+[[sphere]]
+center = [-1, 0.4, 3]
+radius = 0.4
+material = { type = "glass", ior = 1.5 }
+
+# Key light — warm
+[[sphere]]
+center = [8, 10, 5]
+radius = 3
+material = { type = "emissive", color = [1, 0.9, 0.7], intensity = 8 }
+
+# Rim light — cool blue
+[[sphere]]
+center = [-6, 6, -5]
+radius = 2
+material = { type = "emissive", color = [0.5, 0.7, 1], intensity = 5 }
