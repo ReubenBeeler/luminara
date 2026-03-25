@@ -120,6 +120,8 @@ struct CliArgs {
     rotate: Option<u32>,
     panorama: bool,
     save_json: Option<PathBuf>,
+    vintage: bool,
+    cinematic: bool,
 }
 
 fn main() {
@@ -377,6 +379,21 @@ fn main() {
     }
     if cli.panorama {
         camera.set_panorama(true);
+    }
+    // Presets
+    if cli.vintage {
+        render_config.sepia = 0.6;
+        render_config.grain = 0.08;
+        render_config.vignette = 0.4;
+        render_config.contrast = 1.1;
+        render_config.saturation = 0.7;
+    }
+    if cli.cinematic {
+        render_config.bloom = 0.06;
+        render_config.vignette = 0.3;
+        render_config.contrast = 1.15;
+        render_config.tint = [1.0, 0.95, 0.88];
+        render_config.grain = 0.02;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -923,6 +940,8 @@ fn parse_args(args: &[String]) -> CliArgs {
         rotate: None,
         panorama: false,
         save_json: None,
+        vintage: false,
+        cinematic: false,
     };
     let mut i = 1;
 
@@ -1270,6 +1289,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--panorama" | "--pano" => {
                 cli.panorama = true;
             }
+            "--vintage" => {
+                cli.vintage = true;
+            }
+            "--cinematic" => {
+                cli.cinematic = true;
+            }
             "--save-json" => {
                 i += 1;
                 if i < args.len() {
@@ -1472,6 +1497,8 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --cool        Cool white balance preset");
                 eprintln!("      --rotate N    Rotate output image (90, 180, 270 degrees)");
                 eprintln!("      --panorama    360° equirectangular panoramic camera");
+                eprintln!("      --vintage     Vintage photo preset (sepia + grain + vignette)");
+                eprintln!("      --cinematic   Cinematic preset (bloom + warm tint + vignette)");
                 eprintln!("      --save-json F Save render statistics as JSON to file");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
