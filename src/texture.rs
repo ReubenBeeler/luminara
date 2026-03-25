@@ -504,6 +504,69 @@ impl Texture for Voronoi {
     }
 }
 
+/// Hexagonal grid pattern in the XZ plane.
+pub struct Hexgrid {
+    pub color1: Color,
+    pub color2: Color,
+    pub scale: f64,
+    pub line_width: f64,
+}
+
+impl Hexgrid {
+    pub fn new(color1: Color, color2: Color, scale: f64, line_width: f64) -> Self {
+        Self {
+            color1,
+            color2,
+            scale: if scale.abs() < 1e-10 { 1.0 } else { scale },
+            line_width: line_width.clamp(0.01, 0.5),
+        }
+    }
+}
+
+impl Texture for Hexgrid {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let inv = 1.0 / self.scale;
+        let x = point.x * inv;
+        let z = point.z * inv;
+
+        // Hexagonal coordinate conversion
+        let sqrt3 = 3.0_f64.sqrt();
+        // Axial hex coordinates
+        let q = (2.0 / 3.0) * x;
+        let r = (-1.0 / 3.0) * x + (sqrt3 / 3.0) * z;
+
+        // Round to nearest hex center (cube coordinate rounding)
+        let s = -q - r;
+        let mut rq = q.round();
+        let mut rr = r.round();
+        let rs = s.round();
+        let dq = (rq - q).abs();
+        let dr = (rr - r).abs();
+        let ds = (rs - s).abs();
+        if dq > dr && dq > ds {
+            rq = -rr - rs;
+        } else if dr > ds {
+            rr = -rq - rs;
+        }
+
+        // Distance from nearest hex center (in axial coordinates)
+        let dist_q = q - rq;
+        let dist_r = r - rr;
+        // Convert back to cartesian distance
+        let cx = dist_q * 1.5;
+        let cz = dist_q * sqrt3 / 2.0 + dist_r * sqrt3;
+        let dist = (cx * cx + cz * cz).sqrt();
+
+        // Hex edge detection: if close to hex boundary, show line color
+        let hex_radius = sqrt3 / 3.0;
+        if dist > hex_radius * (1.0 - self.line_width) {
+            self.color2
+        } else {
+            self.color1
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

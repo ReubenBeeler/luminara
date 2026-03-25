@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Toon, Translucent, Velvet};
-use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
+use crate::texture::{Checker, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -479,6 +479,13 @@ pub enum MaterialDesc {
         color1: [f64; 3],
         color2: [f64; 3],
         scale: Option<f64>,
+    },
+    #[serde(alias = "hexgrid")]
+    Hexgrid {
+        color1: [f64; 3],
+        color2: [f64; 3],
+        scale: Option<f64>,
+        line_width: Option<f64>,
     },
 }
 
@@ -1222,6 +1229,14 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 scale.unwrap_or(1.0),
             ))))
         }
+        MaterialDesc::Hexgrid { color1, color2, scale, line_width } => {
+            Box::new(Lambertian::with_texture(Box::new(Hexgrid::new(
+                Color::new(color1[0], color1[1], color1[2]),
+                Color::new(color2[0], color2[1], color2[2]),
+                scale.unwrap_or(1.0),
+                line_width.unwrap_or(0.1),
+            ))))
+        }
         MaterialDesc::Toon { color, bands, specular } => {
             Box::new(Toon::new(
                 Color::new(color[0], color[1], color[2]),
@@ -1677,6 +1692,11 @@ material = { type = "anisotropic", color = [0.8, 0.8, 0.85], roughness_u = 0.05,
 center = [40.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "toon", color = [0.2, 0.5, 0.9], bands = 4, specular = 0.8 }
+
+[[sphere]]
+center = [42.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "hexgrid", color1 = [0.9, 0.9, 0.9], color2 = [0.2, 0.2, 0.2] }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
