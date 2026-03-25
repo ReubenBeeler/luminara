@@ -6,15 +6,15 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
-- **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, hemispheres, annuli, axis-aligned rectangles, boxes, OBJ and PLY triangle meshes
+- **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, hemispheres, annuli, axis-aligned rectangles, boxes, rounded boxes, superellipsoids, springs/helices, Möbius strips, OBJ and PLY triangle meshes
 - **Materials**: Lambertian (diffuse), metallic, dielectric (glass with Beer's Law, tint, roughness, dispersion), emissive, blackbody (Kelvin temperature), microfacet/PBR (Cook-Torrance GGX), iridescent (thin-film interference), translucent, subsurface scattering (random-walk SSS), velvet (rim lighting), clearcoat (lacquer), anisotropic (brushed metal), toon (cel-shading), blend (mix two materials)
 - **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, Voronoi, spiral, hexgrid, noise, color ramp (multi-stop gradient), FBM (fractal Brownian motion), wavy (sine interference), mix (blend two textures), tri-planar mapping, UV transforms (offset/rotation/tiling), cloud, lava, camouflage, brick, rust/patina, terrain, plasma, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
 - **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling for sphere, rect, and disk lights), adaptive sampling (variance-based early termination), Russian roulette path termination, pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats, time-budgeted rendering
-- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss
-- **Output**: PNG, PPM, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, stdout piping
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping
+- **Output**: PNG, PPM, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, albedo pass, stdout piping
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
 - **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, starfield, HDRI environment maps (bilinear interpolated), or black
@@ -73,6 +73,7 @@ cargo run --release -- --help
 | `--save-hdr F` | Save HDR data to Radiance .hdr file |
 | `--save-depth F` | Save depth pass to image file |
 | `--save-normals F` | Save normal pass to image file |
+| `--save-albedo F` | Save albedo (base color) pass to image file |
 | `--crop X,Y,W,H` | Render only a sub-region of the image |
 | `--info` | Show scene info and post-processing pipeline |
 | `--firefly-filter N` | Remove firefly outlier pixels (e.g. 3.0) |
@@ -83,6 +84,9 @@ cargo run --release -- --help
 | `--edge-detect N` | Edge detection / outline effect strength |
 | `--pixelate N` | NxN pixel block averaging (pixel art) |
 | `--invert` | Invert colors (negative image) |
+| `--emboss N` | Emboss effect intensity (raised/engraved look) |
+| `--oil-paint N` | Oil painting Kuwahara filter radius (e.g. 3) |
+| `--color-map S` | False color: inferno, viridis, turbo, heat, grayscale |
 | `--benchmark` | Run built-in benchmark and report Mrays/s |
 | `--list-scenes` | List available .toml scene files |
 | `-p`, `--preview` | Quick preview (1/4 res, low samples) |
