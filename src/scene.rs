@@ -184,6 +184,8 @@ pub struct SphereDesc {
     pub bump_scale: Option<f64>,
     pub normal_map: Option<String>,
     pub normal_map_strength: Option<f64>,
+    pub rotate_y: Option<f64>,
+    pub scale: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -967,13 +969,18 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref nmap_path) = s.normal_map {
             let strength = s.normal_map_strength.unwrap_or(1.0);
-            match crate::normal_map::NormalMap::load(obj, nmap_path, strength) {
-                Ok(nm) => { world.add(Box::new(nm)); }
+            match crate::normal_map::NormalMap::load_image(nmap_path) {
+                Ok(nmap_data) => obj = Box::new(crate::normal_map::NormalMap::wrap(obj, nmap_data, strength)),
                 Err(e) => eprintln!("Warning: {e}"),
             }
-        } else {
-            world.add(obj);
         }
+        if let Some(angle) = s.rotate_y {
+            obj = Box::new(RotateY::new(obj, angle));
+        }
+        if let Some(s_val) = s.scale {
+            obj = Box::new(Scale::new(obj, s_val));
+        }
+        world.add(obj);
     }
 
     for ms in &scene.moving_sphere {
@@ -1179,13 +1186,12 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref nmap_path) = c.normal_map {
             let strength = c.normal_map_strength.unwrap_or(1.0);
-            match crate::normal_map::NormalMap::load(obj, nmap_path, strength) {
-                Ok(nm) => { world.add(Box::new(nm)); }
+            match crate::normal_map::NormalMap::load_image(nmap_path) {
+                Ok(nmap_data) => obj = Box::new(crate::normal_map::NormalMap::wrap(obj, nmap_data, strength)),
                 Err(e) => eprintln!("Warning: {e}"),
             }
-        } else {
-            world.add(obj);
         }
+        world.add(obj);
     }
 
     for t in &scene.triangle {
@@ -1229,16 +1235,15 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             _ => {}
         }
         let mat = build_material(&q.material);
-        let obj: Box<dyn Hittable> = Box::new(Quad::new(origin, u_vec, v_vec, mat));
+        let mut obj: Box<dyn Hittable> = Box::new(Quad::new(origin, u_vec, v_vec, mat));
         if let Some(ref nmap_path) = q.normal_map {
             let strength = q.normal_map_strength.unwrap_or(1.0);
-            match crate::normal_map::NormalMap::load(obj, nmap_path, strength) {
-                Ok(nm) => { world.add(Box::new(nm)); }
+            match crate::normal_map::NormalMap::load_image(nmap_path) {
+                Ok(nmap_data) => obj = Box::new(crate::normal_map::NormalMap::wrap(obj, nmap_data, strength)),
                 Err(e) => eprintln!("Warning: {e}"),
             }
-        } else {
-            world.add(obj);
         }
+        world.add(obj);
     }
 
     for m in &scene.mesh {

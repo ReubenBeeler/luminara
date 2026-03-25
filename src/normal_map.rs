@@ -3,6 +3,13 @@ use crate::hit::{HitRecord, Hittable};
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
+/// Pre-loaded normal map image data.
+pub struct NormalMapData {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<[f32; 3]>,
+}
+
 /// Wraps an object and perturbs its surface normals using a tangent-space normal map image.
 /// The image is interpreted as: R→X, G→Y, B→Z in tangent space (0..255 maps to -1..1).
 pub struct NormalMap {
@@ -14,8 +21,8 @@ pub struct NormalMap {
 }
 
 impl NormalMap {
-    /// Load a normal map from an image file. `strength` controls how much to perturb (1.0 = full).
-    pub fn load(inner: Box<dyn Hittable>, path: &str, strength: f64) -> Result<Self, String> {
+    /// Load normal map image data from file. Returns data that can be used with `wrap`.
+    pub fn load_image(path: &str) -> Result<NormalMapData, String> {
         let img = image::open(path).map_err(|e| format!("Failed to load normal map '{path}': {e}"))?;
         let rgb = img.to_rgb8();
         let width = rgb.width();
@@ -30,8 +37,14 @@ impl NormalMap {
                 ]
             })
             .collect();
-        Ok(Self { inner, width, height, data, strength })
+        Ok(NormalMapData { width, height, data })
     }
+
+    /// Wrap an object with pre-loaded normal map data.
+    pub fn wrap(inner: Box<dyn Hittable>, nmap: NormalMapData, strength: f64) -> Self {
+        Self { inner, width: nmap.width, height: nmap.height, data: nmap.data, strength }
+    }
+
 
     fn sample(&self, u: f64, v: f64) -> Vec3 {
         let x = ((u * self.width as f64) as u32).min(self.width - 1);
