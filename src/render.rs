@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Brightness adjustment (-1.0 to 1.0, 0 = no change). Added to each channel in LDR space.
+    pub brightness: f64,
     /// Color balance: per-channel multiplier [R, G, B]. Values > 1.0 boost, < 1.0 reduce.
     pub color_balance: [f64; 3],
     /// Stipple dot size (0 = off). Creates pointillism/stippling effect.
@@ -440,6 +442,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            brightness: 0.0,
             color_balance: [1.0, 1.0, 1.0],
             stipple: 0,
             night_vision: false,
@@ -2612,6 +2615,14 @@ pub fn render(
             let mut r = gamma_correct(rf, config.gamma, dither_offset);
             let mut g = gamma_correct(gf, config.gamma, dither_offset);
             let mut b = gamma_correct(bf, config.gamma, dither_offset);
+
+            // Brightness: additive adjustment in LDR space
+            if config.brightness.abs() > 1e-6 {
+                let offset = (config.brightness * 255.0) as i16;
+                r = (r as i16 + offset).clamp(0, 255) as u8;
+                g = (g as i16 + offset).clamp(0, 255) as u8;
+                b = (b as i16 + offset).clamp(0, 255) as u8;
+            }
 
             // Contrast: pivot around middle gray (128) in sRGB space
             if (config.contrast - 1.0).abs() > 1e-6 {

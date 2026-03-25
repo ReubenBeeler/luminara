@@ -141,6 +141,7 @@ pub struct RenderSettings {
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
     pub palette: Option<String>,
+    pub brightness: Option<f64>,
     pub color_balance: Option<[f64; 3]>,
     pub stipple: Option<u32>,
     pub night_vision: Option<bool>,
@@ -928,6 +929,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref p) = r.palette {
             render_config.palette = p.clone();
+        }
+        if let Some(br) = r.brightness {
+            render_config.brightness = br;
         }
         if let Some(cb) = r.color_balance {
             render_config.color_balance = cb;
@@ -1936,6 +1940,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
         palette: String::new(),
+        brightness: 0.0,
         color_balance: [1.0, 1.0, 1.0],
         stipple: 0,
         night_vision: false,
