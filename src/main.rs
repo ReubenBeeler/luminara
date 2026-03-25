@@ -70,6 +70,7 @@ struct CliArgs {
     save_depth: Option<PathBuf>,
     save_normals: Option<PathBuf>,
     posterize: Option<u32>,
+    sepia: Option<f64>,
 }
 
 fn main() {
@@ -201,6 +202,9 @@ fn main() {
     }
     if let Some(p) = cli.posterize {
         render_config.posterize = p;
+    }
+    if let Some(s) = cli.sepia {
+        render_config.sepia = s;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -578,6 +582,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         save_depth: None,
         save_normals: None,
         posterize: None,
+        sepia: None,
     };
     let mut i = 1;
 
@@ -749,6 +754,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.posterize = args[i].parse().ok();
+                }
+            }
+            "--sepia" => {
+                i += 1;
+                if i < args.len() {
+                    cli.sepia = args[i].parse().ok();
                 }
             }
             "--info" => {

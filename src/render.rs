@@ -293,6 +293,8 @@ pub struct RenderConfig {
     pub time_limit: f64,
     /// Posterize level (0 = off, 2-256 = number of discrete color levels per channel).
     pub posterize: u32,
+    /// Sepia tone intensity (0.0 = off, 1.0 = full sepia).
+    pub sepia: f64,
 }
 
 impl Default for RenderConfig {
@@ -331,6 +333,7 @@ impl Default for RenderConfig {
             adaptive_threshold: 0.03,
             time_limit: 0.0,
             posterize: 0,
+            sepia: 0.0,
         }
     }
 }
@@ -1296,6 +1299,20 @@ pub fn render(
                 r = ((((r as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
                 g = ((((g as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
                 b = ((((b as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+            }
+
+            // Sepia tone: warm brownish tint
+            if config.sepia > 0.0 {
+                let rf = r as f64 / 255.0;
+                let gf = g as f64 / 255.0;
+                let bf = b as f64 / 255.0;
+                let sr = (rf * 0.393 + gf * 0.769 + bf * 0.189).min(1.0);
+                let sg = (rf * 0.349 + gf * 0.686 + bf * 0.168).min(1.0);
+                let sb = (rf * 0.272 + gf * 0.534 + bf * 0.131).min(1.0);
+                let s = config.sepia;
+                r = ((rf * (1.0 - s) + sr * s) * 255.0) as u8;
+                g = ((gf * (1.0 - s) + sg * s) * 255.0) as u8;
+                b = ((bf * (1.0 - s) + sb * s) * 255.0) as u8;
             }
 
             // Posterize: reduce color levels per channel
