@@ -1036,7 +1036,11 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         let offset = m.offset.map(arr_to_vec3).unwrap_or(Vec3::ZERO);
         let content = std::fs::read_to_string(&m.file)
             .map_err(|e| format!("Failed to read mesh '{}': {e}", m.file))?;
-        let mesh_list = obj::load_obj(&content, mat, scale, offset)?;
+        let mesh_list = if m.file.ends_with(".ply") {
+            obj::load_ply(&content, mat, scale, offset)?
+        } else {
+            obj::load_obj(&content, mat, scale, offset)?
+        };
         for obj in mesh_list.objects {
             world.add(obj);
         }

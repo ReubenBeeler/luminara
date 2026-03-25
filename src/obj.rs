@@ -152,6 +152,99 @@ pub fn load_obj(
     Ok(list)
 }
 
+/// Load an ASCII PLY file and return a HittableList of triangles.
+/// Supports vertex positions (x, y, z) and triangle faces.
+pub fn load_ply(
+    content: &str,
+    material: Box<dyn Material>,
+    scale: f64,
+    offset: Point3,
+) -> Result<HittableList, String> {
+    let mut lines = content.lines();
+    let mut num_vertices = 0usize;
+    let mut num_faces = 0usize;
+    let mut in_header = true;
+
+    // Parse header
+    let first = lines.next().unwrap_or("");
+    if first.trim() != "ply" {
+        return Err("Not a PLY file (missing 'ply' magic)".to_string());
+    }
+
+    for line in lines.by_ref() {
+        let line = line.trim();
+        if line == "end_header" {
+            in_header = false;
+            break;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 3 && parts[0] == "element" {
+            match parts[1] {
+                "vertex" => num_vertices = parts[2].parse().map_err(|e| format!("Bad vertex count: {e}"))?,
+                "face" => num_faces = parts[2].parse().map_err(|e| format!("Bad face count: {e}"))?,
+                _ => {}
+            }
+        }
+    }
+
+    if in_header {
+        return Err("PLY header not terminated (missing 'end_header')".to_string());
+    }
+
+    // Parse vertices
+    let mut vertices: Vec<Point3> = Vec::with_capacity(num_vertices);
+    for i in 0..num_vertices {
+        let line = lines.next().ok_or(format!("Expected vertex {i}, got EOF"))?;
+        let parts: Vec<&str> = line.trim().split_whitespace().collect();
+        if parts.len() < 3 {
+            return Err(format!("Vertex {i}: need at least 3 coordinates"));
+        }
+        let x: f64 = parts[0].parse().map_err(|e| format!("Vertex {i} x: {e}"))?;
+        let y: f64 = parts[1].parse().map_err(|e| format!("Vertex {i} y: {e}"))?;
+        let z: f64 = parts[2].parse().map_err(|e| format!("Vertex {i} z: {e}"))?;
+        vertices.push(Point3::new(x * scale + offset.x, y * scale + offset.y, z * scale + offset.z));
+    }
+
+    // Parse faces
+    let shared_mat: Arc<dyn Material> = Arc::from(material);
+    let mut list = HittableList::new();
+
+    for i in 0..num_faces {
+        let line = lines.next().ok_or(format!("Expected face {i}, got EOF"))?;
+        let parts: Vec<&str> = line.trim().split_whitespace().collect();
+        if parts.is_empty() {
+            return Err(format!("Face {i}: empty line"));
+        }
+        let n: usize = parts[0].parse().map_err(|e| format!("Face {i} vertex count: {e}"))?;
+        if parts.len() < n + 1 {
+            return Err(format!("Face {i}: expected {n} vertex indices"));
+        }
+        let indices: Vec<usize> = (1..=n)
+            .map(|j| parts[j].parse::<usize>().map_err(|e| format!("Face {i} index {j}: {e}")))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Fan triangulation for polygons with more than 3 vertices
+        for j in 1..indices.len() - 1 {
+            let (i0, i1, i2) = (indices[0], indices[j], indices[j + 1]);
+            if i0 >= vertices.len() || i1 >= vertices.len() || i2 >= vertices.len() {
+                return Err(format!("Face {i}: vertex index out of bounds"));
+            }
+            list.add(Box::new(MeshTriangle {
+                v0: vertices[i0],
+                v1: vertices[i1],
+                v2: vertices[i2],
+                uvs: None,
+                normals: None,
+                material: Arc::clone(&shared_mat),
+            }));
+        }
+    }
+
+    eprintln!("Loaded PLY: {} vertices, {} faces, {} triangles",
+        num_vertices, num_faces, list.objects.len());
+    Ok(list)
+}
+
 /// A triangle that shares its material via Arc for mesh efficiency.
 /// Optionally stores per-vertex normals for smooth (Phong) shading.
 struct MeshTriangle {
@@ -291,5 +384,50 @@ mod tests {
         let mat = Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
         let list = load_obj(obj, mat, 1.0, Point3::ZERO).unwrap();
         assert_eq!(list.objects.len(), 1);
+    }
+
+    #[test]
+    fn test_load_ply_basic() {
+        let ply = "\
+ply
+format ascii 1.0
+element vertex 3
+property float x
+property float y
+property float z
+element face 1
+property list uchar int vertex_indices
+end_header
+0 0 0
+1 0 0
+0 1 0
+3 0 1 2
+";
+        let mat = Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+        let list = load_ply(ply, mat, 1.0, Point3::ZERO).unwrap();
+        assert_eq!(list.objects.len(), 1);
+    }
+
+    #[test]
+    fn test_load_ply_quad_fan() {
+        let ply = "\
+ply
+format ascii 1.0
+element vertex 4
+property float x
+property float y
+property float z
+element face 1
+property list uchar int vertex_indices
+end_header
+0 0 0
+1 0 0
+1 1 0
+0 1 0
+4 0 1 2 3
+";
+        let mat = Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+        let list = load_ply(ply, mat, 1.0, Point3::ZERO).unwrap();
+        assert_eq!(list.objects.len(), 2); // quad -> 2 triangles
     }
 }
