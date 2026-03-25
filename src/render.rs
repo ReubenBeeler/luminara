@@ -190,6 +190,8 @@ pub struct RenderConfig {
     pub white_balance: f64,
     /// Sharpen intensity (0.0 = off). Enhances detail via unsharp mask.
     pub sharpen: f64,
+    /// Hue rotation in degrees (0 = no change, 180 = complementary colors).
+    pub hue_shift: f64,
 }
 
 impl Default for RenderConfig {
@@ -215,6 +217,7 @@ impl Default for RenderConfig {
             contrast: 1.0,
             white_balance: 0.0,
             sharpen: 0.0,
+            hue_shift: 0.0,
         }
     }
 }
@@ -805,6 +808,28 @@ pub fn render(
                 cb *= 1.0 - wb * 0.1;
                 // Slight green adjustment for natural look
                 cg *= 1.0 + wb * 0.02;
+            }
+
+            // Hue rotation in HDR space (Rodrigues' rotation around luminance axis)
+            if config.hue_shift.abs() > 1e-6 {
+                let angle = config.hue_shift.to_radians();
+                let cos_a = angle.cos();
+                let sin_a = angle.sin();
+                // Rotation matrix for hue shift (around the (1,1,1)/sqrt(3) axis)
+                let k = 1.0 / 3.0;
+                let sqrt3_inv = 1.0_f64 / 3.0_f64.sqrt();
+                let r = cr * (cos_a + k * (1.0 - cos_a))
+                    + cg * (k * (1.0 - cos_a) - sqrt3_inv * sin_a)
+                    + cb * (k * (1.0 - cos_a) + sqrt3_inv * sin_a);
+                let g = cr * (k * (1.0 - cos_a) + sqrt3_inv * sin_a)
+                    + cg * (cos_a + k * (1.0 - cos_a))
+                    + cb * (k * (1.0 - cos_a) - sqrt3_inv * sin_a);
+                let b = cr * (k * (1.0 - cos_a) - sqrt3_inv * sin_a)
+                    + cg * (k * (1.0 - cos_a) + sqrt3_inv * sin_a)
+                    + cb * (cos_a + k * (1.0 - cos_a));
+                cr = r.max(0.0);
+                cg = g.max(0.0);
+                cb = b.max(0.0);
             }
 
             // Saturation adjustment in HDR space (before tone mapping)

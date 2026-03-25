@@ -55,6 +55,7 @@ struct CliArgs {
     contrast: Option<f64>,
     white_balance: Option<f64>,
     sharpen: Option<f64>,
+    hue_shift: Option<f64>,
 }
 
 fn main() {
@@ -139,6 +140,9 @@ fn main() {
     }
     if let Some(sharpen) = cli.sharpen {
         render_config.sharpen = sharpen;
+    }
+    if let Some(hue_shift) = cli.hue_shift {
+        render_config.hue_shift = hue_shift;
     }
     if cli.save_hdr.is_some() {
         render_config.save_hdr = true;
@@ -364,6 +368,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         contrast: None,
         white_balance: None,
         sharpen: None,
+        hue_shift: None,
     };
     let mut i = 1;
 
@@ -453,6 +458,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.sharpen = args[i].parse().ok();
                 }
             }
+            "--hue-shift" => {
+                i += 1;
+                if i < args.len() {
+                    cli.hue_shift = args[i].parse().ok();
+                }
+            }
             "--save-hdr" => {
                 i += 1;
                 if i < args.len() {
@@ -518,6 +529,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --contrast N  Contrast adjustment (1.0=normal, >1=more)");
                 eprintln!("      --wb N        White balance (-=cooler/blue, +=warmer/orange)");
                 eprintln!("      --sharpen N   Sharpen details (e.g. 0.5)");
+                eprintln!("      --hue-shift N Rotate hue in degrees (e.g. 30, 180)");
                 eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
                 eprintln!("      --crop X,Y,W,H  Render only a sub-region of the image");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");

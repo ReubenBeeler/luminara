@@ -95,6 +95,7 @@ pub struct RenderSettings {
     pub contrast: Option<f64>,
     pub white_balance: Option<f64>,
     pub sharpen: Option<f64>,
+    pub hue_shift: Option<f64>,
     pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
@@ -603,6 +604,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(sharpen) = r.sharpen {
             render_config.sharpen = sharpen;
+        }
+        if let Some(hue_shift) = r.hue_shift {
+            render_config.hue_shift = hue_shift;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1292,6 +1296,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         contrast: 1.0,
         white_balance: 0.0,
         sharpen: 0.0,
+        hue_shift: 0.0,
     };
 
     let cam_config = CameraConfig {
