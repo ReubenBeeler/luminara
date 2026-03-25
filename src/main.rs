@@ -108,6 +108,7 @@ struct CliArgs {
     split_tone: Option<String>,
     color_shift: Option<u32>,
     posterize_channels: Option<[u32; 3]>,
+    lens_flare: Option<f64>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -352,6 +353,9 @@ fn main() {
     if let Some(pc) = cli.posterize_channels {
         render_config.posterize_channels = pc;
     }
+    if let Some(lf) = cli.lens_flare {
+        render_config.lens_flare = lf;
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -539,6 +543,7 @@ fn main() {
         if !render_config.gradient_map.is_empty() { pp.push("gradient-map".to_string()); }
         if !render_config.split_tone.is_empty() { pp.push("split-tone".to_string()); }
         if render_config.color_shift > 0 { pp.push(format!("color-shift({})", render_config.color_shift)); }
+        if render_config.lens_flare > 0.0 { pp.push(format!("lens-flare({:.2})", render_config.lens_flare)); }
         if render_config.posterize_channels.iter().any(|&l| l >= 2) {
             pp.push(format!("posterize-ch({},{},{})", render_config.posterize_channels[0], render_config.posterize_channels[1], render_config.posterize_channels[2]));
         }
@@ -965,6 +970,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         split_tone: None,
         color_shift: None,
         posterize_channels: None,
+        lens_flare: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1379,6 +1385,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     }
                 }
             }
+            "--lens-flare" => {
+                i += 1;
+                if i < args.len() {
+                    cli.lens_flare = args[i].parse().ok();
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1509,7 +1521,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 31 geometry types, 63 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 31 geometry types, 64 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1575,6 +1587,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --split-tone S  Split toning (\"R,G,B;R,G,B\" shadow;highlight)");
                 eprintln!("      --color-shift N  Rotate RGB channels (1=right, 2=left)");
                 eprintln!("      --posterize-channels R,G,B  Per-channel posterization levels");
+                eprintln!("      --lens-flare N  Lens flare streaks from brightest point");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");

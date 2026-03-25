@@ -361,6 +361,8 @@ pub struct RenderConfig {
     pub color_shift: u32,
     /// Per-channel posterization levels [R, G, B]. [0,0,0] = off.
     pub posterize_channels: [u32; 3],
+    /// Lens flare intensity (0.0 = off). Adds light streaks from brightest point.
+    pub lens_flare: f64,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -464,6 +466,7 @@ impl Default for RenderConfig {
             split_tone: String::new(),
             color_shift: 0,
             posterize_channels: [0, 0, 0],
+            lens_flare: 0.0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2627,6 +2630,41 @@ pub fn render(
     } else {
         None
     };
+
+    // Lens flare: find brightest pixel, add radial streaks
+    let rows = if config.lens_flare > 0.0 {
+        let mut max_lum = 0.0_f64;
+        let mut bright_x = width / 2;
+        let mut bright_y = height / 2;
+        for (j, row) in rows.iter().enumerate() {
+            for (i, c) in row.iter().enumerate() {
+                let lum = c.x * 0.2126 + c.y * 0.7152 + c.z * 0.0722;
+                if lum > max_lum {
+                    max_lum = lum;
+                    bright_x = i;
+                    bright_y = j;
+                }
+            }
+        }
+        let mut result = rows;
+        let streak_len = ((width.max(height)) as f64 * 0.4) as usize;
+        let intensity = config.lens_flare;
+        for spoke in 0..6 {
+            let angle = spoke as f64 * std::f64::consts::PI / 3.0;
+            let dx = angle.cos();
+            let dy = angle.sin();
+            for step in 1..=streak_len {
+                let falloff = intensity * (-(step as f64) / (streak_len as f64 * 0.3)).exp();
+                if falloff < 0.001 { break; }
+                let px = (bright_x as f64 + dx * step as f64).round() as isize;
+                let py = (bright_y as f64 + dy * step as f64).round() as isize;
+                if px >= 0 && px < width as isize && py >= 0 && py < height as isize {
+                    result[py as usize][px as usize] += Color::new(1.0, 0.95, 0.8) * falloff;
+                }
+            }
+        }
+        result
+    } else { rows };
 
     // Parse duo-tone colors if specified: "R,G,B;R,G,B"
     let duo_tone_colors: Option<([f64; 3], [f64; 3])> = if !config.duo_tone.is_empty() {
