@@ -342,7 +342,10 @@ fn main() {
             ppm.push_str(&format!("{} {} {}\n", chunk[0], chunk[1], chunk[2]));
         }
         if out_str == "-" {
-            std::io::stdout().write_all(ppm.as_bytes()).unwrap();
+            if let Err(e) = std::io::stdout().write_all(ppm.as_bytes()) {
+                eprintln!("Error: failed to write to stdout: {e}");
+                std::process::exit(1);
+            }
             eprintln!("Written to stdout (PPM)");
         } else {
             if let Err(e) = std::fs::write(&out, ppm) {
@@ -378,12 +381,15 @@ fn main() {
                 [v, v, v, 255]
             })
             .collect();
-        let depth_img = image::RgbaImage::from_raw(out_w, out_h, depth_pixels)
-            .expect("Failed to create depth image");
-        if let Err(e) = depth_img.save(depth_path) {
-            eprintln!("Error: failed to save depth pass '{}': {e}", depth_path.display());
-        } else {
-            eprintln!("Saved depth pass to {}", depth_path.display());
+        match image::RgbaImage::from_raw(out_w, out_h, depth_pixels) {
+            Some(img) => {
+                if let Err(e) = img.save(depth_path) {
+                    eprintln!("Error: failed to save depth pass '{}': {e}", depth_path.display());
+                } else {
+                    eprintln!("Saved depth pass to {}", depth_path.display());
+                }
+            }
+            None => eprintln!("Error: depth pass buffer size mismatch"),
         }
     }
 
@@ -393,12 +399,15 @@ fn main() {
             .chunks(3)
             .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 255])
             .collect();
-        let normal_img = image::RgbaImage::from_raw(out_w, out_h, normal_pixels)
-            .expect("Failed to create normal image");
-        if let Err(e) = normal_img.save(normal_path) {
-            eprintln!("Error: failed to save normal pass '{}': {e}", normal_path.display());
-        } else {
-            eprintln!("Saved normal pass to {}", normal_path.display());
+        match image::RgbaImage::from_raw(out_w, out_h, normal_pixels) {
+            Some(img) => {
+                if let Err(e) = img.save(normal_path) {
+                    eprintln!("Error: failed to save normal pass '{}': {e}", normal_path.display());
+                } else {
+                    eprintln!("Saved normal pass to {}", normal_path.display());
+                }
+            }
+            None => eprintln!("Error: normal pass buffer size mismatch"),
         }
     }
 
@@ -429,6 +438,12 @@ fn write_radiance_hdr(
     // Radiance header
     write!(buf, "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y {} +X {}\n", height, width)
         .map_err(|e| e.to_string())?;
+
+    // Validate data length
+    let expected_len = width as usize * height as usize * 3;
+    if data.len() < expected_len {
+        return Err(format!("HDR data too short: {} < {}", data.len(), expected_len));
+    }
 
     // Convert each pixel to RGBE encoding
     for i in 0..(width as usize * height as usize) {
