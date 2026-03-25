@@ -216,6 +216,12 @@ fn sample_direct_light(
     let light_idx = light_idx.min(lights.len() - 1);
     let light = &lights[light_idx];
 
+    // Skip if hit point is inside the light sphere
+    let to_center = light.center - *hit_point;
+    if to_center.length_squared() < light.radius * light.radius {
+        return Color::ZERO;
+    }
+
     // Sample a random point on the light sphere using rejection sampling
     let mut lx;
     let mut ly;

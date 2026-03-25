@@ -62,10 +62,18 @@ impl Aabb {
     }
 
     /// Return the bounding box of the intersection of two boxes.
+    /// If the boxes don't overlap, returns a zero-volume box at the origin.
     pub fn intersection(a: &Aabb, b: &Aabb) -> Aabb {
-        Aabb {
-            min: a.min.max(b.min),
-            max: a.max.min(b.max),
+        let min = a.min.max(b.min);
+        let max = a.max.min(b.max);
+        // Guard against degenerate boxes where min > max
+        if min.x > max.x || min.y > max.y || min.z > max.z {
+            Aabb {
+                min: Point3::ZERO,
+                max: Point3::ZERO,
+            }
+        } else {
+            Aabb { min, max }
         }
     }
 
@@ -119,5 +127,24 @@ mod tests {
         let s = Aabb::surrounding(&a, &b);
         assert_eq!(s.min, Point3::new(-1.0, -1.0, -1.0));
         assert_eq!(s.max, Point3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_intersection_overlapping() {
+        let a = Aabb::new(Point3::new(-1.0, -1.0, -1.0), Point3::new(1.0, 1.0, 1.0));
+        let b = Aabb::new(Point3::new(0.0, 0.0, 0.0), Point3::new(2.0, 2.0, 2.0));
+        let i = Aabb::intersection(&a, &b);
+        assert_eq!(i.min, Point3::new(0.0, 0.0, 0.0));
+        assert_eq!(i.max, Point3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_intersection_non_overlapping() {
+        let a = Aabb::new(Point3::new(-2.0, -2.0, -2.0), Point3::new(-1.0, -1.0, -1.0));
+        let b = Aabb::new(Point3::new(1.0, 1.0, 1.0), Point3::new(2.0, 2.0, 2.0));
+        let i = Aabb::intersection(&a, &b);
+        // Degenerate case: should return zero-volume box
+        assert_eq!(i.min, Point3::ZERO);
+        assert_eq!(i.max, Point3::ZERO);
     }
 }
