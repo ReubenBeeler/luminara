@@ -808,7 +808,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  16 materials, 17 textures, 17 geometry types, 15 post-processing effects");
+                eprintln!("  14 materials, 22 textures, 26 geometry types, 17 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
