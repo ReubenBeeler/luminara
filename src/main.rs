@@ -157,10 +157,10 @@ fn main() {
 
     // List available scenes
     if cli.list_scenes {
-        let scene_dir = std::path::Path::new("scenes");
+        let scene_dir = std::path::Path::new("examples/scenes");
         if scene_dir.is_dir() {
             let mut scenes: Vec<String> = std::fs::read_dir(scene_dir)
-                .unwrap_or_else(|_| { eprintln!("Cannot read scenes/ directory"); std::process::exit(1); })
+                .unwrap_or_else(|_| { eprintln!("Cannot read examples/scenes/ directory"); std::process::exit(1); })
                 .filter_map(|e| e.ok())
                 .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
                 .map(|e| e.path().display().to_string())
@@ -171,7 +171,7 @@ fn main() {
                 eprintln!("  {s}");
             }
         } else {
-            eprintln!("No scenes/ directory found");
+            eprintln!("No examples/scenes/ directory found");
         }
         std::process::exit(0);
     }

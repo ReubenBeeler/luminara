@@ -1,5 +1,7 @@
 # Luminara
 
+![Thumbnail](./thumbnail.png)
+
 A physically-based ray tracer written in Rust. Luminara renders photorealistic 3D scenes from declarative TOML scene descriptions, with support for multiple material types, depth of field, and multithreaded rendering.
 
 ## What it does
@@ -30,13 +32,13 @@ Luminara traces rays of light through a virtual scene, simulating how photons in
 cargo run --release
 
 # Render a custom scene
-cargo run --release -- scenes/showcase.toml -o my_render.png
+cargo run --release -- examples/scenes/showcase.toml -o my_render.png
 
 # Override resolution and samples from CLI
-cargo run --release -- scenes/gallery.toml -w 1920 --height 1080 -s 256
+cargo run --release -- examples/scenes/gallery.toml -w 1920 --height 1080 -s 256
 
 # Render the Cornell Box
-cargo run --release -- scenes/cornell.toml -o cornell.png
+cargo run --release -- examples/scenes/cornell.toml -o cornell.png
 
 # See all options
 cargo run --release -- --help

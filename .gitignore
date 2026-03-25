@@ -39,8 +39,8 @@ credentials.json
 *.log
 logs/
 
-# Rendered images
-*.png
+# Rendered images (transient outputs, not examples/)
+output.png
 *.ppm
 
 # Coverage and test artifacts

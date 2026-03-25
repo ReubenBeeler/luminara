@@ -1,5 +1,5 @@
 # Materials Showcase — demonstrates iridescent, translucent, and cinematic effects
-# Render with: cargo run --release -- scenes/materials_showcase.toml -s 200
+# Render with: cargo run --release -- examples/scenes/materials_showcase.toml -s 200
 
 [render]
 width = 960
