@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Velvet};
-use crate::texture::{Checker, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
+use crate::texture::{Checker, ColorRamp, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -510,6 +510,14 @@ pub enum MaterialDesc {
         color2: [f64; 3],
         scale: Option<f64>,
         line_width: Option<f64>,
+    },
+    #[serde(alias = "color_ramp", alias = "ramp")]
+    ColorRamp {
+        /// Array of [position, r, g, b] stops
+        stops: Vec<[f64; 4]>,
+        axis: Option<usize>,
+        min_val: Option<f64>,
+        max_val: Option<f64>,
     },
 }
 
@@ -1289,6 +1297,17 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
                 line_width.unwrap_or(0.1),
+            ))))
+        }
+        MaterialDesc::ColorRamp { stops, axis, min_val, max_val } => {
+            let color_stops: Vec<(f64, Color)> = stops.iter()
+                .map(|s| (s[0], Color::new(s[1], s[2], s[3])))
+                .collect();
+            Box::new(Lambertian::with_texture(Box::new(ColorRamp::new(
+                color_stops,
+                axis.unwrap_or(1),
+                min_val.unwrap_or(0.0),
+                max_val.unwrap_or(1.0),
             ))))
         }
         MaterialDesc::Toon { color, bands, specular } => {

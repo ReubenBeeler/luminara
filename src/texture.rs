@@ -631,6 +631,71 @@ impl Texture for Hexgrid {
     }
 }
 
+/// A multi-stop color gradient texture. Colors are interpolated between stops
+/// based on position along a specified axis.
+pub struct ColorRamp {
+    /// (position, color) pairs sorted by position. Positions should be in [0, 1].
+    stops: Vec<(f64, Color)>,
+    /// Which axis to sample: 0=X, 1=Y, 2=Z
+    axis: usize,
+    /// World-space range mapped to [0, 1]
+    min_val: f64,
+    max_val: f64,
+}
+
+impl ColorRamp {
+    pub fn new(mut stops: Vec<(f64, Color)>, axis: usize, min_val: f64, max_val: f64) -> Self {
+        stops.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        if stops.is_empty() {
+            stops.push((0.0, Color::ZERO));
+            stops.push((1.0, Color::new(1.0, 1.0, 1.0)));
+        } else if stops.len() == 1 {
+            let c = stops[0].1;
+            stops.push((1.0, c));
+        }
+        let range = max_val - min_val;
+        let (min_val, max_val) = if range.abs() < 1e-10 {
+            (min_val, min_val + 1.0)
+        } else {
+            (min_val, max_val)
+        };
+        Self { stops, axis: axis.min(2), min_val, max_val }
+    }
+}
+
+impl Texture for ColorRamp {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let val = match self.axis {
+            0 => point.x,
+            1 => point.y,
+            _ => point.z,
+        };
+        let t = ((val - self.min_val) / (self.max_val - self.min_val)).clamp(0.0, 1.0);
+
+        // Find the two stops that bracket t
+        if t <= self.stops[0].0 {
+            return self.stops[0].1;
+        }
+        if t >= self.stops[self.stops.len() - 1].0 {
+            return self.stops[self.stops.len() - 1].1;
+        }
+
+        for i in 0..self.stops.len() - 1 {
+            let (t0, c0) = self.stops[i];
+            let (t1, c1) = self.stops[i + 1];
+            if t >= t0 && t <= t1 {
+                let range = t1 - t0;
+                let local_t = if range < 1e-10 { 0.0 } else { (t - t0) / range };
+                // Smooth interpolation (smoothstep)
+                let s = local_t * local_t * (3.0 - 2.0 * local_t);
+                return c0 * (1.0 - s) + c1 * s;
+            }
+        }
+
+        self.stops[self.stops.len() - 1].1
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -677,5 +742,30 @@ mod tests {
         let marble = Marble::new(Color::new(1.0, 1.0, 1.0), 4.0);
         let c = marble.value(0.0, 0.0, &Point3::new(1.0, 2.0, 3.0));
         assert!(c.x >= 0.0 && c.x <= 1.0);
+    }
+
+    #[test]
+    fn test_color_ramp_interpolation() {
+        let red = Color::new(1.0, 0.0, 0.0);
+        let green = Color::new(0.0, 1.0, 0.0);
+        let blue = Color::new(0.0, 0.0, 1.0);
+        let ramp = ColorRamp::new(
+            vec![(0.0, red), (0.5, green), (1.0, blue)],
+            1, // Y axis
+            0.0,
+            1.0,
+        );
+
+        // At y=0 should be red
+        let c0 = ramp.value(0.0, 0.0, &Point3::new(0.0, 0.0, 0.0));
+        assert!((c0.x - 1.0).abs() < 0.01, "Expected red at y=0, got {c0:?}");
+
+        // At y=1 should be blue
+        let c1 = ramp.value(0.0, 0.0, &Point3::new(0.0, 1.0, 0.0));
+        assert!((c1.z - 1.0).abs() < 0.01, "Expected blue at y=1, got {c1:?}");
+
+        // At y=0.5 should be green
+        let c_mid = ramp.value(0.0, 0.0, &Point3::new(0.0, 0.5, 0.0));
+        assert!((c_mid.y - 1.0).abs() < 0.01, "Expected green at y=0.5, got {c_mid:?}");
     }
 }
