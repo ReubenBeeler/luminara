@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Velvet};
+use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Transparent, Velvet};
 use crate::texture::{Checker, ColorRamp, Dots, GradientTexture, Grid, Hexgrid, ImageTexture, Marble, Noise, Rings, Spiral, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -453,6 +453,11 @@ pub enum MaterialDesc {
         material_a: Box<MaterialDesc>,
         material_b: Box<MaterialDesc>,
         ratio: Option<f64>,
+    },
+    #[serde(alias = "opacity", alias = "alpha")]
+    Opacity {
+        material: Box<MaterialDesc>,
+        opacity: f64,
     },
     #[serde(alias = "dots")]
     Dots {
@@ -1239,6 +1244,11 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
             let a = build_material(material_a);
             let b = build_material(material_b);
             Box::new(Blend::new(a, b, ratio.unwrap_or(0.5)))
+        }
+        MaterialDesc::Opacity { material, opacity } => {
+            let inner = build_material(material);
+            let transparent = Box::new(Transparent);
+            Box::new(Blend::new(inner, transparent, opacity.clamp(0.0, 1.0)))
         }
         MaterialDesc::Dots { dot_color, bg_color, scale, radius } => {
             Box::new(Lambertian::with_texture(Box::new(Dots::new(

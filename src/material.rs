@@ -420,6 +420,25 @@ impl Material for Blend {
     }
 }
 
+// --- Transparent (pass-through) ---
+
+/// A fully transparent material that passes rays straight through the surface.
+/// Useful as part of alpha/opacity blending.
+pub struct Transparent;
+
+impl Material for Transparent {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, _rng: &mut dyn RngCore) -> Option<Scatter> {
+        Some(Scatter {
+            ray: Ray::with_time(hit.point, ray.direction, ray.time),
+            attenuation: Color::new(1.0, 1.0, 1.0),
+        })
+    }
+
+    fn is_specular(&self) -> bool {
+        true
+    }
+}
+
 // --- Iridescent (thin-film interference) ---
 
 /// Iridescent material that simulates thin-film interference effects
