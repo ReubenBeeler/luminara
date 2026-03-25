@@ -113,6 +113,7 @@ pub struct RenderSettings {
     pub scanlines: Option<f64>,
     pub threshold: Option<f64>,
     pub blur: Option<f64>,
+    pub tilt_shift: Option<f64>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -746,6 +747,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(bl) = r.blur {
             render_config.blur = bl;
+        }
+        if let Some(ts) = r.tilt_shift {
+            render_config.tilt_shift = ts;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1578,6 +1582,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         scanlines: 0.0,
         threshold: -1.0,
         blur: 0.0,
+        tilt_shift: 0.0,
     };
 
     let cam_config = CameraConfig {

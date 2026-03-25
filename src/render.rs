@@ -307,6 +307,8 @@ pub struct RenderConfig {
     pub threshold: f64,
     /// Gaussian blur radius (0 = off). Softens the entire image.
     pub blur: f64,
+    /// Tilt-shift effect: blur amount at edges (0 = off). Simulates miniature photography.
+    pub tilt_shift: f64,
 }
 
 impl Default for RenderConfig {
@@ -352,6 +354,7 @@ impl Default for RenderConfig {
             scanlines: 0.0,
             threshold: -1.0,
             blur: 0.0,
+            tilt_shift: 0.0,
         }
     }
 }
@@ -790,6 +793,40 @@ fn apply_blur(rows: &[Vec<Color>], sigma: f64) -> Vec<Vec<Color>> {
         }
     }
 
+    result
+}
+
+/// Tilt-shift: blur top and bottom of image, leaving center sharp.
+fn apply_tilt_shift(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return rows.to_vec();
+    }
+    let width = rows[0].len();
+    let center = height as f64 / 2.0;
+    let band = height as f64 * 0.15; // sharp band = 30% of image height
+
+    let mut result = rows.to_vec();
+    for j in 0..height {
+        let dist = ((j as f64 - center).abs() - band).max(0.0) / (center - band).max(1.0);
+        let blur_radius = (dist * strength * 5.0).round() as i64;
+        if blur_radius <= 0 {
+            continue;
+        }
+        for i in 0..width {
+            let mut sum = Color::ZERO;
+            let mut count = 0.0;
+            for dy in -blur_radius..=blur_radius {
+                for dx in -blur_radius..=blur_radius {
+                    let ny = (j as i64 + dy).clamp(0, height as i64 - 1) as usize;
+                    let nx = (i as i64 + dx).clamp(0, width as i64 - 1) as usize;
+                    sum += rows[ny][nx];
+                    count += 1.0;
+                }
+            }
+            result[j][i] = sum / count;
+        }
+    }
     result
 }
 
@@ -1300,6 +1337,20 @@ pub fn render(
             eprintln!(" done");
         }
         blurred
+    } else {
+        rows
+    };
+
+    // Optional tilt-shift pass
+    let rows = if config.tilt_shift > 0.0 {
+        if !config.quiet {
+            eprint!("Applying tilt-shift...");
+        }
+        let shifted = apply_tilt_shift(&rows, config.tilt_shift);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        shifted
     } else {
         rows
     };
