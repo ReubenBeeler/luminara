@@ -91,6 +91,7 @@ struct CliArgs {
     solarize: Option<f64>,
     duo_tone: Option<String>,
     sketch: bool,
+    median: Option<u32>,
 }
 
 fn main() {
@@ -268,6 +269,9 @@ fn main() {
     if cli.sketch {
         render_config.sketch = true;
     }
+    if let Some(m) = cli.median {
+        render_config.median = m;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -368,6 +372,7 @@ fn main() {
         if render_config.solarize >= 0.0 { pp.push(format!("solarize({:.2})", render_config.solarize)); }
         if !render_config.duo_tone.is_empty() { pp.push("duo-tone".to_string()); }
         if render_config.sketch { pp.push("sketch".to_string()); }
+        if render_config.median > 0 { pp.push(format!("median({})", render_config.median)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -703,6 +708,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         solarize: None,
         duo_tone: None,
         sketch: false,
+        median: None,
     };
     let mut i = 1;
 
@@ -966,6 +972,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--sketch" => {
                 cli.sketch = true;
             }
+            "--median" => {
+                i += 1;
+                if i < args.len() {
+                    cli.median = args[i].parse().ok();
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1051,6 +1063,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --solarize N  Solarize at luminance threshold (0.0-1.0)");
                 eprintln!("      --duo-tone S  Two-color toning (e.g. \"0,0,64;255,200,0\")");
                 eprintln!("      --sketch      Pencil sketch effect (grayscale + edge detection)");
+                eprintln!("      --median N    Median filter radius for noise removal (e.g. 1)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

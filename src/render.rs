@@ -330,6 +330,8 @@ pub struct RenderConfig {
     pub duo_tone: String,
     /// Sketch mode (false = off). Combines edge detection + inverted grayscale for pencil look.
     pub sketch: bool,
+    /// Median filter radius (0 = off). Removes salt-and-pepper noise while preserving edges.
+    pub median: u32,
 }
 
 impl Default for RenderConfig {
@@ -386,6 +388,7 @@ impl Default for RenderConfig {
             solarize: -1.0,
             duo_tone: String::new(),
             sketch: false,
+            median: 0,
         }
     }
 }
@@ -992,6 +995,50 @@ fn apply_oil_paint(rows: &[Vec<Color>], radius: u32) -> Vec<Vec<Color>> {
 }
 
 /// Map a [0,1] luminance value through a named colormap, returning (R, G, B) in [0,1].
+/// Median filter: replace each pixel with the median of its NxN neighborhood.
+/// Good for removing salt-and-pepper noise while preserving edges.
+fn apply_median(rows: &[Vec<Color>], radius: u32) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+    let r = radius as i32;
+
+    (0..height)
+        .into_par_iter()
+        .map(|j| {
+            (0..width)
+                .map(|i| {
+                    let mut rs = Vec::new();
+                    let mut gs = Vec::new();
+                    let mut bs = Vec::new();
+
+                    for dy in -r..=r {
+                        for dx in -r..=r {
+                            let ny = j as i32 + dy;
+                            let nx = i as i32 + dx;
+                            if ny >= 0 && ny < height as i32 && nx >= 0 && nx < width as i32 {
+                                let c = rows[ny as usize][nx as usize];
+                                rs.push(c.x);
+                                gs.push(c.y);
+                                bs.push(c.z);
+                            }
+                        }
+                    }
+
+                    rs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    gs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    bs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+                    let mid = rs.len() / 2;
+                    Color::new(rs[mid], gs[mid], bs[mid])
+                })
+                .collect()
+        })
+        .collect()
+}
+
 fn apply_color_map(t: f64, name: &str) -> (f64, f64, f64) {
     let t = t.clamp(0.0, 1.0);
     match name {
@@ -1567,6 +1614,20 @@ pub fn render(
             eprintln!(" done");
         }
         embossed
+    } else {
+        rows
+    };
+
+    // Optional median filter pass
+    let rows = if config.median > 0 {
+        if !config.quiet {
+            eprint!("Applying median filter...");
+        }
+        let filtered = apply_median(&rows, config.median);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        filtered
     } else {
         rows
     };

@@ -1825,6 +1825,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         solarize: -1.0,
         duo_tone: String::new(),
         sketch: false,
+        median: 0,
     };
 
     let cam_config = CameraConfig {
