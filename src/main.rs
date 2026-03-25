@@ -23,6 +23,7 @@ mod rounded_box;
 mod scene;
 mod superellipsoid;
 mod sphere;
+mod spring;
 mod texture;
 mod torus;
 mod transform;

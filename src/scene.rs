@@ -24,6 +24,7 @@ use crate::render::{Background, LightInfo, RenderConfig};
 use crate::sphere::{MovingSphere, Sphere};
 use crate::obj;
 use crate::rounded_box::RoundedBox;
+use crate::spring::Spring;
 use crate::superellipsoid::Superellipsoid;
 use crate::torus::Torus;
 use crate::triangle::Triangle;
@@ -80,6 +81,8 @@ pub struct SceneFile {
     pub rounded_box: Vec<RoundedBoxDesc>,
     #[serde(default)]
     pub superellipsoid: Vec<SuperellipsoidDesc>,
+    #[serde(default)]
+    pub spring: Vec<SpringDesc>,
     #[serde(default)]
     pub csg: Vec<CsgDesc>,
 }
@@ -241,6 +244,16 @@ pub struct RoundedBoxDesc {
     pub center: [f64; 3],
     pub half_size: [f64; 3],
     pub radius: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct SpringDesc {
+    pub center: [f64; 3],
+    pub coil_radius: f64,
+    pub tube_radius: f64,
+    pub pitch: f64,
+    pub turns: f64,
     pub material: MaterialDesc,
 }
 
@@ -974,6 +987,18 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(rb.center),
             arr_to_vec3(rb.half_size),
             rb.radius,
+            mat,
+        )));
+    }
+
+    for sp in &scene.spring {
+        let mat = build_material(&sp.material);
+        world.add(Box::new(Spring::new(
+            arr_to_vec3(sp.center),
+            sp.coil_radius,
+            sp.tube_radius,
+            sp.pitch,
+            sp.turns,
             mat,
         )));
     }
