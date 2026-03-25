@@ -223,6 +223,33 @@ fn main() {
             render::ToneMap::None => "None",
         };
         eprintln!("Tone mapping: {tm_name}");
+
+        // Post-processing pipeline summary
+        let mut pp = Vec::new();
+        if render_config.denoise { pp.push("denoise".to_string()); }
+        if render_config.bloom > 0.0 { pp.push(format!("bloom({:.2})", render_config.bloom)); }
+        if render_config.sharpen > 0.0 { pp.push(format!("sharpen({:.2})", render_config.sharpen)); }
+        if render_config.chromatic_aberration > 0.0 { pp.push(format!("ca({:.3})", render_config.chromatic_aberration)); }
+        if render_config.vignette > 0.0 { pp.push(format!("vignette({:.2})", render_config.vignette)); }
+        if render_config.white_balance.abs() > 1e-6 { pp.push(format!("wb({:.1})", render_config.white_balance)); }
+        if render_config.hue_shift.abs() > 1e-6 { pp.push(format!("hue({:.0}°)", render_config.hue_shift)); }
+        if (render_config.saturation - 1.0).abs() > 1e-6 { pp.push(format!("sat({:.2})", render_config.saturation)); }
+        if (render_config.contrast - 1.0).abs() > 1e-6 { pp.push(format!("contrast({:.2})", render_config.contrast)); }
+        if render_config.grain > 0.0 { pp.push(format!("grain({:.2})", render_config.grain)); }
+        if render_config.dither { pp.push("dither".to_string()); }
+        if render_config.gamma > 0.0 { pp.push(format!("gamma({:.1})", render_config.gamma)); }
+        if render_config.adaptive { pp.push(format!("adaptive(thr={:.3})", render_config.adaptive_threshold)); }
+        if pp.is_empty() {
+            eprintln!("Post-processing: none");
+        } else {
+            eprintln!("Post-processing: {}", pp.join(" → "));
+        }
+
+        // Output files
+        if render_config.save_hdr { eprintln!("HDR output: enabled"); }
+        if render_config.save_depth { eprintln!("Depth pass: enabled"); }
+        if render_config.save_normals { eprintln!("Normal pass: enabled"); }
+
         std::process::exit(0);
     }
 
