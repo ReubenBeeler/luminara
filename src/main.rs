@@ -135,6 +135,7 @@ struct CliArgs {
     vintage: bool,
     cinematic: bool,
     retro: bool,
+    dreamy: bool,
 }
 
 fn main() {
@@ -445,6 +446,14 @@ fn main() {
         render_config.grain = 0.06;
         render_config.chromatic_aberration = 2.0;
         render_config.saturation = 0.8;
+    }
+    if cli.dreamy {
+        render_config.bloom = 0.12;
+        render_config.blur = 0.8;
+        render_config.saturation = 1.2;
+        render_config.brightness = 0.05;
+        render_config.tint = [1.0, 0.98, 1.05]; // slight purple tint
+        render_config.vignette = 0.2;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -1016,6 +1025,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         vintage: false,
         cinematic: false,
         retro: false,
+        dreamy: false,
     };
     let mut i = 1;
 
@@ -1369,6 +1379,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--retro" | "--crt" => {
                 cli.retro = true;
             }
+            "--dreamy" => {
+                cli.dreamy = true;
+            }
             "--cinematic" => {
                 cli.cinematic = true;
             }
@@ -1650,6 +1663,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --vintage     Vintage photo preset (sepia + grain + vignette)");
                 eprintln!("      --cinematic   Cinematic preset (bloom + warm tint + vignette)");
                 eprintln!("      --retro       Retro CRT preset (scanlines + pixelate + aberration)");
+                eprintln!("      --dreamy      Dreamy/ethereal preset (bloom + blur + saturation)");
                 eprintln!("      --save-json F Save render statistics as JSON to file");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
