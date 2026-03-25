@@ -196,6 +196,8 @@ pub struct TorusDesc {
     pub major_radius: f64,
     pub minor_radius: f64,
     pub material: MaterialDesc,
+    pub bump_strength: Option<f64>,
+    pub bump_scale: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -211,6 +213,8 @@ pub struct EllipsoidDesc {
     pub center: [f64; 3],
     pub radii: [f64; 3],
     pub material: MaterialDesc,
+    pub bump_strength: Option<f64>,
+    pub bump_scale: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -250,6 +254,8 @@ pub struct CylinderDesc {
     pub radius: f64,
     pub height: f64,
     pub material: MaterialDesc,
+    pub bump_strength: Option<f64>,
+    pub bump_scale: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -630,7 +636,13 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
 
     for t in &scene.torus {
         let mat = build_material(&t.material);
-        world.add(Box::new(Torus::new(arr_to_vec3(t.center), t.major_radius, t.minor_radius, mat)));
+        let obj: Box<dyn Hittable> = Box::new(Torus::new(arr_to_vec3(t.center), t.major_radius, t.minor_radius, mat));
+        if let Some(strength) = t.bump_strength {
+            let scale = t.bump_scale.unwrap_or(4.0);
+            world.add(Box::new(BumpMap::new(obj, strength, scale)));
+        } else {
+            world.add(obj);
+        }
     }
 
     for c in &scene.capsule {
@@ -645,7 +657,13 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
 
     for e in &scene.ellipsoid {
         let mat = build_material(&e.material);
-        world.add(Box::new(Ellipsoid::new(arr_to_vec3(e.center), arr_to_vec3(e.radii), mat)));
+        let obj: Box<dyn Hittable> = Box::new(Ellipsoid::new(arr_to_vec3(e.center), arr_to_vec3(e.radii), mat));
+        if let Some(strength) = e.bump_strength {
+            let scale = e.bump_scale.unwrap_or(4.0);
+            world.add(Box::new(BumpMap::new(obj, strength, scale)));
+        } else {
+            world.add(obj);
+        }
     }
 
     let mut lights = Vec::new();
@@ -720,13 +738,19 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     for c in &scene.cylinder {
         let mat = build_material(&c.material);
         let center = arr_to_vec3(c.center);
-        world.add(Box::new(Cylinder::new(
+        let obj: Box<dyn Hittable> = Box::new(Cylinder::new(
             center,
             c.radius,
             center.y,
             center.y + c.height,
             mat,
-        )));
+        ));
+        if let Some(strength) = c.bump_strength {
+            let scale = c.bump_scale.unwrap_or(4.0);
+            world.add(Box::new(BumpMap::new(obj, strength, scale)));
+        } else {
+            world.add(obj);
+        }
     }
 
     for t in &scene.triangle {
