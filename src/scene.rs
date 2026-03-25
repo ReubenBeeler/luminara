@@ -87,6 +87,7 @@ pub struct RenderSettings {
     pub seed: Option<u64>,
     pub exposure: Option<f64>,
     pub auto_exposure: Option<bool>,
+    pub denoise: Option<bool>,
     pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
@@ -528,6 +529,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ae) = r.auto_exposure {
             render_config.auto_exposure = ae;
+        }
+        if let Some(dn) = r.denoise {
+            render_config.denoise = dn;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1091,6 +1095,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         exposure: 1.0,
         tone_map: crate::render::ToneMap::default(),
         auto_exposure: false,
+        denoise: false,
     };
 
     let cam_config = CameraConfig {

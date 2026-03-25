@@ -172,6 +172,7 @@ pub struct RenderConfig {
     pub exposure: f64,
     pub tone_map: ToneMap,
     pub auto_exposure: bool,
+    pub denoise: bool,
 }
 
 impl Default for RenderConfig {
@@ -187,6 +188,7 @@ impl Default for RenderConfig {
             exposure: 1.0,
             tone_map: ToneMap::default(),
             auto_exposure: false,
+            denoise: false,
         }
     }
 }
@@ -208,6 +210,74 @@ fn compute_log_average_luminance(rows: &[Vec<Color>]) -> f64 {
         return 0.0;
     }
     (sum / count as f64).exp()
+}
+
+/// Edge-preserving bilateral denoiser operating on HDR image data.
+/// Uses a spatial Gaussian kernel combined with a range (color similarity) kernel
+/// to smooth noise while preserving edges and detail.
+fn bilateral_denoise(rows: &[Vec<Color>]) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+
+    // Bilateral filter parameters
+    let radius: i32 = 3; // 7x7 kernel
+    let sigma_spatial = 2.0_f64;
+    let sigma_range = 0.15_f64; // Color similarity threshold (in linear HDR space)
+    let spatial_denom = -1.0 / (2.0 * sigma_spatial * sigma_spatial);
+    let range_denom = -1.0 / (2.0 * sigma_range * sigma_range);
+
+    let mut result = vec![vec![Color::ZERO; width]; height];
+
+    // Process rows in parallel for performance
+    result.par_iter_mut().enumerate().for_each(|(j, out_row)| {
+        for i in 0..width {
+            let center = rows[j][i];
+            let center_lum = 0.2126 * center.x + 0.7152 * center.y + 0.0722 * center.z;
+            let mut sum = Color::ZERO;
+            let mut weight_sum = 0.0_f64;
+
+            for dy in -radius..=radius {
+                let ny = j as i32 + dy;
+                if ny < 0 || ny >= height as i32 {
+                    continue;
+                }
+                let ny = ny as usize;
+                for dx in -radius..=radius {
+                    let nx = i as i32 + dx;
+                    if nx < 0 || nx >= width as i32 {
+                        continue;
+                    }
+                    let nx = nx as usize;
+
+                    let neighbor = rows[ny][nx];
+                    let neighbor_lum = 0.2126 * neighbor.x + 0.7152 * neighbor.y + 0.0722 * neighbor.z;
+
+                    // Spatial weight (Gaussian based on pixel distance)
+                    let dist_sq = (dx * dx + dy * dy) as f64;
+                    let w_spatial = (dist_sq * spatial_denom).exp();
+
+                    // Range weight (Gaussian based on luminance difference)
+                    let lum_diff = center_lum - neighbor_lum;
+                    let w_range = (lum_diff * lum_diff * range_denom).exp();
+
+                    let w = w_spatial * w_range;
+                    sum += neighbor * w;
+                    weight_sum += w;
+                }
+            }
+
+            out_row[i] = if weight_sum > 0.0 {
+                sum / weight_sum
+            } else {
+                center
+            };
+        }
+    });
+
+    result
 }
 
 /// Sample direct illumination from a random light source (Next Event Estimation).
@@ -438,6 +508,20 @@ pub fn render(
         let total_rays = width as u64 * height as u64 * actual_spp as u64;
         eprintln!("Primary rays: {total_rays} ({actual_spp} spp, {sqrt_spp}x{sqrt_spp} stratified)");
     }
+
+    // Optional bilateral denoising pass (operates on HDR data before tone mapping)
+    let rows = if config.denoise {
+        if !config.quiet {
+            eprint!("Denoising...");
+        }
+        let denoised = bilateral_denoise(&rows);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        denoised
+    } else {
+        rows
+    };
 
     // Auto-exposure: compute exposure from scene luminance if not manually overridden.
     let exposure = if config.auto_exposure {
@@ -759,5 +843,55 @@ mod tests {
             total += sample_direct_light(&hit_point, &normal, &albedo, &lights, &world, &mut rng);
         }
         assert_eq!(total.x, 0.0, "Occluded light should contribute zero");
+    }
+
+    #[test]
+    fn bilateral_denoise_preserves_uniform() {
+        // Uniform image should be unchanged by denoising
+        let rows = vec![vec![Color::new(0.5, 0.5, 0.5); 10]; 10];
+        let result = bilateral_denoise(&rows);
+        for row in &result {
+            for c in row {
+                assert!((c.x - 0.5).abs() < 1e-6);
+                assert!((c.y - 0.5).abs() < 1e-6);
+                assert!((c.z - 0.5).abs() < 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn bilateral_denoise_smooths_gradual_noise() {
+        // Slightly noisy image — noise within range sigma should be smoothed
+        let mut rows = vec![vec![Color::new(0.5, 0.5, 0.5); 10]; 10];
+        // Add mild noise within the range sigma
+        rows[5][5] = Color::new(0.6, 0.6, 0.6);
+        rows[5][6] = Color::new(0.4, 0.4, 0.4);
+        let result = bilateral_denoise(&rows);
+        // Neighbors should pull the noisy pixels closer to 0.5
+        assert!((result[5][5].x - 0.5).abs() < 0.05, "Mild noise should be smoothed toward mean");
+        assert!((result[5][6].x - 0.5).abs() < 0.05, "Mild noise should be smoothed toward mean");
+    }
+
+    #[test]
+    fn bilateral_denoise_preserves_edges() {
+        // Sharp edge: left half dark, right half bright
+        let mut rows = vec![vec![Color::ZERO; 20]; 10];
+        for row in &mut rows {
+            for i in 10..20 {
+                row[i] = Color::new(1.0, 1.0, 1.0);
+            }
+        }
+        let result = bilateral_denoise(&rows);
+        // Deep in dark region should stay dark
+        assert!(result[5][2].x < 0.05, "Dark region should stay dark");
+        // Deep in bright region should stay bright
+        assert!(result[5][17].x > 0.95, "Bright region should stay bright");
+    }
+
+    #[test]
+    fn bilateral_denoise_empty() {
+        let rows: Vec<Vec<Color>> = vec![];
+        let result = bilateral_denoise(&rows);
+        assert!(result.is_empty());
     }
 }

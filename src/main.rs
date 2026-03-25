@@ -45,6 +45,7 @@ struct CliArgs {
     preview: bool,
     quiet: bool,
     info_only: bool,
+    denoise: bool,
 }
 
 fn main() {
@@ -105,6 +106,9 @@ fn main() {
     }
     if cli.auto_exposure {
         render_config.auto_exposure = true;
+    }
+    if cli.denoise {
+        render_config.denoise = true;
     }
     if let Some(ref tm) = cli.tone_map {
         render_config.tone_map = match tm.as_str() {
@@ -230,6 +234,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         preview: false,
         quiet: false,
         info_only: false,
+        denoise: false,
     };
     let mut i = 1;
 
@@ -273,6 +278,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-q" | "--quiet" => {
                 cli.quiet = true;
+            }
+            "--denoise" => {
+                cli.denoise = true;
             }
             "--info" => {
                 cli.info_only = true;
@@ -319,6 +327,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -e, --exposure    Exposure multiplier (default: 1.0)");
                 eprintln!("      --auto-exposure  Automatically compute exposure from scene luminance");
                 eprintln!("      --tone-map TM    Tone mapping: aces, reinhard, filmic, none (default: aces)");
+                eprintln!("      --denoise     Apply bilateral denoiser to reduce noise");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
