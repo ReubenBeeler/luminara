@@ -425,13 +425,15 @@ fn main() {
             eprintln!("Saved to {}", out.display());
         }
     } else {
-        if let Err(e) = image::save_buffer(
-            &out,
-            &pixels,
-            out_w,
-            out_h,
-            image::ColorType::Rgba8,
-        ) {
+        let is_jpeg = out_str.ends_with(".jpg") || out_str.ends_with(".jpeg");
+        if is_jpeg {
+            // JPEG doesn't support alpha — convert RGBA to RGB
+            let rgb_pixels: Vec<u8> = pixels.chunks(4).flat_map(|c| &c[..3]).copied().collect();
+            if let Err(e) = image::save_buffer(&out, &rgb_pixels, out_w, out_h, image::ColorType::Rgb8) {
+                eprintln!("Error: failed to save image '{}': {e}", out.display());
+                std::process::exit(1);
+            }
+        } else if let Err(e) = image::save_buffer(&out, &pixels, out_w, out_h, image::ColorType::Rgba8) {
             eprintln!("Error: failed to save image '{}': {e}", out.display());
             std::process::exit(1);
         }
