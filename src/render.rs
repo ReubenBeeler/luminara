@@ -295,6 +295,8 @@ pub struct RenderConfig {
     pub posterize: u32,
     /// Sepia tone intensity (0.0 = off, 1.0 = full sepia).
     pub sepia: f64,
+    /// Edge detection / outline strength (0.0 = off). Darkens edges for toon look.
+    pub edge_detect: f64,
 }
 
 impl Default for RenderConfig {
@@ -334,6 +336,7 @@ impl Default for RenderConfig {
             time_limit: 0.0,
             posterize: 0,
             sepia: 0.0,
+            edge_detect: 0.0,
         }
     }
 }
@@ -678,6 +681,47 @@ fn apply_sharpen(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
                     let sharpened = *orig + (*orig - blur) * intensity;
                     // Prevent negative values
                     Color::new(sharpened.x.max(0.0), sharpened.y.max(0.0), sharpened.z.max(0.0))
+                })
+                .collect()
+        })
+        .collect()
+}
+
+/// Sobel edge detection: detects edges and darkens them for an outline effect.
+fn apply_edge_detect(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+
+    let lum = |c: &Color| 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+
+    rows.iter()
+        .enumerate()
+        .map(|(j, row)| {
+            row.iter()
+                .enumerate()
+                .map(|(i, orig)| {
+                    if j == 0 || j == height - 1 || i == 0 || i == width - 1 {
+                        return *orig;
+                    }
+                    // Sobel kernels
+                    let tl = lum(&rows[j - 1][i - 1]);
+                    let tc = lum(&rows[j - 1][i]);
+                    let tr = lum(&rows[j - 1][i + 1]);
+                    let ml = lum(&rows[j][i - 1]);
+                    let mr = lum(&rows[j][i + 1]);
+                    let bl = lum(&rows[j + 1][i - 1]);
+                    let bc = lum(&rows[j + 1][i]);
+                    let br = lum(&rows[j + 1][i + 1]);
+
+                    let gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;
+                    let gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
+                    let edge = (gx * gx + gy * gy).sqrt().min(1.0);
+
+                    // Darken by edge strength
+                    *orig * (1.0 - edge * strength)
                 })
                 .collect()
         })
@@ -1143,6 +1187,20 @@ pub fn render(
             eprintln!(" done");
         }
         sharpened
+    } else {
+        rows
+    };
+
+    // Optional edge detection / outline pass
+    let rows = if config.edge_detect > 0.0 {
+        if !config.quiet {
+            eprint!("Detecting edges...");
+        }
+        let edged = apply_edge_detect(&rows, config.edge_detect);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        edged
     } else {
         rows
     };
