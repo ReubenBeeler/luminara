@@ -119,6 +119,7 @@ struct CliArgs {
     cool: bool,
     rotate: Option<u32>,
     panorama: bool,
+    save_json: Option<PathBuf>,
 }
 
 fn main() {
@@ -672,6 +673,21 @@ fn main() {
         eprintln!("\n{ascii_art}");
     }
 
+    // Save render statistics as JSON if requested
+    if let Some(ref json_path) = cli.save_json {
+        let json = format!(
+            "{{\n  \"width\": {},\n  \"height\": {},\n  \"samples\": {},\n  \"max_depth\": {},\n  \"total_rays\": {},\n  \"render_time_secs\": {:.4},\n  \"total_time_secs\": {:.4},\n  \"mrays_per_sec\": {:.2},\n  \"threads\": {},\n  \"output\": \"{}\"\n}}",
+            out_w, out_h, render_config.samples_per_pixel, render_config.max_depth,
+            result.total_rays, result.render_time_secs, secs, mrays_per_sec,
+            num_threads, out.display()
+        );
+        if let Err(e) = std::fs::write(json_path, json) {
+            eprintln!("Warning: failed to write JSON stats '{}': {e}", json_path.display());
+        } else {
+            eprintln!("Stats saved to {}", json_path.display());
+        }
+    }
+
     // Save HDR data if requested
     // Save depth pass
     if let (Some(depth_path), Some(depth_data)) = (&cli.save_depth, &result.depth_pass) {
@@ -906,6 +922,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         cool: false,
         rotate: None,
         panorama: false,
+        save_json: None,
     };
     let mut i = 1;
 
@@ -1253,6 +1270,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--panorama" | "--pano" => {
                 cli.panorama = true;
             }
+            "--save-json" => {
+                i += 1;
+                if i < args.len() {
+                    cli.save_json = Some(PathBuf::from(&args[i]));
+                }
+            }
             "--auto-levels" => {
                 cli.auto_levels = true;
             }
@@ -1449,6 +1472,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --cool        Cool white balance preset");
                 eprintln!("      --rotate N    Rotate output image (90, 180, 270 degrees)");
                 eprintln!("      --panorama    360° equirectangular panoramic camera");
+                eprintln!("      --save-json F Save render statistics as JSON to file");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
