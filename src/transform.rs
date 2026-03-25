@@ -283,6 +283,78 @@ impl Hittable for Scale {
     }
 }
 
+/// Non-uniformly scales an object along each axis independently.
+pub struct NonUniformScale {
+    inner: Box<dyn Hittable>,
+    scale: Vec3,
+    inv_scale: Vec3,
+}
+
+impl NonUniformScale {
+    pub fn new(inner: Box<dyn Hittable>, sx: f64, sy: f64, sz: f64) -> Self {
+        let sx = if sx.abs() < 1e-10 { 1.0 } else { sx };
+        let sy = if sy.abs() < 1e-10 { 1.0 } else { sy };
+        let sz = if sz.abs() < 1e-10 { 1.0 } else { sz };
+        Self {
+            inner,
+            scale: Vec3::new(sx, sy, sz),
+            inv_scale: Vec3::new(1.0 / sx, 1.0 / sy, 1.0 / sz),
+        }
+    }
+}
+
+impl Hittable for NonUniformScale {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord<'_>> {
+        // Transform ray into scaled object space
+        let scaled_origin = Vec3::new(
+            ray.origin.x * self.inv_scale.x,
+            ray.origin.y * self.inv_scale.y,
+            ray.origin.z * self.inv_scale.z,
+        );
+        let scaled_dir = Vec3::new(
+            ray.direction.x * self.inv_scale.x,
+            ray.direction.y * self.inv_scale.y,
+            ray.direction.z * self.inv_scale.z,
+        );
+        let scaled_ray = Ray::new(scaled_origin, scaled_dir);
+        let mut hit = self.inner.hit(&scaled_ray, t_min, t_max)?;
+
+        // Transform hit point back to world space
+        hit.point = Vec3::new(
+            hit.point.x * self.scale.x,
+            hit.point.y * self.scale.y,
+            hit.point.z * self.scale.z,
+        );
+        // Transform normal: use inverse-transpose (= inverse scale for diagonal matrices)
+        let n = Vec3::new(
+            hit.normal.x * self.inv_scale.x,
+            hit.normal.y * self.inv_scale.y,
+            hit.normal.z * self.inv_scale.z,
+        );
+        hit.normal = n.unit();
+        // Adjust t by the direction scale factor
+        hit.t *= scaled_dir.length() / ray.direction.length();
+        Some(hit)
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        self.inner.bounding_box().map(|bb| {
+            let min = Vec3::new(
+                bb.min.x * self.scale.x,
+                bb.min.y * self.scale.y,
+                bb.min.z * self.scale.z,
+            );
+            let max = Vec3::new(
+                bb.max.x * self.scale.x,
+                bb.max.y * self.scale.y,
+                bb.max.z * self.scale.z,
+            );
+            // Handle negative scales
+            Aabb::new(min.min(max), min.max(max))
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -347,5 +419,25 @@ mod tests {
         // After 90° Z rotation, sphere at (2,0,0) should be at (0,2,0)
         let ray = Ray::new(Point3::new(0.0, 5.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
         assert!(rotated.hit(&ray, 0.001, f64::INFINITY).is_some());
+    }
+
+    #[test]
+    fn test_non_uniform_scale() {
+        // Unit sphere at origin, scaled by (2, 1, 1) → ellipsoid stretching along X
+        let sphere = Sphere::new(Point3::ZERO, 1.0, Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))));
+        let scaled = NonUniformScale::new(Box::new(sphere), 2.0, 1.0, 1.0);
+
+        // Should be hittable at x=1.5 (within 2x scale)
+        let ray = Ray::new(Point3::new(1.5, 0.0, -5.0), Vec3::new(0.0, 0.0, 1.0));
+        assert!(scaled.hit(&ray, 0.001, f64::INFINITY).is_some(), "Should hit stretched ellipsoid");
+
+        // Should miss at y=1.5 (beyond 1x scale)
+        let ray = Ray::new(Point3::new(0.0, 1.5, -5.0), Vec3::new(0.0, 0.0, 1.0));
+        assert!(scaled.hit(&ray, 0.001, f64::INFINITY).is_none(), "Should miss above unit-scaled Y");
+
+        // Bounding box should reflect non-uniform scale
+        let bb = scaled.bounding_box().unwrap();
+        assert!((bb.max.x - 2.0).abs() < 0.01, "X bound should be 2.0, got {}", bb.max.x);
+        assert!((bb.max.y - 1.0).abs() < 0.01, "Y bound should be 1.0, got {}", bb.max.y);
     }
 }

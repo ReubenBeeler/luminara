@@ -6,7 +6,7 @@ use crate::bvh::BvhNode;
 use crate::camera::{Camera, CameraConfig};
 use crate::bump::BumpMap;
 use crate::capsule::Capsule;
-use crate::transform::{RotateX, RotateY, RotateZ, Scale, Translate};
+use crate::transform::{NonUniformScale, RotateX, RotateY, RotateZ, Scale, Translate};
 use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
@@ -283,6 +283,7 @@ pub struct BoxDesc {
     pub rotate_z: Option<f64>,
     pub translate: Option<[f64; 3]>,
     pub scale: Option<f64>,
+    pub scale_xyz: Option<[f64; 3]>,
 }
 
 #[derive(Deserialize)]
@@ -982,14 +983,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         );
 
         let has_transform = b.rotate_x.is_some() || b.rotate_y.is_some()
-            || b.rotate_z.is_some() || b.translate.is_some() || b.scale.is_some();
+            || b.rotate_z.is_some() || b.translate.is_some() || b.scale.is_some()
+            || b.scale_xyz.is_some();
         if has_transform {
             let mut box_list = HittableList::new();
             for side in sides {
                 box_list.add(side);
             }
             let mut obj: Box<dyn Hittable> = Box::new(box_list);
-            if let Some(factor) = b.scale {
+            if let Some([sx, sy, sz]) = b.scale_xyz {
+                obj = Box::new(NonUniformScale::new(obj, sx, sy, sz));
+            } else if let Some(factor) = b.scale {
                 obj = Box::new(Scale::new(obj, factor));
             }
             if let Some(angle) = b.rotate_x {
