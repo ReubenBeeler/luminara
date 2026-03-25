@@ -324,6 +324,20 @@ fn main() {
         if render_config.dither { pp.push("dither".to_string()); }
         if render_config.gamma > 0.0 { pp.push(format!("gamma({:.1})", render_config.gamma)); }
         if render_config.adaptive { pp.push(format!("adaptive(thr={:.3})", render_config.adaptive_threshold)); }
+        if render_config.lens_distortion.abs() > 1e-6 { pp.push(format!("lens({:.3})", render_config.lens_distortion)); }
+        if render_config.blur > 0.0 { pp.push(format!("blur({:.1})", render_config.blur)); }
+        if render_config.tilt_shift > 0.0 { pp.push(format!("tilt-shift({:.1})", render_config.tilt_shift)); }
+        if render_config.pixelate >= 2 { pp.push(format!("pixelate({})", render_config.pixelate)); }
+        if render_config.edge_detect > 0.0 { pp.push(format!("edges({:.1})", render_config.edge_detect)); }
+        if render_config.emboss > 0.0 { pp.push(format!("emboss({:.1})", render_config.emboss)); }
+        if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
+        if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
+        if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
+        if render_config.halftone >= 2 { pp.push(format!("halftone({})", render_config.halftone)); }
+        if render_config.invert { pp.push("invert".to_string()); }
+        if render_config.scanlines > 0.0 { pp.push(format!("scanlines({:.1})", render_config.scanlines)); }
+        if render_config.grade_shadows != [1.0, 1.0, 1.0] { pp.push("grade-shadows".to_string()); }
+        if render_config.grade_highlights != [1.0, 1.0, 1.0] { pp.push("grade-highlights".to_string()); }
         if pp.is_empty() {
             eprintln!("Post-processing: none");
         } else {
