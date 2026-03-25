@@ -69,6 +69,7 @@ struct CliArgs {
     pixel_filter: Option<String>,
     save_depth: Option<PathBuf>,
     save_normals: Option<PathBuf>,
+    posterize: Option<u32>,
 }
 
 fn main() {
@@ -197,6 +198,9 @@ fn main() {
     }
     if let Some(ca) = cli.chromatic_aberration {
         render_config.chromatic_aberration = ca;
+    }
+    if let Some(p) = cli.posterize {
+        render_config.posterize = p;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -573,6 +577,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         pixel_filter: None,
         save_depth: None,
         save_normals: None,
+        posterize: None,
     };
     let mut i = 1;
 
@@ -738,6 +743,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.crop = Some(args[i].clone());
+                }
+            }
+            "--posterize" => {
+                i += 1;
+                if i < args.len() {
+                    cli.posterize = args[i].parse().ok();
                 }
             }
             "--info" => {

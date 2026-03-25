@@ -291,6 +291,8 @@ pub struct RenderConfig {
     pub adaptive_threshold: f64,
     /// Maximum render time in seconds (0 = no limit). Render stops when exceeded.
     pub time_limit: f64,
+    /// Posterize level (0 = off, 2-256 = number of discrete color levels per channel).
+    pub posterize: u32,
 }
 
 impl Default for RenderConfig {
@@ -328,6 +330,7 @@ impl Default for RenderConfig {
             adaptive: false,
             adaptive_threshold: 0.03,
             time_limit: 0.0,
+            posterize: 0,
         }
     }
 }
@@ -1293,6 +1296,19 @@ pub fn render(
                 r = ((((r as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
                 g = ((((g as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
                 b = ((((b as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+            }
+
+            // Posterize: reduce color levels per channel
+            if config.posterize >= 2 {
+                let levels = config.posterize as f64;
+                let posterize_ch = |c: u8| -> u8 {
+                    let f = c as f64 / 255.0;
+                    let q = (f * (levels - 1.0)).round() / (levels - 1.0);
+                    (q * 255.0).clamp(0.0, 255.0) as u8
+                };
+                r = posterize_ch(r);
+                g = posterize_ch(g);
+                b = posterize_ch(b);
             }
 
             // Film grain: add deterministic luminance noise

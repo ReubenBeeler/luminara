@@ -105,6 +105,7 @@ pub struct RenderSettings {
     pub lens_distortion: Option<f64>,
     pub chromatic_aberration: Option<f64>,
     pub tone_map: Option<String>,
+    pub posterize: Option<u32>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -714,6 +715,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ca) = r.chromatic_aberration {
             render_config.chromatic_aberration = ca;
+        }
+        if let Some(p) = r.posterize {
+            render_config.posterize = p;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1538,6 +1542,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         adaptive: false,
         adaptive_threshold: 0.03,
         time_limit: 0.0,
+        posterize: 0,
     };
 
     let cam_config = CameraConfig {
