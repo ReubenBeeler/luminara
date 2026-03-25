@@ -135,7 +135,16 @@ fn main() {
         eprintln!("Max depth: {}", render_config.max_depth);
         eprintln!("Total primary rays: {}", total_rays);
         eprintln!("Objects: {} ({} bounded/BVH, {} unbounded)", world.object_count(), world.bounded_count, world.unbounded_count);
+        eprintln!("Lights: {}", world.lights.len());
         eprintln!("Seed: {}", render_config.seed);
+        eprintln!("Exposure: {}{}", render_config.exposure, if render_config.auto_exposure { " (auto)" } else { "" });
+        let tm_name = match render_config.tone_map {
+            render::ToneMap::Aces => "ACES",
+            render::ToneMap::Reinhard => "Reinhard",
+            render::ToneMap::Filmic => "Filmic (Uncharted 2)",
+            render::ToneMap::None => "None",
+        };
+        eprintln!("Tone mapping: {tm_name}");
         std::process::exit(0);
     }
 
