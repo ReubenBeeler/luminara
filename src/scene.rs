@@ -1868,6 +1868,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         depth_fog: 0.0,
         depth_fog_color: [0.8, 0.85, 0.9],
         channel_swap: String::new(),
+        mirror: String::new(),
     };
 
     let cam_config = CameraConfig {

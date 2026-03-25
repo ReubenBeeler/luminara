@@ -342,6 +342,8 @@ pub struct RenderConfig {
     pub depth_fog_color: [f64; 3],
     /// Channel swap mode: "rgb" (normal), "rbg", "grb", "gbr", "brg", "bgr"
     pub channel_swap: String,
+    /// Mirror mode: "h" (horizontal), "v" (vertical), "hv" (both), or empty for off.
+    pub mirror: String,
 }
 
 impl Default for RenderConfig {
@@ -404,6 +406,7 @@ impl Default for RenderConfig {
             depth_fog: 0.0,
             depth_fog_color: [0.8, 0.85, 0.9],
             channel_swap: String::new(),
+            mirror: String::new(),
         }
     }
 }
@@ -1629,6 +1632,24 @@ pub fn render(
             eprintln!(" done");
         }
         embossed
+    } else {
+        rows
+    };
+
+    // Optional mirror pass
+    let rows = if !config.mirror.is_empty() {
+        let mirror_h = config.mirror.contains('h');
+        let mirror_v = config.mirror.contains('v');
+        let mut result = rows;
+        if mirror_h {
+            for row in &mut result {
+                row.reverse();
+            }
+        }
+        if mirror_v {
+            result.reverse();
+        }
+        result
     } else {
         rows
     };

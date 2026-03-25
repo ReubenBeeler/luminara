@@ -96,6 +96,7 @@ struct CliArgs {
     glitch: Option<f64>,
     depth_fog: Option<f64>,
     channel_swap: Option<String>,
+    mirror: Option<String>,
 }
 
 fn main() {
@@ -288,6 +289,9 @@ fn main() {
     if let Some(ref cs) = cli.channel_swap {
         render_config.channel_swap = cs.clone();
     }
+    if let Some(ref m) = cli.mirror {
+        render_config.mirror = m.clone();
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -393,6 +397,7 @@ fn main() {
         if render_config.glitch > 0.0 { pp.push(format!("glitch({:.1})", render_config.glitch)); }
         if render_config.depth_fog > 0.0 { pp.push(format!("depth-fog({:.2})", render_config.depth_fog)); }
         if !render_config.channel_swap.is_empty() { pp.push(format!("channel-swap({})", render_config.channel_swap)); }
+        if !render_config.mirror.is_empty() { pp.push(format!("mirror({})", render_config.mirror)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -733,6 +738,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         glitch: None,
         depth_fog: None,
         channel_swap: None,
+        mirror: None,
     };
     let mut i = 1;
 
@@ -1024,6 +1030,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.channel_swap = Some(args[i].clone());
+                }
+            }
+            "--mirror" | "--flip" => {
+                i += 1;
+                if i < args.len() {
+                    cli.mirror = Some(args[i].clone());
                 }
             }
             "--info" => {
