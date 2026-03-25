@@ -98,6 +98,7 @@ struct CliArgs {
     channel_swap: Option<String>,
     mirror: Option<String>,
     quantize: Option<u32>,
+    tint: Option<[f64; 3]>,
 }
 
 fn main() {
@@ -296,6 +297,9 @@ fn main() {
     if let Some(q) = cli.quantize {
         render_config.quantize = q;
     }
+    if let Some(t) = cli.tint {
+        render_config.tint = t;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -403,6 +407,9 @@ fn main() {
         if !render_config.channel_swap.is_empty() { pp.push(format!("channel-swap({})", render_config.channel_swap)); }
         if !render_config.mirror.is_empty() { pp.push(format!("mirror({})", render_config.mirror)); }
         if render_config.quantize >= 2 { pp.push(format!("quantize({})", render_config.quantize)); }
+        if render_config.tint[0] < 1.0 || render_config.tint[1] < 1.0 || render_config.tint[2] < 1.0 {
+            pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
+        }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -745,6 +752,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         channel_swap: None,
         mirror: None,
         quantize: None,
+        tint: None,
     };
     let mut i = 1;
 
@@ -1050,6 +1058,15 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.quantize = args[i].parse().ok();
                 }
             }
+            "--tint" => {
+                i += 1;
+                if i < args.len() {
+                    let parts: Vec<f64> = args[i].split(',').filter_map(|s| s.trim().parse().ok()).collect();
+                    if parts.len() == 3 {
+                        cli.tint = Some([parts[0], parts[1], parts[2]]);
+                    }
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1085,7 +1102,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 37 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 38 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1141,6 +1158,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --depth-fog N Atmospheric depth fog density (e.g. 0.1)");
                 eprintln!("      --channel-swap S Swap RGB channels: rbg, grb, gbr, brg, bgr");
                 eprintln!("      --quantize N  Reduce to N colors via median-cut quantization");
+                eprintln!("      --tint R,G,B  Multiply all pixels by RGB color (0-1 each)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

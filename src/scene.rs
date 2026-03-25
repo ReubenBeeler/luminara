@@ -139,6 +139,7 @@ pub struct RenderSettings {
     pub crosshatch: Option<u32>,
     pub glitch: Option<f64>,
     pub quantize: Option<u32>,
+    pub tint: Option<[f64; 3]>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -907,6 +908,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(q) = r.quantize {
             render_config.quantize = q;
+        }
+        if let Some(t) = r.tint {
+            render_config.tint = t;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1874,6 +1878,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         channel_swap: String::new(),
         mirror: String::new(),
         quantize: 0,
+        tint: [1.0, 1.0, 1.0],
     };
 
     let cam_config = CameraConfig {

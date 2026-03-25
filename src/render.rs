@@ -346,6 +346,8 @@ pub struct RenderConfig {
     pub mirror: String,
     /// Color quantization: reduce to N colors (0 = off). Median-cut algorithm.
     pub quantize: u32,
+    /// Color tint: multiply all pixels by this RGB color [R, G, B] in 0..1 range.
+    pub tint: [f64; 3],
 }
 
 impl Default for RenderConfig {
@@ -410,6 +412,7 @@ impl Default for RenderConfig {
             channel_swap: String::new(),
             mirror: String::new(),
             quantize: 0,
+            tint: [1.0, 1.0, 1.0],
         }
     }
 }
@@ -2138,6 +2141,13 @@ pub fn render(
                 r = ((rf * (1.0 - s) + sr * s) * 255.0) as u8;
                 g = ((gf * (1.0 - s) + sg * s) * 255.0) as u8;
                 b = ((bf * (1.0 - s) + sb * s) * 255.0) as u8;
+            }
+
+            // Color tint: multiply by user-specified RGB
+            if config.tint[0] < 1.0 || config.tint[1] < 1.0 || config.tint[2] < 1.0 {
+                r = ((r as f64 / 255.0 * config.tint[0]) * 255.0).clamp(0.0, 255.0) as u8;
+                g = ((g as f64 / 255.0 * config.tint[1]) * 255.0).clamp(0.0, 255.0) as u8;
+                b = ((b as f64 / 255.0 * config.tint[2]) * 255.0).clamp(0.0, 255.0) as u8;
             }
 
             // Posterize: reduce color levels per channel
