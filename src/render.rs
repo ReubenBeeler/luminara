@@ -145,6 +145,7 @@ pub enum ToneMap {
     #[default]
     Aces,
     Reinhard,
+    Filmic,
     None,
 }
 
@@ -410,6 +411,7 @@ pub fn render(
     let tone_fn: fn(f64) -> f64 = match config.tone_map {
         ToneMap::Aces => aces_tonemap,
         ToneMap::Reinhard => reinhard_tonemap,
+        ToneMap::Filmic => filmic_tonemap,
         ToneMap::None => |x: f64| x.clamp(0.0, 1.0),
     };
     let mut pixels = Vec::with_capacity(width * height * 4);
@@ -458,6 +460,24 @@ fn aces_tonemap(x: f64) -> f64 {
 fn reinhard_tonemap(x: f64) -> f64 {
     let x = x.max(0.0);
     x / (1.0 + x)
+}
+
+/// Uncharted 2 filmic tone mapping (John Hable).
+/// Produces a cinematic look with deep blacks and soft highlights.
+fn filmic_tonemap(x: f64) -> f64 {
+    let x = x.max(0.0);
+    // Uncharted 2 tone mapping formula
+    fn uc2(v: f64) -> f64 {
+        let a = 0.15; // Shoulder strength
+        let b = 0.50; // Linear strength
+        let c = 0.10; // Linear angle
+        let d = 0.20; // Toe strength
+        let e = 0.02; // Toe numerator
+        let f = 0.30; // Toe denominator
+        ((v * (a * v + c * b) + d * e) / (v * (a * v + b) + d * f)) - e / f
+    }
+    let w = 11.2; // Linear white point
+    (uc2(x) / uc2(w)).clamp(0.0, 1.0)
 }
 
 /// Convert linear [0,1] to sRGB byte using the official piecewise transfer function.
@@ -511,6 +531,31 @@ mod tests {
             let y = reinhard_tonemap(x);
             assert!(y > prev);
             assert!(y < 1.0);
+            prev = y;
+        }
+    }
+
+    #[test]
+    fn filmic_tonemap_zero() {
+        assert!((filmic_tonemap(0.0)).abs() < 0.01);
+    }
+
+    #[test]
+    fn filmic_tonemap_bounded() {
+        for i in 0..100 {
+            let x = i as f64 * 0.5;
+            let y = filmic_tonemap(x);
+            assert!(y >= 0.0 && y <= 1.0, "filmic_tonemap({x}) = {y} out of [0,1]");
+        }
+    }
+
+    #[test]
+    fn filmic_tonemap_monotonic() {
+        let mut prev = 0.0;
+        for i in 1..100 {
+            let x = i as f64 * 0.1;
+            let y = filmic_tonemap(x);
+            assert!(y >= prev, "Filmic should be monotonically increasing");
             prev = y;
         }
     }

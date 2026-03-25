@@ -524,6 +524,7 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
                 "reinhard" => crate::render::ToneMap::Reinhard,
+                "filmic" | "uncharted2" => crate::render::ToneMap::Filmic,
                 "none" => crate::render::ToneMap::None,
                 _ => crate::render::ToneMap::Aces,
             };
