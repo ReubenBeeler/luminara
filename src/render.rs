@@ -194,6 +194,8 @@ pub struct RenderConfig {
     pub hue_shift: f64,
     /// Enable ordered dithering to reduce banding in 8-bit output.
     pub dither: bool,
+    /// Custom gamma value (0 = use sRGB transfer function, >0 = simple power curve).
+    pub gamma: f64,
 }
 
 impl Default for RenderConfig {
@@ -221,6 +223,7 @@ impl Default for RenderConfig {
             sharpen: 0.0,
             hue_shift: 0.0,
             dither: false,
+            gamma: 0.0,
         }
     }
 }
@@ -843,7 +846,7 @@ pub fn render(
                 cb = lum + (cb - lum) * config.saturation;
             }
 
-            // Apply tone mapping and gamma correction
+            // Apply tone mapping
             let rf = tone_fn(cr);
             let gf = tone_fn(cg);
             let bf = tone_fn(cb);
@@ -862,9 +865,9 @@ pub fn render(
                 0.0
             };
 
-            let mut r = linear_to_srgb_dithered(rf, dither_offset);
-            let mut g = linear_to_srgb_dithered(gf, dither_offset);
-            let mut b = linear_to_srgb_dithered(bf, dither_offset);
+            let mut r = gamma_correct(rf, config.gamma, dither_offset);
+            let mut g = gamma_correct(gf, config.gamma, dither_offset);
+            let mut b = gamma_correct(bf, config.gamma, dither_offset);
 
             // Contrast: pivot around middle gray (128) in sRGB space
             if (config.contrast - 1.0).abs() > 1e-6 {
@@ -951,9 +954,16 @@ fn linear_to_srgb(x: f64) -> u8 {
 }
 
 /// Convert linear [0,1] to sRGB byte with optional dither offset.
+/// If gamma > 0, uses simple power curve instead of sRGB transfer function.
 fn linear_to_srgb_dithered(x: f64, dither: f64) -> u8 {
+    gamma_correct(x, 0.0, dither)
+}
+
+fn gamma_correct(x: f64, gamma: f64, dither: f64) -> u8 {
     let x = x.clamp(0.0, 1.0);
-    let s = if x <= 0.0031308 {
+    let s = if gamma > 0.0 {
+        x.powf(1.0 / gamma)
+    } else if x <= 0.0031308 {
         12.92 * x
     } else {
         1.055 * x.powf(1.0 / 2.4) - 0.055

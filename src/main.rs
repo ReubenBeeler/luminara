@@ -57,6 +57,7 @@ struct CliArgs {
     sharpen: Option<f64>,
     hue_shift: Option<f64>,
     dither: bool,
+    gamma: Option<f64>,
 }
 
 fn main() {
@@ -147,6 +148,9 @@ fn main() {
     }
     if cli.dither {
         render_config.dither = true;
+    }
+    if let Some(gamma) = cli.gamma {
+        render_config.gamma = gamma;
     }
     if cli.save_hdr.is_some() {
         render_config.save_hdr = true;
@@ -374,6 +378,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         sharpen: None,
         hue_shift: None,
         dither: false,
+        gamma: None,
     };
     let mut i = 1;
 
@@ -472,6 +477,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--dither" => {
                 cli.dither = true;
             }
+            "--gamma" => {
+                i += 1;
+                if i < args.len() {
+                    cli.gamma = args[i].parse().ok();
+                }
+            }
             "--save-hdr" => {
                 i += 1;
                 if i < args.len() {
@@ -539,6 +550,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --sharpen N   Sharpen details (e.g. 0.5)");
                 eprintln!("      --hue-shift N Rotate hue in degrees (e.g. 30, 180)");
                 eprintln!("      --dither      Apply ordered dithering to reduce banding");
+                eprintln!("      --gamma N     Custom gamma (0=sRGB default, 2.2=simple)");
                 eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
                 eprintln!("      --crop X,Y,W,H  Render only a sub-region of the image");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
