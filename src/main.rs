@@ -101,6 +101,7 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    wave: Option<f64>,
     swirl: Option<f64>,
     mosaic: Option<u32>,
     radial_blur: Option<f64>,
@@ -314,6 +315,9 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(w) = cli.wave {
+        render_config.wave = w;
+    }
     if let Some(s) = cli.swirl {
         render_config.swirl = s;
     }
@@ -452,6 +456,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if render_config.wave > 0.0 { pp.push(format!("wave({:.0})", render_config.wave)); }
         if render_config.swirl.abs() > 1e-6 { pp.push(format!("swirl({:.1})", render_config.swirl)); }
         if render_config.mosaic > 0 { pp.push(format!("mosaic({})", render_config.mosaic)); }
         if render_config.radial_blur > 0.0 { pp.push(format!("radial-blur({:.1})", render_config.radial_blur)); }
@@ -843,6 +848,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        wave: None,
         swirl: None,
         mosaic: None,
         radial_blur: None,
@@ -1187,6 +1193,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.rotate = args[i].parse().ok();
                 }
             }
+            "--wave" => {
+                i += 1;
+                if i < args.len() {
+                    cli.wave = args[i].parse().ok();
+                }
+            }
             "--swirl" => {
                 i += 1;
                 if i < args.len() {
@@ -1266,7 +1278,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 46 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 47 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1326,6 +1338,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --wave N      Wave/ripple distortion amplitude in pixels");
                 eprintln!("      --swirl N     Swirl/twist distortion (e.g. 2.0, negative for CCW)");
                 eprintln!("      --mosaic N    Voronoi stained-glass mosaic (cell size in px)");
                 eprintln!("      --radial-blur N  Zoom blur from center (e.g. 0.5)");

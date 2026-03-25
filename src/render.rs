@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Wave distortion amplitude in pixels (0 = off).
+    pub wave: f64,
     /// Swirl distortion intensity (0 = off). Twists image around center.
     pub swirl: f64,
     /// Mosaic cell size (0 = off). Creates Voronoi stained-glass mosaic effect.
@@ -430,6 +432,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            wave: 0.0,
             swirl: 0.0,
             mosaic: 0,
             radial_blur: 0.0,
@@ -1862,6 +1865,42 @@ pub fn render(
             }
             _ => rows,
         }
+    } else {
+        rows
+    };
+
+    // Optional wave distortion pass
+    let rows = if config.wave > 0.0 {
+        if !config.quiet {
+            eprint!("Applying wave...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let amp = config.wave;
+        let freq = 2.0 * std::f64::consts::PI / (height as f64 * 0.15);
+
+        let result: Vec<Vec<Color>> = (0..height).into_par_iter().map(|y| {
+            (0..width).map(|x| {
+                let dx = (y as f64 * freq).sin() * amp;
+                let dy = (x as f64 * freq * 1.3).sin() * amp * 0.7;
+                let sx = (x as f64 + dx).clamp(0.0, (width - 1) as f64);
+                let sy = (y as f64 + dy).clamp(0.0, (height - 1) as f64);
+                let x0 = sx.floor() as usize;
+                let y0 = sy.floor() as usize;
+                let x1 = (x0 + 1).min(width - 1);
+                let y1 = (y0 + 1).min(height - 1);
+                let fx = sx - x0 as f64;
+                let fy = sy - y0 as f64;
+                let top = rows[y0][x0] * (1.0 - fx) + rows[y0][x1] * fx;
+                let bot = rows[y1][x0] * (1.0 - fx) + rows[y1][x1] * fx;
+                top * (1.0 - fy) + bot * fy
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };
