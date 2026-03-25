@@ -631,6 +631,41 @@ impl Texture for Hexgrid {
     }
 }
 
+/// Wavy texture — sine-based interference pattern between two colors.
+/// Creates ripple, moiré, and wave patterns useful for water, fabrics, and effects.
+pub struct Wavy {
+    pub color1: Color,
+    pub color2: Color,
+    pub scale: f64,
+    /// Number of wave directions to combine (1 = simple sine, 3+ = moiré)
+    pub waves: u32,
+}
+
+impl Wavy {
+    pub fn new(color1: Color, color2: Color, scale: f64, waves: u32) -> Self {
+        Self {
+            color1,
+            color2,
+            scale: if scale.abs() < 1e-10 { 1.0 } else { scale },
+            waves: waves.max(1),
+        }
+    }
+}
+
+impl Texture for Wavy {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+        let mut val = 0.0;
+        for i in 0..self.waves {
+            let angle = std::f64::consts::PI * i as f64 / self.waves as f64;
+            let (ca, sa) = (angle.cos(), angle.sin());
+            val += (p.x * ca + p.z * sa + p.y * 0.5).sin();
+        }
+        let t = (val / self.waves as f64 * 0.5 + 0.5).clamp(0.0, 1.0);
+        self.color1 * (1.0 - t) + self.color2 * t
+    }
+}
+
 /// Fractal Brownian Motion texture — layers of Perlin noise at increasing frequencies.
 /// Produces smooth, organic patterns like clouds, terrain, or plasma.
 pub struct Fbm {
