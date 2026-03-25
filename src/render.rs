@@ -121,19 +121,33 @@ impl Background {
                 let u = phi / (2.0 * std::f64::consts::PI);
                 let v = theta / std::f64::consts::PI;
 
-                let i = ((u * *width as f64) as u32).min(width - 1);
-                let j = ((v * *height as f64) as u32).min(height - 1);
-                let idx = (j * width + i) as usize * 3;
-
-                if idx + 2 < pixels.len() {
-                    Color::new(
-                        pixels[idx] as f64 * intensity,
-                        pixels[idx + 1] as f64 * intensity,
-                        pixels[idx + 2] as f64 * intensity,
-                    )
-                } else {
-                    Color::ZERO
-                }
+                // Bilinear interpolation
+                let fx = u * *width as f64 - 0.5;
+                let fy = v * *height as f64 - 0.5;
+                let x0 = (fx.floor() as i64).rem_euclid(*width as i64) as u32;
+                let y0 = fy.floor().clamp(0.0, *height as f64 - 1.0) as u32;
+                let x1 = (x0 + 1) % width;
+                let y1 = (y0 + 1).min(height - 1);
+                let tx = fx - fx.floor();
+                let ty = fy - fy.floor();
+                let w = *width as usize;
+                let sample = |xi: u32, yi: u32| -> Color {
+                    let idx = (yi as usize * w + xi as usize) * 3;
+                    if idx + 2 < pixels.len() {
+                        Color::new(pixels[idx] as f64, pixels[idx + 1] as f64, pixels[idx + 2] as f64)
+                    } else {
+                        Color::ZERO
+                    }
+                };
+                let c00 = sample(x0, y0);
+                let c10 = sample(x1, y0);
+                let c01 = sample(x0, y1);
+                let c11 = sample(x1, y1);
+                let c = c00 * ((1.0 - tx) * (1.0 - ty))
+                    + c10 * (tx * (1.0 - ty))
+                    + c01 * ((1.0 - tx) * ty)
+                    + c11 * (tx * ty);
+                c * *intensity
             }
             Background::Sun { direction, sun_color, sun_intensity, sky_color } => {
                 let unit_dir = ray.direction.unit();
