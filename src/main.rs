@@ -41,6 +41,7 @@ struct CliArgs {
     seed: Option<u64>,
     exposure: Option<f64>,
     auto_exposure: bool,
+    tone_map: Option<String>,
     quiet: bool,
     info_only: bool,
 }
@@ -96,6 +97,18 @@ fn main() {
     render_config.quiet = cli.quiet;
     if cli.auto_exposure {
         render_config.auto_exposure = true;
+    }
+    if let Some(ref tm) = cli.tone_map {
+        render_config.tone_map = match tm.as_str() {
+            "aces" => render::ToneMap::Aces,
+            "reinhard" => render::ToneMap::Reinhard,
+            "filmic" | "uncharted2" => render::ToneMap::Filmic,
+            "none" => render::ToneMap::None,
+            other => {
+                eprintln!("Warning: unknown tone map '{other}', using ACES");
+                render::ToneMap::Aces
+            }
+        };
     }
     if let Some(t) = cli.threads {
         rayon::ThreadPoolBuilder::new()
@@ -191,6 +204,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         seed: None,
         exposure: None,
         auto_exposure: false,
+        tone_map: None,
         quiet: false,
         info_only: false,
     };
@@ -224,6 +238,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "--auto-exposure" => {
                 cli.auto_exposure = true;
+            }
+            "--tone-map" => {
+                i += 1;
+                if i < args.len() {
+                    cli.tone_map = Some(args[i].clone());
+                }
             }
             "-q" | "--quiet" => {
                 cli.quiet = true;
@@ -272,6 +292,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --seed        Set RNG seed for deterministic rendering");
                 eprintln!("  -e, --exposure    Exposure multiplier (default: 1.0)");
                 eprintln!("      --auto-exposure  Automatically compute exposure from scene luminance");
+                eprintln!("      --tone-map TM    Tone mapping: aces, reinhard, filmic, none (default: aces)");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
                 eprintln!("  -V, --version     Show version");
