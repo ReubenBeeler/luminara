@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Mosaic cell size (0 = off). Creates Voronoi stained-glass mosaic effect.
+    pub mosaic: u32,
     /// Radial blur intensity (0 = off). Creates zoom blur centered on image.
     pub radial_blur: f64,
     /// Border width in pixels (0 = off).
@@ -426,6 +428,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            mosaic: 0,
             radial_blur: 0.0,
             border: 0,
             border_color: [0.0, 0.0, 0.0],
@@ -1856,6 +1859,85 @@ pub fn render(
             }
             _ => rows,
         }
+    } else {
+        rows
+    };
+
+    // Optional mosaic pass (Voronoi stained-glass effect)
+    let rows = if config.mosaic > 0 {
+        if !config.quiet {
+            eprint!("Applying mosaic...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let cell = config.mosaic as usize;
+        let cols_count = width.div_ceil(cell);
+        let rows_count = height.div_ceil(cell);
+
+        // Generate one seed point per grid cell using deterministic hash
+        let mut seeds: Vec<(f64, f64)> = Vec::with_capacity(cols_count * rows_count);
+        for gy in 0..rows_count {
+            for gx in 0..cols_count {
+                let hash = ((gx as u64).wrapping_mul(73856093) ^ (gy as u64).wrapping_mul(19349663)).wrapping_mul(83492791);
+                let jx = (hash & 0xFFFF) as f64 / 65535.0;
+                let jy = ((hash >> 16) & 0xFFFF) as f64 / 65535.0;
+                let sx = (gx as f64 + jx) * cell as f64;
+                let sy = (gy as f64 + jy) * cell as f64;
+                seeds.push((sx.min((width - 1) as f64), sy.min((height - 1) as f64)));
+            }
+        }
+
+        // For each seed, compute average color from pixels in its neighborhood
+        let seed_colors: Vec<Color> = seeds.iter().map(|&(sx, sy)| {
+            let cx = sx as usize;
+            let cy = sy as usize;
+            let x0 = cx.saturating_sub(cell / 2);
+            let y0 = cy.saturating_sub(cell / 2);
+            let x1 = (cx + cell / 2).min(width - 1);
+            let y1 = (cy + cell / 2).min(height - 1);
+            let mut sum = Color::new(0.0, 0.0, 0.0);
+            let mut count = 0u32;
+            for row in &rows[y0..=y1] {
+                for pixel in &row[x0..=x1] {
+                    sum += *pixel;
+                    count += 1;
+                }
+            }
+            if count > 0 { sum * (1.0 / count as f64) } else { Color::new(0.0, 0.0, 0.0) }
+        }).collect();
+
+        // Map each pixel to nearest seed
+        let result: Vec<Vec<Color>> = (0..height).into_par_iter().map(|y| {
+            (0..width).map(|x| {
+                let gx = x / cell;
+                let gy = y / cell;
+                let mut best_dist = f64::MAX;
+                let mut best_color = Color::new(0.0, 0.0, 0.0);
+                // Check 3x3 neighborhood of grid cells
+                for dy in 0..3u32 {
+                    for dx in 0..3u32 {
+                        let nx = gx as i32 + dx as i32 - 1;
+                        let ny = gy as i32 + dy as i32 - 1;
+                        if nx < 0 || ny < 0 || nx >= cols_count as i32 || ny >= rows_count as i32 { continue; }
+                        let idx = ny as usize * cols_count + nx as usize;
+                        let (sx, sy) = seeds[idx];
+                        let ddx = x as f64 - sx;
+                        let ddy = y as f64 - sy;
+                        let dist = ddx * ddx + ddy * ddy;
+                        if dist < best_dist {
+                            best_dist = dist;
+                            best_color = seed_colors[idx];
+                        }
+                    }
+                }
+                best_color
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };
