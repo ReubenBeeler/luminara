@@ -107,6 +107,7 @@ struct CliArgs {
     resize: Option<[u32; 2]>,
     warm: bool,
     cool: bool,
+    rotate: Option<u32>,
 }
 
 fn main() {
@@ -329,6 +330,9 @@ fn main() {
     if cli.cool {
         render_config.tint = [0.85, 0.92, 1.0];
     }
+    if let Some(r) = cli.rotate {
+        render_config.rotate = r;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -443,6 +447,7 @@ fn main() {
         if render_config.radial_blur > 0.0 { pp.push(format!("radial-blur({:.1})", render_config.radial_blur)); }
         if render_config.border > 0 { pp.push(format!("border({}px)", render_config.border)); }
         if render_config.resize[0] > 0 || render_config.resize[1] > 0 { pp.push(format!("resize({}x{})", render_config.resize[0], render_config.resize[1])); }
+        if render_config.rotate > 0 { pp.push(format!("rotate({}°)", render_config.rotate)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -526,6 +531,12 @@ fn main() {
     let result = render::render(&render_config, &camera, &world, &world.lights);
     let pixels = result.pixels;
 
+    // Adjust output dimensions for rotation
+    let (out_w, out_h) = if render_config.rotate == 90 || render_config.rotate == 270 {
+        (out_h, out_w)
+    } else {
+        (out_w, out_h)
+    };
     // Adjust output dimensions if resize was applied
     let (out_w, out_h) = if render_config.resize[0] > 0 || render_config.resize[1] > 0 {
         let rw = if render_config.resize[0] > 0 { render_config.resize[0] } else { out_w };
@@ -828,6 +839,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         resize: None,
         warm: false,
         cool: false,
+        rotate: None,
     };
     let mut i = 1;
 
@@ -1157,6 +1169,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--cool" => {
                 cli.cool = true;
             }
+            "--rotate" => {
+                i += 1;
+                if i < args.len() {
+                    cli.rotate = args[i].parse().ok();
+                }
+            }
             "--radial-blur" => {
                 i += 1;
                 if i < args.len() {
@@ -1224,7 +1242,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 42 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 44 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1290,6 +1308,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --resize WxH  Resize output (bilinear), e.g. 1920x1080");
                 eprintln!("      --warm        Warm white balance preset");
                 eprintln!("      --cool        Cool white balance preset");
+                eprintln!("      --rotate N    Rotate output image (90, 180, 270 degrees)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

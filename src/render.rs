@@ -358,6 +358,8 @@ pub struct RenderConfig {
     pub border_color: [f64; 3],
     /// Output resize: [width, height]. 0 = keep original dimension.
     pub resize: [u32; 2],
+    /// Image rotation in degrees (0, 90, 180, 270).
+    pub rotate: u32,
 }
 
 impl Default for RenderConfig {
@@ -428,6 +430,7 @@ impl Default for RenderConfig {
             border: 0,
             border_color: [0.0, 0.0, 0.0],
             resize: [0, 0],
+            rotate: 0,
         }
     }
 }
@@ -1816,6 +1819,43 @@ pub fn render(
             result.reverse();
         }
         result
+    } else {
+        rows
+    };
+
+    // Optional rotation pass
+    let rows = if config.rotate == 90 || config.rotate == 180 || config.rotate == 270 {
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        match config.rotate {
+            90 => {
+                let mut result = vec![vec![Color::new(0.0, 0.0, 0.0); height]; width];
+                for (y, row) in rows.iter().enumerate() {
+                    for (x, pixel) in row.iter().enumerate() {
+                        result[x][height - 1 - y] = *pixel;
+                    }
+                }
+                result
+            }
+            180 => {
+                let mut result = rows;
+                result.reverse();
+                for row in &mut result {
+                    row.reverse();
+                }
+                result
+            }
+            270 => {
+                let mut result = vec![vec![Color::new(0.0, 0.0, 0.0); height]; width];
+                for (y, row) in rows.iter().enumerate() {
+                    for (x, pixel) in row.iter().enumerate() {
+                        result[width - 1 - x][y] = *pixel;
+                    }
+                }
+                result
+            }
+            _ => rows,
+        }
     } else {
         rows
     };

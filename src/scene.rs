@@ -145,6 +145,7 @@ pub struct RenderSettings {
     pub border: Option<u32>,
     pub border_color: Option<[f64; 3]>,
     pub resize: Option<[u32; 2]>,
+    pub rotate: Option<u32>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -931,6 +932,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(rs) = r.resize {
             render_config.resize = rs;
+        }
+        if let Some(rot) = r.rotate {
+            render_config.rotate = rot;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1904,6 +1908,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         border: 0,
         border_color: [0.0, 0.0, 0.0],
         resize: [0, 0],
+        rotate: 0,
     };
 
     let cam_config = CameraConfig {
