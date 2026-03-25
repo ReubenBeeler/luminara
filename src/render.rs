@@ -359,6 +359,8 @@ pub struct RenderConfig {
     pub split_tone: String,
     /// Color shift: rotate RGB channels by N positions (0 = off, 1 = R→G→B→R, 2 = R→B→G→R).
     pub color_shift: u32,
+    /// Per-channel posterization levels [R, G, B]. [0,0,0] = off.
+    pub posterize_channels: [u32; 3],
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -461,6 +463,7 @@ impl Default for RenderConfig {
             gradient_map: String::new(),
             split_tone: String::new(),
             color_shift: 0,
+            posterize_channels: [0, 0, 0],
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2980,6 +2983,19 @@ pub fn render(
                 r = nr;
                 g = ng;
                 b = nb;
+            }
+
+            // Per-channel posterization
+            if config.posterize_channels[0] >= 2 || config.posterize_channels[1] >= 2 || config.posterize_channels[2] >= 2 {
+                let posterize_ch = |v: u8, levels: u32| -> u8 {
+                    if levels < 2 { return v; }
+                    let f = v as f64 / 255.0;
+                    let q = (f * (levels - 1) as f64).round() / (levels - 1) as f64;
+                    (q * 255.0).clamp(0.0, 255.0) as u8
+                };
+                r = posterize_ch(r, config.posterize_channels[0]);
+                g = posterize_ch(g, config.posterize_channels[1]);
+                b = posterize_ch(b, config.posterize_channels[2]);
             }
 
             // Color inversion

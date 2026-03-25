@@ -106,6 +106,7 @@ struct CliArgs {
     gradient_map: Option<String>,
     split_tone: Option<String>,
     color_shift: Option<u32>,
+    posterize_channels: Option<[u32; 3]>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -347,6 +348,9 @@ fn main() {
     if let Some(cs) = cli.color_shift {
         render_config.color_shift = cs;
     }
+    if let Some(pc) = cli.posterize_channels {
+        render_config.posterize_channels = pc;
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -534,6 +538,9 @@ fn main() {
         if !render_config.gradient_map.is_empty() { pp.push("gradient-map".to_string()); }
         if !render_config.split_tone.is_empty() { pp.push("split-tone".to_string()); }
         if render_config.color_shift > 0 { pp.push(format!("color-shift({})", render_config.color_shift)); }
+        if render_config.posterize_channels.iter().any(|&l| l >= 2) {
+            pp.push(format!("posterize-ch({},{},{})", render_config.posterize_channels[0], render_config.posterize_channels[1], render_config.posterize_channels[2]));
+        }
         if render_config.pop_art >= 2 { pp.push(format!("pop-art({})", render_config.pop_art)); }
         if render_config.watercolor > 0 { pp.push(format!("watercolor({})", render_config.watercolor)); }
         if render_config.auto_levels { pp.push("auto-levels".to_string()); }
@@ -956,6 +963,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         gradient_map: None,
         split_tone: None,
         color_shift: None,
+        posterize_channels: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1361,6 +1369,15 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.color_shift = args[i].parse().ok();
                 }
             }
+            "--posterize-channels" => {
+                i += 1;
+                if i < args.len() {
+                    let parts: Vec<u32> = args[i].split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                    if parts.len() == 3 {
+                        cli.posterize_channels = Some([parts[0], parts[1], parts[2]]);
+                    }
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1491,7 +1508,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 62 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 63 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1556,6 +1573,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --gradient-map S  Custom gradient color map (\"RRGGBB;RRGGBB;...\")");
                 eprintln!("      --split-tone S  Split toning (\"R,G,B;R,G,B\" shadow;highlight)");
                 eprintln!("      --color-shift N  Rotate RGB channels (1=right, 2=left)");
+                eprintln!("      --posterize-channels R,G,B  Per-channel posterization levels");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");
