@@ -340,6 +340,8 @@ pub struct RenderConfig {
     pub depth_fog: f64,
     /// Depth fog color [R, G, B] (default: white).
     pub depth_fog_color: [f64; 3],
+    /// Channel swap mode: "rgb" (normal), "rbg", "grb", "gbr", "brg", "bgr"
+    pub channel_swap: String,
 }
 
 impl Default for RenderConfig {
@@ -401,6 +403,7 @@ impl Default for RenderConfig {
             glitch: 0.0,
             depth_fog: 0.0,
             depth_fog_color: [0.8, 0.85, 0.9],
+            channel_swap: String::new(),
         }
     }
 }
@@ -2061,6 +2064,19 @@ pub fn render(
                     b = 255;
                 }
                 // else keep original color (or darken slightly)
+            }
+
+            // Channel swap
+            if !config.channel_swap.is_empty() {
+                let (or, og, ob) = (r, g, b);
+                match config.channel_swap.as_str() {
+                    "rbg" => { g = ob; b = og; }
+                    "grb" => { r = og; g = or; }
+                    "gbr" => { r = og; g = ob; b = or; }
+                    "brg" => { r = ob; g = or; b = og; }
+                    "bgr" => { r = ob; b = or; }
+                    _ => {} // "rgb" or unknown = no change
+                }
             }
 
             // False color mapping
