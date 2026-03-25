@@ -930,6 +930,41 @@ impl Texture for Camo {
     }
 }
 
+/// Brick wall pattern with configurable brick and mortar colors.
+pub struct Brick {
+    pub brick_color: Color,
+    pub mortar_color: Color,
+    pub scale: f64,
+    pub mortar_width: f64,
+}
+
+impl Brick {
+    pub fn new(brick_color: Color, mortar_color: Color, scale: f64, mortar_width: f64) -> Self {
+        Self { brick_color, mortar_color, scale, mortar_width: mortar_width.clamp(0.01, 0.5) }
+    }
+}
+
+impl Texture for Brick {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let x = point.x * self.scale;
+        let y = point.y * self.scale;
+
+        // Brick aspect ratio: 2:1
+        let row = y.floor() as i64;
+        let offset = if row % 2 == 0 { 0.0 } else { 0.5 };
+        let bx = (x + offset).rem_euclid(1.0);
+        let by = y.rem_euclid(1.0);
+
+        // Check if we're in the mortar
+        let mw = self.mortar_width;
+        if bx < mw || bx > 1.0 - mw || by < mw || by > 1.0 - mw {
+            self.mortar_color
+        } else {
+            self.brick_color
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
