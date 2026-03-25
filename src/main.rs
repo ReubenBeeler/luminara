@@ -90,6 +90,7 @@ struct CliArgs {
     color_map: Option<String>,
     solarize: Option<f64>,
     duo_tone: Option<String>,
+    sketch: bool,
 }
 
 fn main() {
@@ -264,6 +265,9 @@ fn main() {
     if let Some(ref dt) = cli.duo_tone {
         render_config.duo_tone = dt.clone();
     }
+    if cli.sketch {
+        render_config.sketch = true;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -363,6 +367,7 @@ fn main() {
         if !render_config.color_map.is_empty() { pp.push(format!("color-map({})", render_config.color_map)); }
         if render_config.solarize >= 0.0 { pp.push(format!("solarize({:.2})", render_config.solarize)); }
         if !render_config.duo_tone.is_empty() { pp.push("duo-tone".to_string()); }
+        if render_config.sketch { pp.push("sketch".to_string()); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -697,6 +702,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         color_map: None,
         solarize: None,
         duo_tone: None,
+        sketch: false,
     };
     let mut i = 1;
 
@@ -957,6 +963,9 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.duo_tone = Some(args[i].clone());
                 }
             }
+            "--sketch" => {
+                cli.sketch = true;
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1041,6 +1050,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --color-map S False color: inferno, viridis, turbo, heat, grayscale");
                 eprintln!("      --solarize N  Solarize at luminance threshold (0.0-1.0)");
                 eprintln!("      --duo-tone S  Two-color toning (e.g. \"0,0,64;255,200,0\")");
+                eprintln!("      --sketch      Pencil sketch effect (grayscale + edge detection)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

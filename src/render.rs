@@ -328,6 +328,8 @@ pub struct RenderConfig {
     /// Duo-tone: map shadows to color A, highlights to color B. Empty = off.
     /// Format: "R,G,B;R,G,B" (each 0-255) e.g. "0,0,64;255,200,0"
     pub duo_tone: String,
+    /// Sketch mode (false = off). Combines edge detection + inverted grayscale for pencil look.
+    pub sketch: bool,
 }
 
 impl Default for RenderConfig {
@@ -383,6 +385,7 @@ impl Default for RenderConfig {
             color_map: String::new(),
             solarize: -1.0,
             duo_tone: String::new(),
+            sketch: false,
         }
     }
 }
@@ -1563,6 +1566,57 @@ pub fn render(
             eprintln!(" done");
         }
         embossed
+    } else {
+        rows
+    };
+
+    // Optional sketch pass: grayscale + edge detection for pencil drawing look
+    let rows = if config.sketch {
+        if !config.quiet {
+            eprint!("Generating sketch...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+
+        // First, convert to grayscale
+        let gray: Vec<Vec<Color>> = rows.iter()
+            .map(|row| row.iter()
+                .map(|c| {
+                    let lum = 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+                    Color::new(lum, lum, lum)
+                })
+                .collect())
+            .collect();
+
+        // Apply edge detection (Sobel) to get edges
+        let sketch: Vec<Vec<Color>> = (0..height)
+            .map(|j| {
+                (0..width)
+                    .map(|i| {
+                        if j == 0 || i == 0 || j >= height - 1 || i >= width - 1 {
+                            return Color::new(1.0, 1.0, 1.0); // white border
+                        }
+                        let lum = |jj: usize, ii: usize| -> f64 {
+                            let c = gray[jj][ii];
+                            c.x
+                        };
+                        let gx = -lum(j-1,i-1) - 2.0*lum(j,i-1) - lum(j+1,i-1)
+                                + lum(j-1,i+1) + 2.0*lum(j,i+1) + lum(j+1,i+1);
+                        let gy = -lum(j-1,i-1) - 2.0*lum(j-1,i) - lum(j-1,i+1)
+                                + lum(j+1,i-1) + 2.0*lum(j+1,i) + lum(j+1,i+1);
+                        let edge = (gx * gx + gy * gy).sqrt();
+                        // Invert: white background, dark edges
+                        let val = (1.0 - edge * 3.0).clamp(0.0, 1.0);
+                        Color::new(val, val, val)
+                    })
+                    .collect()
+            })
+            .collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        sketch
     } else {
         rows
     };

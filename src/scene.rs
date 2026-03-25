@@ -1804,6 +1804,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         color_map: String::new(),
         solarize: -1.0,
         duo_tone: String::new(),
+        sketch: false,
     };
 
     let cam_config = CameraConfig {
