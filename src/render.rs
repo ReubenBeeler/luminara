@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Watercolor painting effect radius (0 = off).
+    pub watercolor: u32,
     /// Auto-levels: stretch histogram to use full dynamic range.
     pub auto_levels: bool,
     /// Brightness adjustment (-1.0 to 1.0, 0 = no change). Added to each channel in LDR space.
@@ -444,6 +446,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            watercolor: 0,
             auto_levels: false,
             brightness: 0.0,
             color_balance: [1.0, 1.0, 1.0],
@@ -1921,6 +1924,60 @@ pub fn render(
             }
             _ => rows,
         }
+    } else {
+        rows
+    };
+
+    // Optional watercolor painting effect
+    let rows = if config.watercolor > 0 {
+        if !config.quiet {
+            eprint!("Applying watercolor...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let r = config.watercolor as i32;
+
+        // Step 1: Smooth colors using area averaging (fast approximation of median)
+        let smoothed: Vec<Vec<Color>> = (0..height).into_par_iter().map(|y| {
+            (0..width).map(|x| {
+                let mut sum = Color::new(0.0, 0.0, 0.0);
+                let mut count = 0;
+                for dy in -r..=r {
+                    for dx in -r..=r {
+                        let nx = (x as i32 + dx).clamp(0, (width - 1) as i32) as usize;
+                        let ny = (y as i32 + dy).clamp(0, (height - 1) as i32) as usize;
+                        sum += rows[ny][nx];
+                        count += 1;
+                    }
+                }
+                sum * (1.0 / count as f64)
+            }).collect()
+        }).collect();
+
+        // Step 2: Add edge darkening using Sobel magnitude
+        let result: Vec<Vec<Color>> = (0..height).into_par_iter().map(|y| {
+            (0..width).map(|x| {
+                if y == 0 || x == 0 || y >= height - 1 || x >= width - 1 {
+                    return smoothed[y][x];
+                }
+                let lum = |yy: usize, xx: usize| -> f64 {
+                    let c = smoothed[yy][xx];
+                    0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z
+                };
+                let gx = -lum(y-1,x-1) - 2.0*lum(y,x-1) - lum(y+1,x-1)
+                        + lum(y-1,x+1) + 2.0*lum(y,x+1) + lum(y+1,x+1);
+                let gy = -lum(y-1,x-1) - 2.0*lum(y-1,x) - lum(y-1,x+1)
+                        + lum(y+1,x-1) + 2.0*lum(y+1,x) + lum(y+1,x+1);
+                let edge = (gx * gx + gy * gy).sqrt();
+                let darken = (1.0 - edge * 2.0).clamp(0.6, 1.0);
+                smoothed[y][x] * darken
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };

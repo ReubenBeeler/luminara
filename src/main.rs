@@ -102,6 +102,7 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    watercolor: Option<u32>,
     auto_levels: bool,
     brightness: Option<f64>,
     color_balance: Option<[f64; 3]>,
@@ -329,6 +330,9 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(wc) = cli.watercolor {
+        render_config.watercolor = wc;
+    }
     if cli.auto_levels {
         render_config.auto_levels = true;
     }
@@ -506,6 +510,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if render_config.watercolor > 0 { pp.push(format!("watercolor({})", render_config.watercolor)); }
         if render_config.auto_levels { pp.push("auto-levels".to_string()); }
         if render_config.brightness.abs() > 1e-6 { pp.push(format!("brightness({:.2})", render_config.brightness)); }
         if (render_config.color_balance[0] - 1.0).abs() > 1e-6 || (render_config.color_balance[1] - 1.0).abs() > 1e-6 || (render_config.color_balance[2] - 1.0).abs() > 1e-6 {
@@ -922,6 +927,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        watercolor: None,
         auto_levels: false,
         brightness: None,
         color_balance: None,
@@ -1301,6 +1307,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.save_json = Some(PathBuf::from(&args[i]));
                 }
             }
+            "--watercolor" => {
+                i += 1;
+                if i < args.len() {
+                    cli.watercolor = args[i].parse().ok();
+                }
+            }
             "--auto-levels" => {
                 cli.auto_levels = true;
             }
@@ -1419,7 +1431,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 56 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 57 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1480,6 +1492,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");
                 eprintln!("      --brightness N Brightness adjustment (-1.0 to 1.0, 0 = no change)");
                 eprintln!("      --color-balance R,G,B  Per-channel level adjustment (e.g. 1.2,1.0,0.8)");

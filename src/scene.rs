@@ -141,6 +141,7 @@ pub struct RenderSettings {
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
     pub palette: Option<String>,
+    pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
     pub brightness: Option<f64>,
     pub color_balance: Option<[f64; 3]>,
@@ -930,6 +931,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref p) = r.palette {
             render_config.palette = p.clone();
+        }
+        if let Some(wc) = r.watercolor {
+            render_config.watercolor = wc;
         }
         if r.auto_levels == Some(true) {
             render_config.auto_levels = true;
@@ -1944,6 +1948,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
         palette: String::new(),
+        watercolor: 0,
         auto_levels: false,
         brightness: 0.0,
         color_balance: [1.0, 1.0, 1.0],
