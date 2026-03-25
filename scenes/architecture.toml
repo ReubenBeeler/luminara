@@ -1,0 +1,66 @@
+# Architecture Scene — Brick walls, marble, metal
+# Demonstrates architectural materials and lighting
+
+[render]
+width = 800
+height = 600
+samples = 64
+max_depth = 10
+bloom = 0.1
+sharpen = 0.3
+background = { type = "gradient", bottom = [0.3, 0.35, 0.4], top = [0.5, 0.6, 0.8] }
+
+[camera]
+look_from = [6, 3, 8]
+look_at = [0, 1, 0]
+vfov = 40
+
+# Ground — marble
+[[sphere]]
+center = [0, -1000, 0]
+radius = 1000
+material = { type = "marble", color = [0.9, 0.88, 0.85], scale = 3 }
+
+# Back wall — brick
+[[quad]]
+q = [-4, 0, -3]
+u = [8, 0, 0]
+v = [0, 5, 0]
+material = { type = "brick", brick_color = [0.65, 0.2, 0.12], mortar_color = [0.85, 0.82, 0.75], scale = 4, mortar_width = 0.04 }
+
+# Brushed metal column
+[[cylinder]]
+center = [-2, 0, 0]
+radius = 0.3
+height = 3
+material = { type = "anisotropic", color = [0.85, 0.85, 0.85], roughness_u = 0.02, roughness_v = 0.3 }
+
+# Glass sphere ornament
+[[sphere]]
+center = [0, 0.8, 1]
+radius = 0.8
+material = { type = "dielectric", refraction_index = 1.5, tint = [0.95, 0.98, 1.0] }
+
+# PBR gold accent
+[[sphere]]
+center = [2, 0.5, 0.5]
+radius = 0.5
+material = { type = "pbr", color = [1.0, 0.84, 0.0], roughness = 0.15, metallic = 1.0 }
+
+# Wood pedestal
+[[box]]
+min = [1.5, 0, -0.5]
+max = [2.5, 0.3, 1.5]
+material = { type = "wood", color1 = [0.6, 0.35, 0.15], color2 = [0.45, 0.25, 0.1], scale = 2 }
+
+# Warm key light
+[[sphere]]
+center = [5, 8, 6]
+radius = 2
+material = { type = "blackbody", temperature = 4500, intensity = 8 }
+
+# Cool fill light
+[[sphere]]
+center = [-5, 5, 3]
+radius = 1
+material = { type = "emissive", color = [0.7, 0.8, 1.0], intensity = 3 }
