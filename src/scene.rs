@@ -922,6 +922,30 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     }
 
     for d in &scene.disk {
+        // Track emissive disks for NEE
+        match &d.material {
+            MaterialDesc::Emissive { color, intensity, .. } => {
+                let emission_color = Color::new(color[0], color[1], color[2]);
+                let int = intensity.unwrap_or(1.0);
+                lights.push(LightInfo::Disk {
+                    center: arr_to_vec3(d.center),
+                    normal: arr_to_vec3(d.normal).unit(),
+                    radius: d.radius,
+                    emission: emission_color * int,
+                });
+            }
+            MaterialDesc::Blackbody { temperature, intensity, .. } => {
+                let emission_color = blackbody_to_rgb(*temperature);
+                let int = intensity.unwrap_or(1.0);
+                lights.push(LightInfo::Disk {
+                    center: arr_to_vec3(d.center),
+                    normal: arr_to_vec3(d.normal).unit(),
+                    radius: d.radius,
+                    emission: emission_color * int,
+                });
+            }
+            _ => {}
+        }
         let mat = build_material(&d.material);
         world.add(Box::new(Disk::new(
             arr_to_vec3(d.center),

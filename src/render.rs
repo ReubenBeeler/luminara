@@ -30,6 +30,12 @@ pub enum LightInfo {
         normal: Vec3,
         emission: Color,
     },
+    Disk {
+        center: Point3,
+        normal: Vec3,
+        radius: f64,
+        emission: Color,
+    },
 }
 
 /// Background environment for rays that miss all objects.
@@ -747,6 +753,21 @@ fn sample_direct_light(
             let p = *origin + *u * s + *v * t;
             let a = u.cross(*v).length();
             (p, *n, a, *emission)
+        }
+        LightInfo::Disk { center, normal: n, radius, emission } => {
+            // Uniform sampling on disk: rejection-free concentric mapping
+            let r1 = rng.next_f64();
+            let r2 = rng.next_f64();
+            let r = r1.sqrt() * radius;
+            let theta = 2.0 * std::f64::consts::PI * r2;
+            // Build tangent frame from normal
+            let w = *n;
+            let a_vec = if w.x.abs() > 0.9 { Vec3::new(0.0, 1.0, 0.0) } else { Vec3::new(1.0, 0.0, 0.0) };
+            let u_tan = w.cross(a_vec).unit();
+            let v_tan = w.cross(u_tan);
+            let p = *center + u_tan * (r * theta.cos()) + v_tan * (r * theta.sin());
+            let area = std::f64::consts::PI * radius * radius;
+            (p, *n, area, *emission)
         }
     };
 
