@@ -1099,8 +1099,16 @@ pub fn render(
     world: &dyn Hittable,
     lights: &[LightInfo],
 ) -> RenderResult {
-    let full_width = config.width as usize;
-    let full_height = config.height as usize;
+    // Validate render config
+    if config.width == 0 || config.height == 0 {
+        eprintln!("Warning: zero-size image ({}x{}), using 1x1", config.width, config.height);
+    }
+    if config.samples_per_pixel == 0 {
+        eprintln!("Warning: 0 samples per pixel, using 1");
+    }
+
+    let full_width = config.width.max(1) as usize;
+    let full_height = config.height.max(1) as usize;
 
     // Crop region (defaults to full image)
     let (crop_x, crop_y, crop_w, crop_h) = match config.crop {
