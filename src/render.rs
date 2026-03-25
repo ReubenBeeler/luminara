@@ -2078,4 +2078,71 @@ mod tests {
         assert!((c.x - 1.0).abs() < 0.1, "Center R should be ~1.0, got {}", c.x);
         assert!((c.y - 1.0).abs() < 0.1, "Center G should be ~1.0, got {}", c.y);
     }
+
+    #[test]
+    fn render_minimal_scene() {
+        use crate::camera::{Camera, CameraConfig};
+        use crate::hit::HittableList;
+        use crate::material::Lambertian;
+        use crate::sphere::Sphere;
+
+        let mut world = HittableList::new();
+        world.add(Box::new(Sphere::new(
+            crate::vec3::Point3::new(0.0, 0.0, -1.0),
+            0.5,
+            Box::new(Lambertian::new(Color::new(0.5, 0.5, 0.5))),
+        )));
+
+        let cam = Camera::new(CameraConfig::default());
+        let config = RenderConfig {
+            width: 10,
+            height: 10,
+            samples_per_pixel: 1,
+            max_depth: 3,
+            quiet: true,
+            ..Default::default()
+        };
+
+        let result = render(&config, &cam, &world, &[]);
+        assert_eq!(result.pixels.len(), 10 * 10 * 4); // RGBA
+        assert!(result.total_rays > 0);
+        assert!(result.render_time_secs >= 0.0);
+    }
+
+    #[test]
+    fn blur_preserves_solid_color() {
+        let c = Color::new(0.5, 0.3, 0.7);
+        let rows = vec![vec![c; 20]; 20];
+        let blurred = apply_blur(&rows, 2.0);
+        // Center pixel should stay close to original for uniform image
+        let center = blurred[10][10];
+        assert!((center.x - c.x).abs() < 0.01);
+        assert!((center.y - c.y).abs() < 0.01);
+        assert!((center.z - c.z).abs() < 0.01);
+    }
+
+    #[test]
+    fn pixelate_averages_blocks() {
+        let rows = vec![
+            vec![Color::new(1.0, 0.0, 0.0), Color::new(0.0, 1.0, 0.0)],
+            vec![Color::new(0.0, 0.0, 1.0), Color::new(1.0, 1.0, 0.0)],
+        ];
+        let result = apply_pixelate(&rows, 2);
+        // All 4 pixels should be the same (averaged)
+        let avg = result[0][0];
+        assert!((avg.x - 0.5).abs() < 0.01);
+        assert!((avg.y - 0.5).abs() < 0.01);
+        assert_eq!(result[0][0], result[0][1]);
+        assert_eq!(result[1][0], result[1][1]);
+    }
+
+    #[test]
+    fn edge_detect_no_edges_on_uniform() {
+        let c = Color::new(0.5, 0.5, 0.5);
+        let rows = vec![vec![c; 10]; 10];
+        let result = apply_edge_detect(&rows, 1.0);
+        // Interior pixels should be unchanged (no edges)
+        let center = result[5][5];
+        assert!((center.x - c.x).abs() < 0.01);
+    }
 }
