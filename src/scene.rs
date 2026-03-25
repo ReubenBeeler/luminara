@@ -141,6 +141,7 @@ pub struct RenderSettings {
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
     pub palette: Option<String>,
+    pub radial_blur: Option<f64>,
     pub border: Option<u32>,
     pub border_color: Option<[f64; 3]>,
     pub background: Option<BackgroundDesc>,
@@ -917,6 +918,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref p) = r.palette {
             render_config.palette = p.clone();
+        }
+        if let Some(rb) = r.radial_blur {
+            render_config.radial_blur = rb;
         }
         if let Some(b) = r.border {
             render_config.border = b;
@@ -1892,6 +1896,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
         palette: String::new(),
+        radial_blur: 0.0,
         border: 0,
         border_color: [0.0, 0.0, 0.0],
     };

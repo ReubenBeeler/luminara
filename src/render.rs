@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Radial blur intensity (0 = off). Creates zoom blur centered on image.
+    pub radial_blur: f64,
     /// Border width in pixels (0 = off).
     pub border: u32,
     /// Border color [R, G, B] in 0..1 range.
@@ -420,6 +422,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            radial_blur: 0.0,
             border: 0,
             border_color: [0.0, 0.0, 0.0],
         }
@@ -1808,6 +1811,44 @@ pub fn render(
         }
         if mirror_v {
             result.reverse();
+        }
+        result
+    } else {
+        rows
+    };
+
+    // Optional radial blur pass (zoom blur from center)
+    let rows = if config.radial_blur > 0.0 {
+        if !config.quiet {
+            eprint!("Applying radial blur...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let cx = width as f64 * 0.5;
+        let cy = height as f64 * 0.5;
+        let max_dist = (cx * cx + cy * cy).sqrt();
+        let samples = 12;
+
+        let result: Vec<Vec<Color>> = (0..height).into_par_iter().map(|y| {
+            (0..width).map(|x| {
+                let dx = x as f64 - cx;
+                let dy = y as f64 - cy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                let strength = (dist / max_dist) * config.radial_blur;
+                let mut sum = Color::new(0.0, 0.0, 0.0);
+                for s in 0..samples {
+                    let t = (s as f64 / (samples - 1) as f64) * 2.0 - 1.0;
+                    let offset = t * strength;
+                    let sx = (x as f64 + dx * offset * 0.02).clamp(0.0, (width - 1) as f64) as usize;
+                    let sy = (y as f64 + dy * offset * 0.02).clamp(0.0, (height - 1) as f64) as usize;
+                    sum += rows[sy][sx];
+                }
+                sum * (1.0 / samples as f64)
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
         }
         result
     } else {

@@ -101,6 +101,7 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    radial_blur: Option<f64>,
     border: Option<u32>,
     border_color: Option<[f64; 3]>,
 }
@@ -307,6 +308,9 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(rb) = cli.radial_blur {
+        render_config.radial_blur = rb;
+    }
     if let Some(b) = cli.border {
         render_config.border = b;
     }
@@ -424,6 +428,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if render_config.radial_blur > 0.0 { pp.push(format!("radial-blur({:.1})", render_config.radial_blur)); }
         if render_config.border > 0 { pp.push(format!("border({}px)", render_config.border)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
@@ -795,6 +800,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        radial_blur: None,
         border: None,
         border_color: None,
     };
@@ -1120,6 +1126,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--ascii" => {
                 cli.ascii = true;
             }
+            "--radial-blur" => {
+                i += 1;
+                if i < args.len() {
+                    cli.radial_blur = args[i].parse().ok();
+                }
+            }
             "--border" => {
                 i += 1;
                 if i < args.len() {
@@ -1170,7 +1182,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 40 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 41 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1230,6 +1242,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --radial-blur N  Zoom blur from center (e.g. 0.5)");
                 eprintln!("      --border N    Add N-pixel border frame");
                 eprintln!("      --border-color R,G,B  Border color (0-1 each, default: black)");
                 eprintln!("      --list-scenes List available scene files");
