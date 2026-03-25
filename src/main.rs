@@ -60,6 +60,7 @@ struct CliArgs {
     gamma: Option<f64>,
     adaptive: bool,
     adaptive_threshold: Option<f64>,
+    chromatic_aberration: Option<f64>,
 }
 
 fn main() {
@@ -150,6 +151,9 @@ fn main() {
     }
     if cli.dither {
         render_config.dither = true;
+    }
+    if let Some(ca) = cli.chromatic_aberration {
+        render_config.chromatic_aberration = ca;
     }
     if cli.adaptive {
         render_config.adaptive = true;
@@ -389,6 +393,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         gamma: None,
         adaptive: false,
         adaptive_threshold: None,
+        chromatic_aberration: None,
     };
     let mut i = 1;
 
@@ -487,6 +492,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--dither" => {
                 cli.dither = true;
             }
+            "--chromatic-aberration" | "--ca" => {
+                i += 1;
+                if i < args.len() {
+                    cli.chromatic_aberration = args[i].parse().ok();
+                }
+            }
             "--adaptive" => {
                 cli.adaptive = true;
             }
@@ -569,6 +580,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --sharpen N   Sharpen details (e.g. 0.5)");
                 eprintln!("      --hue-shift N Rotate hue in degrees (e.g. 30, 180)");
                 eprintln!("      --dither      Apply ordered dithering to reduce banding");
+                eprintln!("      --ca N        Chromatic aberration strength (e.g. 0.005)");
                 eprintln!("      --adaptive    Adaptive sampling: fewer samples on smooth areas");
                 eprintln!("      --adaptive-threshold N  Noise threshold (default 0.03)");
                 eprintln!("      --gamma N     Custom gamma (0=sRGB default, 2.2=simple)");

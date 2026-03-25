@@ -100,6 +100,7 @@ pub struct RenderSettings {
     pub gamma: Option<f64>,
     pub adaptive: Option<bool>,
     pub adaptive_threshold: Option<f64>,
+    pub chromatic_aberration: Option<f64>,
     pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
@@ -643,6 +644,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(threshold) = r.adaptive_threshold {
             render_config.adaptive_threshold = threshold;
+        }
+        if let Some(ca) = r.chromatic_aberration {
+            render_config.chromatic_aberration = ca;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1358,6 +1362,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         hue_shift: 0.0,
         dither: false,
         gamma: 0.0,
+        chromatic_aberration: 0.0,
         adaptive: false,
         adaptive_threshold: 0.03,
     };

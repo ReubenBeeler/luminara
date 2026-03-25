@@ -196,6 +196,8 @@ pub struct RenderConfig {
     pub dither: bool,
     /// Custom gamma value (0 = use sRGB transfer function, >0 = simple power curve).
     pub gamma: f64,
+    /// Chromatic aberration strength (0.0 = off). Shifts RGB channels radially.
+    pub chromatic_aberration: f64,
     /// Enable adaptive sampling: concentrate samples on noisy regions.
     pub adaptive: bool,
     /// Adaptive sampling noise threshold (0.01 = aggressive, 0.1 = conservative).
@@ -229,6 +231,7 @@ impl Default for RenderConfig {
             hue_shift: 0.0,
             dither: false,
             gamma: 0.0,
+            chromatic_aberration: 0.0,
             adaptive: false,
             adaptive_threshold: 0.03,
         }
@@ -394,6 +397,70 @@ fn apply_bloom(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
 
 /// Apply unsharp mask sharpening to HDR image data.
 /// Subtracts a blurred version from the original to enhance edges.
+/// Apply chromatic aberration by radially shifting R, G, B channels.
+/// Red shifts outward, blue shifts inward, green stays centered.
+fn apply_chromatic_aberration(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+    let cx = width as f64 / 2.0;
+    let cy = height as f64 / 2.0;
+    let max_dist = (cx * cx + cy * cy).sqrt();
+
+    let mut result = vec![vec![Color::ZERO; width]; height];
+
+    for j in 0..height {
+        for i in 0..width {
+            let dx = i as f64 + 0.5 - cx;
+            let dy = j as f64 + 0.5 - cy;
+            let dist = (dx * dx + dy * dy).sqrt();
+            // Scale shift by distance from center (stronger at edges)
+            let shift = strength * (dist / max_dist);
+
+            // Red channel: sample shifted outward
+            let r_x = cx + dx * (1.0 + shift);
+            let r_y = cy + dy * (1.0 + shift);
+            let r = sample_channel_bilinear(rows, r_x, r_y, width, height, 0);
+
+            // Green channel: no shift
+            let g = rows[j][i].y;
+
+            // Blue channel: sample shifted inward
+            let b_x = cx + dx * (1.0 - shift);
+            let b_y = cy + dy * (1.0 - shift);
+            let b = sample_channel_bilinear(rows, b_x, b_y, width, height, 2);
+
+            result[j][i] = Color::new(r, g, b);
+        }
+    }
+    result
+}
+
+/// Bilinear sample a single color channel from the HDR image.
+/// channel: 0=R, 1=G, 2=B
+fn sample_channel_bilinear(rows: &[Vec<Color>], x: f64, y: f64, width: usize, height: usize, channel: usize) -> f64 {
+    let x = x - 0.5;
+    let y = y - 0.5;
+    let x0 = (x.floor() as isize).clamp(0, width as isize - 1) as usize;
+    let y0 = (y.floor() as isize).clamp(0, height as isize - 1) as usize;
+    let x1 = (x0 + 1).min(width - 1);
+    let y1 = (y0 + 1).min(height - 1);
+    let fx = (x - x.floor()).clamp(0.0, 1.0);
+    let fy = (y - y.floor()).clamp(0.0, 1.0);
+
+    let get = |row: usize, col: usize| match channel {
+        0 => rows[row][col].x,
+        1 => rows[row][col].y,
+        _ => rows[row][col].z,
+    };
+
+    let top = get(y0, x0) * (1.0 - fx) + get(y0, x1) * fx;
+    let bot = get(y1, x0) * (1.0 - fx) + get(y1, x1) * fx;
+    top * (1.0 - fy) + bot * fy
+}
+
 fn apply_sharpen(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
     let height = rows.len();
     if height == 0 {
@@ -823,6 +890,20 @@ pub fn render(
             eprintln!(" done");
         }
         sharpened
+    } else {
+        rows
+    };
+
+    // Optional chromatic aberration pass (operates on HDR data before tone mapping)
+    let rows = if config.chromatic_aberration > 0.0 {
+        if !config.quiet {
+            eprint!("Applying chromatic aberration...");
+        }
+        let ca = apply_chromatic_aberration(&rows, config.chromatic_aberration);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        ca
     } else {
         rows
     };
