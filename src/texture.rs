@@ -866,6 +866,70 @@ impl Texture for Lava {
     }
 }
 
+/// Camouflage/organic cell pattern using Voronoi distance fields.
+pub struct Camo {
+    pub color1: Color,
+    pub color2: Color,
+    pub color3: Color,
+    pub scale: f64,
+}
+
+impl Camo {
+    pub fn new(color1: Color, color2: Color, color3: Color, scale: f64) -> Self {
+        Self { color1, color2, color3, scale }
+    }
+}
+
+impl Texture for Camo {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+        // Hash-based cell centers
+        let cell = |x: i64, y: i64, z: i64| -> Vec3 {
+            let h = (x.wrapping_mul(73856093) ^ y.wrapping_mul(19349663) ^ z.wrapping_mul(83492791)) as u64;
+            Vec3::new(
+                (h & 0xFF) as f64 / 255.0,
+                ((h >> 8) & 0xFF) as f64 / 255.0,
+                ((h >> 16) & 0xFF) as f64 / 255.0,
+            )
+        };
+
+        let ix = p.x.floor() as i64;
+        let iy = p.y.floor() as i64;
+        let iz = p.z.floor() as i64;
+        let mut min_d = f64::MAX;
+        let mut second_d = f64::MAX;
+
+        for dz in -1..=1 {
+            for dy in -1..=1 {
+                for dx in -1..=1 {
+                    let cx = ix + dx;
+                    let cy = iy + dy;
+                    let cz = iz + dz;
+                    let center = cell(cx, cy, cz);
+                    let diff = Vec3::new(cx as f64 + center.x, cy as f64 + center.y, cz as f64 + center.z) - p;
+                    let d = diff.length_squared();
+                    if d < min_d {
+                        second_d = min_d;
+                        min_d = d;
+                    } else if d < second_d {
+                        second_d = d;
+                    }
+                }
+            }
+        }
+
+        let edge = (second_d.sqrt() - min_d.sqrt()).clamp(0.0, 1.0);
+        let t = min_d.sqrt().fract();
+        if edge < 0.1 {
+            self.color3 // cell border
+        } else if t < 0.5 {
+            self.color1
+        } else {
+            self.color2
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
