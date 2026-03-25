@@ -1037,6 +1037,35 @@ impl Texture for Terrain {
     }
 }
 
+/// Plasma texture: colorful swirling sine-wave pattern.
+pub struct Plasma {
+    pub scale: f64,
+}
+
+impl Plasma {
+    pub fn new(scale: f64) -> Self {
+        Self { scale }
+    }
+}
+
+impl Texture for Plasma {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+        let v1 = (p.x + p.y).sin();
+        let v2 = (p.x * 0.7 - p.z * 1.3).sin();
+        let v3 = ((p.x + p.z) * 0.5 + (p.y * 1.5).cos()).sin();
+        let v4 = ((p.x * p.x + p.y * p.y + p.z * p.z).sqrt() * 1.5).sin();
+        let v = (v1 + v2 + v3 + v4) * 0.25; // [-1, 1]
+        let t = (v + 1.0) * 0.5; // [0, 1]
+        // Map to RGB using offset sine waves for psychedelic colors
+        Color::new(
+            ((t * std::f64::consts::PI * 2.0).sin() + 1.0) * 0.5,
+            ((t * std::f64::consts::PI * 2.0 + 2.094).sin() + 1.0) * 0.5,
+            ((t * std::f64::consts::PI * 2.0 + 4.189).sin() + 1.0) * 0.5,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
