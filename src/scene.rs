@@ -1798,6 +1798,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         oil_paint: 0,
         color_map: String::new(),
         solarize: -1.0,
+        duo_tone: String::new(),
     };
 
     let cam_config = CameraConfig {

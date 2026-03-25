@@ -89,6 +89,7 @@ struct CliArgs {
     oil_paint: Option<u32>,
     color_map: Option<String>,
     solarize: Option<f64>,
+    duo_tone: Option<String>,
 }
 
 fn main() {
@@ -260,6 +261,9 @@ fn main() {
     if let Some(s) = cli.solarize {
         render_config.solarize = s;
     }
+    if let Some(ref dt) = cli.duo_tone {
+        render_config.duo_tone = dt.clone();
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -358,6 +362,7 @@ fn main() {
         if render_config.oil_paint > 0 { pp.push(format!("oil-paint({})", render_config.oil_paint)); }
         if !render_config.color_map.is_empty() { pp.push(format!("color-map({})", render_config.color_map)); }
         if render_config.solarize >= 0.0 { pp.push(format!("solarize({:.2})", render_config.solarize)); }
+        if !render_config.duo_tone.is_empty() { pp.push("duo-tone".to_string()); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -691,6 +696,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         oil_paint: None,
         color_map: None,
         solarize: None,
+        duo_tone: None,
     };
     let mut i = 1;
 
@@ -945,6 +951,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.solarize = args[i].parse().ok();
                 }
             }
+            "--duo-tone" | "--duotone" => {
+                i += 1;
+                if i < args.len() {
+                    cli.duo_tone = Some(args[i].clone());
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1028,6 +1040,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --oil-paint N Oil painting Kuwahara filter radius (e.g. 3)");
                 eprintln!("      --color-map S False color: inferno, viridis, turbo, heat, grayscale");
                 eprintln!("      --solarize N  Solarize at luminance threshold (0.0-1.0)");
+                eprintln!("      --duo-tone S  Two-color toning (e.g. \"0,0,64;255,200,0\")");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

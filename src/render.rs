@@ -325,6 +325,9 @@ pub struct RenderConfig {
     pub color_map: String,
     /// Solarize threshold (negative = off, 0.0-1.0). Pixels above this luminance get inverted.
     pub solarize: f64,
+    /// Duo-tone: map shadows to color A, highlights to color B. Empty = off.
+    /// Format: "R,G,B;R,G,B" (each 0-255) e.g. "0,0,64;255,200,0"
+    pub duo_tone: String,
 }
 
 impl Default for RenderConfig {
@@ -379,6 +382,7 @@ impl Default for RenderConfig {
             oil_paint: 0,
             color_map: String::new(),
             solarize: -1.0,
+            duo_tone: String::new(),
         }
     }
 }
@@ -1644,6 +1648,21 @@ pub fn render(
         ToneMap::Filmic => filmic_tonemap,
         ToneMap::None => |x: f64| x.clamp(0.0, 1.0),
     };
+    // Parse duo-tone colors if specified: "R,G,B;R,G,B"
+    let duo_tone_colors: Option<([f64; 3], [f64; 3])> = if !config.duo_tone.is_empty() {
+        let parts: Vec<&str> = config.duo_tone.split(';').collect();
+        if parts.len() == 2 {
+            let parse_rgb = |s: &str| -> Option<[f64; 3]> {
+                let c: Vec<f64> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                if c.len() == 3 { Some([c[0] / 255.0, c[1] / 255.0, c[2] / 255.0]) } else { None }
+            };
+            match (parse_rgb(parts[0]), parse_rgb(parts[1])) {
+                (Some(a), Some(b)) => Some((a, b)),
+                _ => None,
+            }
+        } else { None }
+    } else { None };
+
     let mut pixels = Vec::with_capacity(width * height * 4);
     for (j, row) in rows.iter().enumerate() {
         for (i, color) in row.iter().enumerate() {
@@ -1806,6 +1825,14 @@ pub fn render(
                     g = 255 - g;
                     b = 255 - b;
                 }
+            }
+
+            // Duo-tone: map luminance to two-color gradient
+            if let Some((shadow, highlight)) = &duo_tone_colors {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                r = ((shadow[0] * (1.0 - lum) + highlight[0] * lum) * 255.0).clamp(0.0, 255.0) as u8;
+                g = ((shadow[1] * (1.0 - lum) + highlight[1] * lum) * 255.0).clamp(0.0, 255.0) as u8;
+                b = ((shadow[2] * (1.0 - lum) + highlight[2] * lum) * 255.0).clamp(0.0, 255.0) as u8;
             }
 
             // Color inversion
