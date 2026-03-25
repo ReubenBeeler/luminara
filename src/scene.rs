@@ -11,6 +11,7 @@ use crate::cone::Cone;
 use crate::constant_medium::ConstantMedium;
 use crate::cylinder::Cylinder;
 use crate::prism::Prism;
+use crate::wedge::Wedge;
 use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
@@ -66,6 +67,8 @@ pub struct SceneFile {
     pub cylinder: Vec<CylinderDesc>,
     #[serde(default)]
     pub prism: Vec<PrismDesc>,
+    #[serde(default)]
+    pub wedge: Vec<WedgeDesc>,
     #[serde(default)]
     pub annulus: Vec<AnnulusDesc>,
     #[serde(default)]
@@ -402,6 +405,17 @@ pub struct PrismDesc {
     pub bump_scale: Option<f64>,
     pub normal_map: Option<String>,
     pub normal_map_strength: Option<f64>,
+    pub rotate_x: Option<f64>,
+    pub rotate_y: Option<f64>,
+    pub rotate_z: Option<f64>,
+    pub translate: Option<[f64; 3]>,
+}
+
+#[derive(Deserialize)]
+pub struct WedgeDesc {
+    pub min: [f64; 3],
+    pub max: [f64; 3],
+    pub material: MaterialDesc,
     pub rotate_x: Option<f64>,
     pub rotate_y: Option<f64>,
     pub rotate_z: Option<f64>,
@@ -1401,6 +1415,16 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         if let Some(angle) = p.rotate_y { obj = Box::new(RotateY::new(obj, angle)); }
         if let Some(angle) = p.rotate_z { obj = Box::new(RotateZ::new(obj, angle)); }
         if let Some(offset) = p.translate { obj = Box::new(Translate::new(obj, arr_to_vec3(offset))); }
+        world.add(obj);
+    }
+
+    for w in &scene.wedge {
+        let mat = build_material(&w.material);
+        let mut obj: Box<dyn Hittable> = Box::new(Wedge::new(arr_to_vec3(w.min), arr_to_vec3(w.max), mat));
+        if let Some(angle) = w.rotate_x { obj = Box::new(RotateX::new(obj, angle)); }
+        if let Some(angle) = w.rotate_y { obj = Box::new(RotateY::new(obj, angle)); }
+        if let Some(angle) = w.rotate_z { obj = Box::new(RotateZ::new(obj, angle)); }
+        if let Some(offset) = w.translate { obj = Box::new(Translate::new(obj, arr_to_vec3(offset))); }
         world.add(obj);
     }
 

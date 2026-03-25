@@ -32,6 +32,7 @@ mod torus;
 mod transform;
 mod triangle;
 mod vec3;
+mod wedge;
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -1558,7 +1559,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 31 geometry types, 66 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 32 geometry types, 66 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
