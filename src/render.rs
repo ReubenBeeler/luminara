@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Pop art: number of color bands for Warhol-style effect (0 = off).
+    pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
     pub watercolor: u32,
     /// Auto-levels: stretch histogram to use full dynamic range.
@@ -446,6 +448,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            pop_art: 0,
             watercolor: 0,
             auto_levels: false,
             brightness: 0.0,
@@ -2886,6 +2889,23 @@ pub fn render(
                 r = (bright * 0.15 * 255.0) as u8;
                 g = (bright * 255.0) as u8;
                 b = (bright * 0.1 * 255.0) as u8;
+            }
+
+            // Pop art: Warhol-style bold color bands
+            if config.pop_art >= 2 {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                let bands = config.pop_art as f64;
+                let band = (lum * bands).floor() as u32;
+                // Vivid color palette cycling through pop art colors
+                const POP_COLORS: [[u8; 3]; 6] = [
+                    [255, 0, 128], [0, 200, 255], [255, 220, 0],
+                    [255, 100, 0], [0, 255, 100], [200, 0, 255],
+                ];
+                let pc = POP_COLORS[(band as usize) % POP_COLORS.len()];
+                let bright = (lum * 1.5).clamp(0.3, 1.0);
+                r = (pc[0] as f64 * bright) as u8;
+                g = (pc[1] as f64 * bright) as u8;
+                b = (pc[2] as f64 * bright) as u8;
             }
 
             // Black-and-white threshold

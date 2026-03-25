@@ -102,6 +102,7 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
     brightness: Option<f64>,
@@ -330,6 +331,9 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(pa) = cli.pop_art {
+        render_config.pop_art = pa;
+    }
     if let Some(wc) = cli.watercolor {
         render_config.watercolor = wc;
     }
@@ -510,6 +514,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if render_config.pop_art >= 2 { pp.push(format!("pop-art({})", render_config.pop_art)); }
         if render_config.watercolor > 0 { pp.push(format!("watercolor({})", render_config.watercolor)); }
         if render_config.auto_levels { pp.push("auto-levels".to_string()); }
         if render_config.brightness.abs() > 1e-6 { pp.push(format!("brightness({:.2})", render_config.brightness)); }
@@ -927,6 +932,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        pop_art: None,
         watercolor: None,
         auto_levels: false,
         brightness: None,
@@ -1307,6 +1313,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.save_json = Some(PathBuf::from(&args[i]));
                 }
             }
+            "--pop-art" => {
+                i += 1;
+                if i < args.len() {
+                    cli.pop_art = args[i].parse().ok();
+                }
+            }
             "--watercolor" => {
                 i += 1;
                 if i < args.len() {
@@ -1431,7 +1443,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 57 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 58 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1492,6 +1504,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");
                 eprintln!("      --brightness N Brightness adjustment (-1.0 to 1.0, 0 = no change)");
