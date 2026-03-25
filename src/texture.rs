@@ -965,6 +965,38 @@ impl Texture for Brick {
     }
 }
 
+/// Rust/patina texture using layered noise for oxidation effect.
+pub struct Rust {
+    perlin: Perlin,
+    pub scale: f64,
+}
+
+impl Rust {
+    pub fn new(scale: f64) -> Self {
+        Self { perlin: Perlin::new(), scale }
+    }
+}
+
+impl Texture for Rust {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let p = *point * self.scale;
+        let n1 = (self.perlin.noise(&p) + 1.0) * 0.5;
+        let n2 = (self.perlin.noise(&(p * 3.7)) + 1.0) * 0.5;
+        let t = (n1 * 0.6 + n2 * 0.4).clamp(0.0, 1.0);
+        // Gradient: dark brown → orange rust → light patina
+        if t < 0.3 {
+            let s = t / 0.3;
+            Color::new(0.2 + s * 0.2, 0.08 + s * 0.05, 0.02 + s * 0.01)
+        } else if t < 0.7 {
+            let s = (t - 0.3) / 0.4;
+            Color::new(0.4 + s * 0.35, 0.13 + s * 0.15, 0.03 + s * 0.02)
+        } else {
+            let s = (t - 0.7) / 0.3;
+            Color::new(0.75 - s * 0.15, 0.28 + s * 0.12, 0.05 + s * 0.1)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
