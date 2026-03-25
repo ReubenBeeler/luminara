@@ -6,19 +6,19 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
-- **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
+- **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, hemispheres, annuli, axis-aligned rectangles, boxes, OBJ and PLY triangle meshes
 - **Materials**: Lambertian (diffuse), metallic, dielectric (glass with Beer's Law, tint, roughness, dispersion), emissive, blackbody (Kelvin temperature), microfacet/PBR (Cook-Torrance GGX), iridescent (thin-film interference), translucent, subsurface scattering (random-walk SSS), velvet (rim lighting), clearcoat (lacquer), anisotropic (brushed metal), toon (cel-shading), blend (mix two materials)
-- **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, Voronoi, spiral, hexgrid, noise, color ramp (multi-stop gradient), and image textures (PNG/JPG)
+- **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, Voronoi, spiral, hexgrid, noise, color ramp (multi-stop gradient), FBM (fractal Brownian motion), wavy (sine interference), mix (blend two textures), tri-planar mapping, UV transforms (offset/rotation/tiling), and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
-- **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling with solid-angle cone sampling), adaptive sampling (variance-based early termination), pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
-- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma
-- **Output**: PNG, PPM, Radiance HDR (.hdr), depth pass, normal pass, stdout piping
+- **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling for sphere, rect, and disk lights), adaptive sampling (variance-based early termination), Russian roulette path termination, pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats, time-budgeted rendering
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion
+- **Output**: PNG, PPM, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, stdout piping
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
-- **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, or black
-- **Transforms**: Translate, rotate (X/Y/Z-axis), uniform scale
+- **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, starfield, HDRI environment maps (bilinear interpolated), or black
+- **Transforms**: Translate, rotate (X/Y/Z-axis), uniform and non-uniform scale
 - **Scenes**: Declarative TOML format, plus a built-in demo scene
 
 ## Usage
@@ -75,6 +75,16 @@ cargo run --release -- --help
 | `--save-normals F` | Save normal pass to image file |
 | `--crop X,Y,W,H` | Render only a sub-region of the image |
 | `--info` | Show scene info and post-processing pipeline |
+| `--firefly-filter N` | Remove firefly outlier pixels (e.g. 3.0) |
+| `--lens-distortion N` | Barrel/pincushion distortion (positive/negative) |
+| `--time-limit N` | Max render time in seconds |
+| `--posterize N` | Reduce to N color levels per channel (retro look) |
+| `--sepia N` | Sepia tone intensity (0.0-1.0) |
+| `--edge-detect N` | Edge detection / outline effect strength |
+| `--pixelate N` | NxN pixel block averaging (pixel art) |
+| `--invert` | Invert colors (negative image) |
+| `--benchmark` | Run built-in benchmark and report Mrays/s |
+| `--list-scenes` | List available .toml scene files |
 | `-p`, `--preview` | Quick preview (1/4 res, low samples) |
 | `-V`, `--version` | Show version |
 | `-h`, `--help` | Show help |
@@ -172,7 +182,12 @@ color = [0.8, 0.8, 0.8]
 | `hexgrid` | `color1`, `color2`, `scale` (optional), `line_width` (optional) |
 | `noise` | `color1`, `color2`, `scale` (optional) |
 | `color_ramp` / `ramp` | `stops` ([[pos,r,g,b],...]), `axis` (optional), `min_val`/`max_val` (optional) |
-| `image` | `file` (path to PNG/JPG) |
+| `image` | `file` (path to PNG/JPG), `uv_offset` (optional [u,v]), `uv_rotation` (optional, degrees), `uv_tile` (optional [u,v]) |
+| `fbm` / `fractal` | `color1`, `color2`, `scale` (optional), `octaves` (optional) |
+| `wavy` / `wave` | `color1`, `color2`, `scale` (optional), `waves` (optional) |
+| `mix_color` | `color1`, `color2`, `factor` (optional, 0.0-1.0) |
+| `tri_planar` | `color1`, `color2`, `scale` (optional), `sharpness` (optional) |
+| `opacity` | `base` (material), `alpha` (material), `threshold` (optional) |
 
 ## Architecture
 
@@ -183,9 +198,9 @@ color = [0.8, 0.8, 0.8]
 | `aabb` | Axis-aligned bounding boxes |
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
-| `material` | Material trait + 15 material types (Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend, Iridescent, Translucent, Subsurface, Velvet, Clearcoat, Anisotropic, Toon) |
+| `material` | Material trait + 14 material types (Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend, Transparent, Iridescent, Translucent, Subsurface, Velvet, Clearcoat, Anisotropic, Toon) |
 | `csg` | Constructive Solid Geometry (union, intersection, difference) |
-| `texture` | Texture trait + 17 procedural/image textures |
+| `texture` | Texture trait + 22 procedural/image textures |
 | `sphere` | Sphere and MovingSphere with UV mapping |
 | `ellipsoid` | Ellipsoid with 3-axis radii |
 | `torus` | Torus via SDF ray marching |
@@ -200,7 +215,7 @@ color = [0.8, 0.8, 0.8]
 | `transform` | Translate, RotateX/Y/Z, Scale wrappers |
 | `bump` | Perlin noise bump mapping |
 | `constant_medium` | Volumetric fog/smoke with isotropic scattering |
-| `obj` | OBJ file loading with fan triangulation |
+| `obj` | OBJ and PLY file loading with fan triangulation |
 | `camera` | Perspective camera with depth of field |
 | `render` | Stratified/adaptive sampling, pixel filters, tone mapping, post-processing pipeline, AOV passes |
 | `scene` | TOML scene loading, BVH construction, demo scene |
@@ -228,6 +243,9 @@ color = [0.8, 0.8, 0.8]
 - **pbr_showcase.toml**: PBR material roughness and metallic parameter gradients
 - **prism.toml**: Chromatic dispersion rainbow effects in glass
 - **materials_showcase.toml**: Iridescent and translucent materials with bloom and vignette
+- **organic.toml**: Subsurface scattering showcase (wax, jade, skin, marble)
+- **toon.toml**: Cel-shaded rendering with edge detection and posterize
+- **retro.toml**: Pixel art retro style with pixelate and posterize
 
 ## What's next
 
