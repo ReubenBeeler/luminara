@@ -51,6 +51,7 @@ struct CliArgs {
     bloom: Option<f64>,
     vignette: Option<f64>,
     grain: Option<f64>,
+    saturation: Option<f64>,
 }
 
 fn main() {
@@ -123,6 +124,9 @@ fn main() {
     }
     if let Some(grain) = cli.grain {
         render_config.grain = grain;
+    }
+    if let Some(saturation) = cli.saturation {
+        render_config.saturation = saturation;
     }
     if cli.save_hdr.is_some() {
         render_config.save_hdr = true;
@@ -344,6 +348,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         bloom: None,
         vignette: None,
         grain: None,
+        saturation: None,
     };
     let mut i = 1;
 
@@ -409,6 +414,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.grain = args[i].parse().ok();
                 }
             }
+            "--saturation" => {
+                i += 1;
+                if i < args.len() {
+                    cli.saturation = args[i].parse().ok();
+                }
+            }
             "--save-hdr" => {
                 i += 1;
                 if i < args.len() {
@@ -470,6 +481,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --bloom N     Add bloom glow effect (intensity, e.g. 0.3)");
                 eprintln!("      --vignette N  Darken edges for cinematic look (e.g. 0.5)");
                 eprintln!("      --grain N     Add film grain noise (e.g. 0.1)");
+                eprintln!("      --saturation N  Color saturation (1.0=normal, 0=grayscale)");
                 eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
                 eprintln!("      --crop X,Y,W,H  Render only a sub-region of the image");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");

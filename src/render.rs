@@ -182,6 +182,8 @@ pub struct RenderConfig {
     pub vignette: f64,
     /// Film grain intensity (0.0 = off). Adds photographic noise.
     pub grain: f64,
+    /// Saturation adjustment (1.0 = normal, 0.0 = grayscale, >1.0 = boosted).
+    pub saturation: f64,
 }
 
 impl Default for RenderConfig {
@@ -203,6 +205,7 @@ impl Default for RenderConfig {
             bloom: 0.0,
             vignette: 0.0,
             grain: 0.0,
+            saturation: 1.0,
         }
     }
 }
@@ -730,9 +733,21 @@ pub fn render(
             } else {
                 1.0
             };
-            let mut r = linear_to_srgb(tone_fn(color.x * exposure * vignette_factor));
-            let mut g = linear_to_srgb(tone_fn(color.y * exposure * vignette_factor));
-            let mut b = linear_to_srgb(tone_fn(color.z * exposure * vignette_factor));
+            let (mut cr, mut cg, mut cb) = (color.x * exposure * vignette_factor,
+                                              color.y * exposure * vignette_factor,
+                                              color.z * exposure * vignette_factor);
+
+            // Saturation adjustment in HDR space (before tone mapping)
+            if (config.saturation - 1.0).abs() > 1e-6 {
+                let lum = 0.2126 * cr + 0.7152 * cg + 0.0722 * cb;
+                cr = lum + (cr - lum) * config.saturation;
+                cg = lum + (cg - lum) * config.saturation;
+                cb = lum + (cb - lum) * config.saturation;
+            }
+
+            let mut r = linear_to_srgb(tone_fn(cr));
+            let mut g = linear_to_srgb(tone_fn(cg));
+            let mut b = linear_to_srgb(tone_fn(cb));
 
             // Film grain: add deterministic luminance noise
             if config.grain > 0.0 {
