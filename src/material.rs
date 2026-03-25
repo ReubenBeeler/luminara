@@ -112,6 +112,8 @@ pub struct Dielectric {
     pub refraction_index: f64,
     pub tint: Color,
     pub roughness: f64,
+    /// Dispersion strength (0 = none, typical = 0.01-0.05 for prism effects).
+    pub dispersion: f64,
 }
 
 impl Dielectric {
@@ -120,11 +122,16 @@ impl Dielectric {
             refraction_index,
             tint: Color::new(1.0, 1.0, 1.0),
             roughness: 0.0,
+            dispersion: 0.0,
         }
     }
 
     pub const fn rough(refraction_index: f64, tint: Color, roughness: f64) -> Self {
-        Self { refraction_index, tint, roughness }
+        Self { refraction_index, tint, roughness, dispersion: 0.0 }
+    }
+
+    pub const fn dispersive(refraction_index: f64, tint: Color, roughness: f64, dispersion: f64) -> Self {
+        Self { refraction_index, tint, roughness, dispersion }
     }
 
     /// Schlick's approximation for reflectance.
@@ -140,10 +147,28 @@ impl Material for Dielectric {
     }
 
     fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
-        let eta_ratio = if hit.front_face {
-            1.0 / self.refraction_index
+        // Stochastic dispersion: pick a random wavelength channel and adjust IOR
+        let (ior, channel_attenuation) = if self.dispersion > 0.0 {
+            let channel = (rng.next_f64() * 3.0) as u32;
+            let ior_offset = match channel {
+                0 => -self.dispersion,       // Red: lower IOR
+                1 => 0.0,                    // Green: base IOR
+                _ => self.dispersion,        // Blue: higher IOR
+            };
+            let channel_color = match channel {
+                0 => Color::new(3.0, 0.0, 0.0),
+                1 => Color::new(0.0, 3.0, 0.0),
+                _ => Color::new(0.0, 0.0, 3.0),
+            };
+            (self.refraction_index + ior_offset, channel_color)
         } else {
-            self.refraction_index
+            (self.refraction_index, Color::new(1.0, 1.0, 1.0))
+        };
+
+        let eta_ratio = if hit.front_face {
+            1.0 / ior
+        } else {
+            ior
         };
 
         let unit_direction = ray.direction.unit();
@@ -165,8 +190,7 @@ impl Material for Dielectric {
         }
 
         // Beer's Law: colored glass absorbs light based on distance traveled inside
-        let attenuation = if !hit.front_face && self.tint != Color::new(1.0, 1.0, 1.0) {
-            // Inside the object — apply exponential attenuation
+        let mut attenuation = if !hit.front_face && self.tint != Color::new(1.0, 1.0, 1.0) {
             let distance = hit.t;
             Color::new(
                 (-(1.0 - self.tint.x) * distance).exp(),
@@ -176,6 +200,11 @@ impl Material for Dielectric {
         } else {
             self.tint
         };
+
+        // Apply channel selection for dispersion
+        if self.dispersion > 0.0 {
+            attenuation = attenuation.hadamard(channel_attenuation);
+        }
 
         Some(Scatter {
             ray: Ray::with_time(hit.point, direction, ray.time),
@@ -662,6 +691,30 @@ mod tests {
             }
         }
         assert!(got_diffuse, "Non-metallic should produce colored diffuse scatters");
+    }
+
+    #[test]
+    fn dielectric_dispersion_separates_channels() {
+        let mat = Dielectric::dispersive(1.5, Color::new(1.0, 1.0, 1.0), 0.0, 0.03);
+        let mat_ref: &dyn Material = &mat;
+        let incoming = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let hit = HitRecord::new(&incoming, Point3::ZERO, Vec3::new(0.0, 1.0, 0.0), 1.0, 0.5, 0.5, mat_ref);
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let mut got_red_only = false;
+        let mut got_green_only = false;
+        let mut got_blue_only = false;
+        for _ in 0..300 {
+            if let Some(scatter) = mat.scatter(&incoming, &hit, &mut rng) {
+                let a = scatter.attenuation;
+                if a.x > 1.0 && a.y < 0.1 && a.z < 0.1 { got_red_only = true; }
+                if a.y > 1.0 && a.x < 0.1 && a.z < 0.1 { got_green_only = true; }
+                if a.z > 1.0 && a.x < 0.1 && a.y < 0.1 { got_blue_only = true; }
+            }
+        }
+        assert!(got_red_only, "Dispersion should produce red-only samples");
+        assert!(got_green_only, "Dispersion should produce green-only samples");
+        assert!(got_blue_only, "Dispersion should produce blue-only samples");
     }
 
     #[test]
