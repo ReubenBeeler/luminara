@@ -367,6 +367,8 @@ pub struct RenderConfig {
     pub cel_shade: u32,
     /// Picture frame width in pixels (0 = off). Adds decorative frame with drop shadow.
     pub frame: u32,
+    /// Hexagonal pixelation cell size (0 = off). Creates honeycomb mosaic effect.
+    pub hex_pixelate: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -473,6 +475,7 @@ impl Default for RenderConfig {
             lens_flare: 0.0,
             cel_shade: 0,
             frame: 0,
+            hex_pixelate: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2669,6 +2672,34 @@ pub fn render(
                         *pixel = Color::new(0.0, 0.0, 0.0);
                     }
                 }
+            }
+        }
+        result
+    } else { rows };
+
+    // Hexagonal pixelation
+    let rows = if config.hex_pixelate >= 2 {
+        let cell = config.hex_pixelate as f64;
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let hex_h = cell;
+        let hex_w = cell * 3.0_f64.sqrt();
+        let mut result = rows.clone();
+        for (y, row) in result.iter_mut().enumerate() {
+            for (x, pixel) in row.iter_mut().enumerate() {
+                // Find which hex cell this pixel belongs to
+                let fy = y as f64 / hex_h;
+                let fx = x as f64 / hex_w;
+                let row_idx = fy.floor() as isize;
+                let col_offset = if row_idx % 2 != 0 { 0.5 } else { 0.0 };
+                let col_idx = (fx - col_offset).floor() as isize;
+                // Hex center
+                let cx = ((col_idx as f64 + col_offset) + 0.5) * hex_w;
+                let cy = (row_idx as f64 + 0.5) * hex_h;
+                // Sample color from hex center
+                let sx = (cx as usize).min(w.saturating_sub(1));
+                let sy = (cy as usize).min(h.saturating_sub(1));
+                *pixel = rows[sy][sx];
             }
         }
         result

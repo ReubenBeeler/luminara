@@ -112,6 +112,7 @@ struct CliArgs {
     lens_flare: Option<f64>,
     cel_shade: Option<u32>,
     frame: Option<u32>,
+    hex_pixelate: Option<u32>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -367,6 +368,9 @@ fn main() {
     if let Some(f) = cli.frame {
         render_config.frame = f;
     }
+    if let Some(hp) = cli.hex_pixelate {
+        render_config.hex_pixelate = hp;
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -573,6 +577,7 @@ fn main() {
         if render_config.lens_flare > 0.0 { pp.push(format!("lens-flare({:.2})", render_config.lens_flare)); }
         if render_config.cel_shade >= 2 { pp.push(format!("cel-shade({})", render_config.cel_shade)); }
         if render_config.frame > 0 { pp.push(format!("frame({}px)", render_config.frame)); }
+        if render_config.hex_pixelate >= 2 { pp.push(format!("hex-pixelate({})", render_config.hex_pixelate)); }
         if render_config.posterize_channels.iter().any(|&l| l >= 2) {
             pp.push(format!("posterize-ch({},{},{})", render_config.posterize_channels[0], render_config.posterize_channels[1], render_config.posterize_channels[2]));
         }
@@ -1002,6 +1007,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         lens_flare: None,
         cel_shade: None,
         frame: None,
+        hex_pixelate: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1442,6 +1448,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.frame = args[i].parse().ok();
                 }
             }
+            "--hex-pixelate" | "--hex" => {
+                i += 1;
+                if i < args.len() {
+                    cli.hex_pixelate = args[i].parse().ok();
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1572,7 +1584,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 32 geometry types, 66 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 32 geometry types, 67 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1641,6 +1653,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --lens-flare N  Lens flare streaks from brightest point");
                 eprintln!("      --cel-shade N  Cel-shading/toon (N color bands + outlines)");
                 eprintln!("      --frame N     Picture frame with bevel (N pixel width)");
+                eprintln!("      --hex-pixelate N  Hexagonal pixelation (cell size)");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");
