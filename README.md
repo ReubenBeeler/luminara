@@ -13,7 +13,7 @@ Luminara traces rays of light through a virtual scene, simulating how photons in
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
 - **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling for sphere, rect, and disk lights), adaptive sampling (variance-based early termination), Russian roulette path termination, pixel reconstruction filters (box, triangle, Gaussian, Mitchell-Netravali), ACES/Reinhard/Filmic tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats, time-budgeted rendering
-- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping
+- **Post-processing**: Bloom (glow), vignette, film grain, saturation, contrast, white balance, hue shift, sharpening, chromatic aberration, bilateral denoising, ordered dithering, custom gamma, firefly removal, lens distortion, posterize, sepia tone, edge detection/outlines, pixelate, color inversion, CRT scanlines, B&W threshold, Gaussian blur, tilt-shift, color grading (shadows/highlights), halftone dots, emboss, oil paint (Kuwahara filter), false color mapping, solarize, duo-tone, pencil sketch
 - **Output**: PNG, PPM, Radiance HDR (.hdr), OpenEXR (.exr), depth pass, normal pass, albedo pass, stdout piping
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
 - **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
@@ -87,6 +87,9 @@ cargo run --release -- --help
 | `--emboss N` | Emboss effect intensity (raised/engraved look) |
 | `--oil-paint N` | Oil painting Kuwahara filter radius (e.g. 3) |
 | `--color-map S` | False color: inferno, viridis, turbo, heat, grayscale |
+| `--solarize N` | Solarize at luminance threshold (0.0-1.0) |
+| `--duo-tone S` | Two-color toning ("R,G,B;R,G,B" e.g. "0,0,64;255,200,0") |
+| `--sketch` | Pencil sketch effect (grayscale + edge detection) |
 | `--benchmark` | Run built-in benchmark and report Mrays/s |
 | `--list-scenes` | List available .toml scene files |
 | `-p`, `--preview` | Quick preview (1/4 res, low samples) |
@@ -252,10 +255,10 @@ color = [0.8, 0.8, 0.8]
 - **retro.toml**: Pixel art retro style with pixelate and posterize
 - **cinematic.toml**: Movie-style orange/teal color grading with filmic tone mapping
 - **architecture.toml**: Brick walls, marble floors, brushed metal, and blackbody lighting
+- **abstract.toml**: SDF geometry showcase (rounded box, superellipsoid, spring, Möbius strip)
 
 ## What's next
 
-- Image-based normal mapping (loading normal map textures)
 - Multiple importance sampling (MIS) for better light-surface interaction
 - Photon mapping for caustics
 - Importance-sampled environment map lighting
