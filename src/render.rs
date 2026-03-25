@@ -1211,6 +1211,44 @@ fn apply_color_map(t: f64, name: &str) -> (f64, f64, f64) {
             let b = ((t - 0.67) * 3.0).clamp(0.0, 1.0);
             (r, g, b)
         }
+        "thermal" => {
+            // Thermal/infrared: black → blue → purple → red → orange → yellow → white
+            if t < 0.15 {
+                let s = t / 0.15;
+                (0.0, 0.0, s * 0.5)
+            } else if t < 0.3 {
+                let s = (t - 0.15) / 0.15;
+                (s * 0.5, 0.0, 0.5 + s * 0.2)
+            } else if t < 0.5 {
+                let s = (t - 0.3) / 0.2;
+                (0.5 + s * 0.5, 0.0, 0.7 - s * 0.7)
+            } else if t < 0.7 {
+                let s = (t - 0.5) / 0.2;
+                (1.0, s * 0.6, 0.0)
+            } else if t < 0.85 {
+                let s = (t - 0.7) / 0.15;
+                (1.0, 0.6 + s * 0.4, s * 0.3)
+            } else {
+                let s = (t - 0.85) / 0.15;
+                (1.0, 1.0, 0.3 + s * 0.7)
+            }
+        }
+        "neon" => {
+            // Neon: dark → electric blue → magenta → hot pink → white
+            if t < 0.25 {
+                let s = t / 0.25;
+                (0.0, s * 0.2, s * 0.8)
+            } else if t < 0.5 {
+                let s = (t - 0.25) / 0.25;
+                (s * 0.8, 0.2 - s * 0.2, 0.8 + s * 0.2)
+            } else if t < 0.75 {
+                let s = (t - 0.5) / 0.25;
+                (0.8 + s * 0.2, s * 0.4, 1.0)
+            } else {
+                let s = (t - 0.75) / 0.25;
+                (1.0, 0.4 + s * 0.6, 1.0)
+            }
+        }
         _ => (t, t, t), // fallback to grayscale
     }
 }

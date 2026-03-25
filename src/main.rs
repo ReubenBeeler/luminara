@@ -1324,7 +1324,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --benchmark   Run standardized performance benchmark");
                 eprintln!("      --emboss N    Emboss effect intensity (e.g. 0.5)");
                 eprintln!("      --oil-paint N Oil painting Kuwahara filter radius (e.g. 3)");
-                eprintln!("      --color-map S False color: inferno, viridis, turbo, heat, grayscale");
+                eprintln!("      --color-map S False color: inferno, viridis, turbo, heat, thermal, neon, grayscale");
                 eprintln!("      --solarize N  Solarize at luminance threshold (0.0-1.0)");
                 eprintln!("      --duo-tone S  Two-color toning (e.g. \"0,0,64;255,200,0\")");
                 eprintln!("      --sketch      Pencil sketch effect (grayscale + edge detection)");
