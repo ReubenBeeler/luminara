@@ -24,6 +24,7 @@ use crate::render::{Background, LightInfo, RenderConfig};
 use crate::sphere::{MovingSphere, Sphere};
 use crate::obj;
 use crate::rounded_box::RoundedBox;
+use crate::superellipsoid::Superellipsoid;
 use crate::torus::Torus;
 use crate::triangle::Triangle;
 use crate::vec3::{Color, Point3, Vec3};
@@ -77,6 +78,8 @@ pub struct SceneFile {
     pub rect_yz: Vec<RectYzDesc>,
     #[serde(default)]
     pub rounded_box: Vec<RoundedBoxDesc>,
+    #[serde(default)]
+    pub superellipsoid: Vec<SuperellipsoidDesc>,
     #[serde(default)]
     pub csg: Vec<CsgDesc>,
 }
@@ -238,6 +241,15 @@ pub struct RoundedBoxDesc {
     pub center: [f64; 3],
     pub half_size: [f64; 3],
     pub radius: f64,
+    pub material: MaterialDesc,
+}
+
+#[derive(Deserialize)]
+pub struct SuperellipsoidDesc {
+    pub center: [f64; 3],
+    pub scale: [f64; 3],
+    pub e1: f64,
+    pub e2: f64,
     pub material: MaterialDesc,
 }
 
@@ -962,6 +974,17 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             arr_to_vec3(rb.center),
             arr_to_vec3(rb.half_size),
             rb.radius,
+            mat,
+        )));
+    }
+
+    for se in &scene.superellipsoid {
+        let mat = build_material(&se.material);
+        world.add(Box::new(Superellipsoid::new(
+            arr_to_vec3(se.center),
+            arr_to_vec3(se.scale),
+            se.e1,
+            se.e2,
             mat,
         )));
     }

@@ -21,6 +21,7 @@ mod rect;
 mod render;
 mod rounded_box;
 mod scene;
+mod superellipsoid;
 mod sphere;
 mod texture;
 mod torus;
