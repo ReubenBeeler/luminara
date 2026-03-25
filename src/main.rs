@@ -82,6 +82,8 @@ struct CliArgs {
     blur: Option<f64>,
     tilt_shift: Option<f64>,
     halftone: Option<u32>,
+    emboss: Option<f64>,
+    oil_paint: Option<u32>,
 }
 
 fn main() {
@@ -241,6 +243,12 @@ fn main() {
     if let Some(ht) = cli.halftone {
         render_config.halftone = ht;
     }
+    if let Some(e) = cli.emboss {
+        render_config.emboss = e;
+    }
+    if let Some(op) = cli.oil_paint {
+        render_config.oil_paint = op;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -336,6 +344,7 @@ fn main() {
         if render_config.pixelate >= 2 { pp.push(format!("pixelate({})", render_config.pixelate)); }
         if render_config.edge_detect > 0.0 { pp.push(format!("edges({:.1})", render_config.edge_detect)); }
         if render_config.emboss > 0.0 { pp.push(format!("emboss({:.1})", render_config.emboss)); }
+        if render_config.oil_paint > 0 { pp.push(format!("oil-paint({})", render_config.oil_paint)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -665,6 +674,8 @@ fn parse_args(args: &[String]) -> CliArgs {
         blur: None,
         tilt_shift: None,
         halftone: None,
+        emboss: None,
+        oil_paint: None,
     };
     let mut i = 1;
 
@@ -895,6 +906,18 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.halftone = args[i].parse().ok();
                 }
             }
+            "--emboss" => {
+                i += 1;
+                if i < args.len() {
+                    cli.emboss = args[i].parse().ok();
+                }
+            }
+            "--oil-paint" => {
+                i += 1;
+                if i < args.len() {
+                    cli.oil_paint = args[i].parse().ok();
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -974,6 +997,8 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
                 eprintln!("      --benchmark   Run standardized performance benchmark");
+                eprintln!("      --emboss N    Emboss effect intensity (e.g. 0.5)");
+                eprintln!("      --oil-paint N Oil painting Kuwahara filter radius (e.g. 3)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

@@ -319,6 +319,8 @@ pub struct RenderConfig {
     pub halftone: u32,
     /// Emboss filter intensity (0.0 = off). Creates raised/engraved look.
     pub emboss: f64,
+    /// Oil paint effect radius (0 = off). Kuwahara filter for painterly look.
+    pub oil_paint: u32,
 }
 
 impl Default for RenderConfig {
@@ -370,6 +372,7 @@ impl Default for RenderConfig {
             grade_highlights: [1.0, 1.0, 1.0],
             halftone: 0,
             emboss: 0.0,
+            oil_paint: 0,
         }
     }
 }
@@ -915,6 +918,65 @@ fn apply_emboss(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
         .collect()
 }
 
+/// Kuwahara filter — produces an oil-painting effect by selecting the
+/// lowest-variance quadrant around each pixel.
+fn apply_oil_paint(rows: &[Vec<Color>], radius: u32) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+    let r = radius as i32;
+
+    (0..height)
+        .map(|j| {
+            (0..width)
+                .map(|i| {
+                    let mut best_mean = Color::ZERO;
+                    let mut best_var = f64::INFINITY;
+
+                    // 4 quadrants: TL, TR, BL, BR
+                    for (dy_range, dx_range) in [
+                        (-r..=0, -r..=0),
+                        (-r..=0, 0..=r),
+                        (0..=r, -r..=0),
+                        (0..=r, 0..=r),
+                    ] {
+                        let mut sum = Color::ZERO;
+                        let mut sum_sq = 0.0f64;
+                        let mut count = 0.0f64;
+
+                        for dy in dy_range {
+                            for dx in dx_range.clone() {
+                                let ny = j as i32 + dy;
+                                let nx = i as i32 + dx;
+                                if ny >= 0 && ny < height as i32 && nx >= 0 && nx < width as i32 {
+                                    let c = rows[ny as usize][nx as usize];
+                                    sum += c;
+                                    sum_sq += c.x * c.x + c.y * c.y + c.z * c.z;
+                                    count += 1.0;
+                                }
+                            }
+                        }
+
+                        if count > 0.0 {
+                            let mean = sum * (1.0 / count);
+                            let mean_sq = (mean.x * mean.x + mean.y * mean.y + mean.z * mean.z) * count;
+                            let variance = (sum_sq - mean_sq) / count;
+                            if variance < best_var {
+                                best_var = variance;
+                                best_mean = mean;
+                            }
+                        }
+                    }
+
+                    best_mean
+                })
+                .collect()
+        })
+        .collect()
+}
+
 /// Build an orthonormal basis from a given direction (Frisvad's method).
 fn build_onb(n: Vec3) -> (Vec3, Vec3) {
     if n.z < -0.9999999 {
@@ -1454,6 +1516,20 @@ pub fn render(
             eprintln!(" done");
         }
         embossed
+    } else {
+        rows
+    };
+
+    // Optional oil paint (Kuwahara filter) pass
+    let rows = if config.oil_paint > 0 {
+        if !config.quiet {
+            eprint!("Applying oil paint filter...");
+        }
+        let painted = apply_oil_paint(&rows, config.oil_paint);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        painted
     } else {
         rows
     };

@@ -1718,6 +1718,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         grade_highlights: [1.0, 1.0, 1.0],
         halftone: 0,
         emboss: 0.0,
+        oil_paint: 0,
     };
 
     let cam_config = CameraConfig {
