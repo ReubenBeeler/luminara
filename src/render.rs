@@ -355,6 +355,8 @@ pub struct RenderConfig {
     /// Gradient map: replace luminance with a custom color gradient.
     /// Format: "RRGGBB;RRGGBB;..." hex colors from dark to light.
     pub gradient_map: String,
+    /// Split-tone: warm highlights / cool shadows. "R,G,B;R,G,B" (shadow;highlight colors 0-255).
+    pub split_tone: String,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -455,6 +457,7 @@ impl Default for RenderConfig {
             palette: String::new(),
             tri_tone: String::new(),
             gradient_map: String::new(),
+            split_tone: String::new(),
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2662,6 +2665,21 @@ pub fn render(
         }).collect()
     } else { Vec::new() };
 
+    // Parse split-tone colors: "R,G,B;R,G,B" (shadow color; highlight color)
+    let split_tone_colors: Option<([f64; 3], [f64; 3])> = if !config.split_tone.is_empty() {
+        let parts: Vec<&str> = config.split_tone.split(';').collect();
+        if parts.len() == 2 {
+            let parse_rgb = |s: &str| -> Option<[f64; 3]> {
+                let c: Vec<f64> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                if c.len() == 3 { Some([c[0] / 255.0, c[1] / 255.0, c[2] / 255.0]) } else { None }
+            };
+            match (parse_rgb(parts[0]), parse_rgb(parts[1])) {
+                (Some(a), Some(b)) => Some((a, b)),
+                _ => None,
+            }
+        } else { None }
+    } else { None };
+
     let mut pixels = Vec::with_capacity(width * height * 4);
     for (j, row) in rows.iter().enumerate() {
         for (i, color) in row.iter().enumerate() {
@@ -2932,6 +2950,21 @@ pub fn render(
                 r = ((c0[0] * (1.0 - t) + c1[0] * t) * 255.0).clamp(0.0, 255.0) as u8;
                 g = ((c0[1] * (1.0 - t) + c1[1] * t) * 255.0).clamp(0.0, 255.0) as u8;
                 b = ((c0[2] * (1.0 - t) + c1[2] * t) * 255.0).clamp(0.0, 255.0) as u8;
+            }
+
+            // Split-tone: blend shadow/highlight colors based on luminance
+            if let Some((shadow_c, highlight_c)) = &split_tone_colors {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                // Blend strength: strongest at extremes, zero at mid-gray
+                let (tint, strength) = if lum < 0.5 {
+                    (shadow_c, 1.0 - lum * 2.0)
+                } else {
+                    (highlight_c, (lum - 0.5) * 2.0)
+                };
+                let blend = strength * 0.5; // 50% max tint to preserve detail
+                r = ((r as f64 * (1.0 - blend) + tint[0] * 255.0 * blend).clamp(0.0, 255.0)) as u8;
+                g = ((g as f64 * (1.0 - blend) + tint[1] * 255.0 * blend).clamp(0.0, 255.0)) as u8;
+                b = ((b as f64 * (1.0 - blend) + tint[2] * 255.0 * blend).clamp(0.0, 255.0)) as u8;
             }
 
             // Color inversion
