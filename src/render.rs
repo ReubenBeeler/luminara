@@ -813,13 +813,13 @@ fn apply_tilt_shift(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
     let band = height as f64 * 0.15; // sharp band = 30% of image height
 
     let mut result = rows.to_vec();
-    for j in 0..height {
+    for (j, result_row) in result.iter_mut().enumerate() {
         let dist = ((j as f64 - center).abs() - band).max(0.0) / (center - band).max(1.0);
         let blur_radius = (dist * strength * 5.0).round() as i64;
         if blur_radius <= 0 {
             continue;
         }
-        for i in 0..width {
+        for (i, pixel) in result_row.iter_mut().enumerate() {
             let mut sum = Color::ZERO;
             let mut count = 0.0;
             for dy in -blur_radius..=blur_radius {
@@ -830,7 +830,7 @@ fn apply_tilt_shift(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
                     count += 1.0;
                 }
             }
-            result[j][i] = sum / count;
+            *pixel = sum / count;
         }
     }
     result
@@ -853,16 +853,16 @@ fn apply_pixelate(rows: &[Vec<Color>], block: u32) -> Vec<Vec<Color>> {
             let mut count = 0.0;
             let ey = (by + bs).min(height);
             let ex = (bx + bs).min(width);
-            for y in by..ey {
-                for x in bx..ex {
-                    sum += rows[y][x];
+            for row in rows.iter().take(ey).skip(by) {
+                for pixel in row.iter().take(ex).skip(bx) {
+                    sum += *pixel;
                     count += 1.0;
                 }
             }
             let avg = sum / count;
-            for y in by..ey {
-                for x in bx..ex {
-                    result[y][x] = avg;
+            for row in result.iter_mut().take(ey).skip(by) {
+                for pixel in row.iter_mut().take(ex).skip(bx) {
+                    *pixel = avg;
                 }
             }
         }

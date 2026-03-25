@@ -195,7 +195,7 @@ pub fn load_ply(
     let mut vertices: Vec<Point3> = Vec::with_capacity(num_vertices);
     for i in 0..num_vertices {
         let line = lines.next().ok_or(format!("Expected vertex {i}, got EOF"))?;
-        let parts: Vec<&str> = line.trim().split_whitespace().collect();
+        let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 3 {
             return Err(format!("Vertex {i}: need at least 3 coordinates"));
         }
@@ -211,7 +211,7 @@ pub fn load_ply(
 
     for i in 0..num_faces {
         let line = lines.next().ok_or(format!("Expected face {i}, got EOF"))?;
-        let parts: Vec<&str> = line.trim().split_whitespace().collect();
+        let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.is_empty() {
             return Err(format!("Face {i}: empty line"));
         }
