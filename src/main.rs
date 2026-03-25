@@ -101,6 +101,7 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    stipple: Option<u32>,
     night_vision: bool,
     fisheye: Option<f64>,
     wave: Option<f64>,
@@ -318,6 +319,9 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(st) = cli.stipple {
+        render_config.stipple = st;
+    }
     if cli.night_vision {
         render_config.night_vision = true;
     }
@@ -468,6 +472,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if render_config.stipple > 0 { pp.push(format!("stipple({})", render_config.stipple)); }
         if render_config.night_vision { pp.push("night-vision".to_string()); }
         if render_config.fisheye.abs() > 1e-6 { pp.push(format!("fisheye({:.2})", render_config.fisheye)); }
         if render_config.wave > 0.0 { pp.push(format!("wave({:.0})", render_config.wave)); }
@@ -862,6 +867,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        stipple: None,
         night_vision: false,
         fisheye: None,
         wave: None,
@@ -1213,6 +1219,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--panorama" | "--pano" => {
                 cli.panorama = true;
             }
+            "--stipple" => {
+                i += 1;
+                if i < args.len() {
+                    cli.stipple = args[i].parse().ok();
+                }
+            }
             "--night-vision" | "--nv" => {
                 cli.night_vision = true;
             }
@@ -1307,7 +1319,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 51 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 52 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1367,6 +1379,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --stipple N   Pointillism/stipple dot effect (cell size in px)");
                 eprintln!("      --night-vision Night vision (green-tinted luminance amplification)");
                 eprintln!("      --fisheye N   Barrel distortion (positive) or pincushion (negative)");
                 eprintln!("      --wave N      Wave/ripple distortion amplitude in pixels");

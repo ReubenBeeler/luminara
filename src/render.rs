@@ -350,6 +350,8 @@ pub struct RenderConfig {
     pub tint: [f64; 3],
     /// Named color palette for quantization (overrides --quantize).
     pub palette: String,
+    /// Stipple dot size (0 = off). Creates pointillism/stippling effect.
+    pub stipple: u32,
     /// Night vision simulation (0 = off, 1 = full effect).
     pub night_vision: bool,
     /// Fisheye barrel distortion intensity (0 = off, positive = barrel, negative = pincushion).
@@ -436,6 +438,7 @@ impl Default for RenderConfig {
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
             palette: String::new(),
+            stipple: 0,
             night_vision: false,
             fisheye: 0.0,
             wave: 0.0,
@@ -1909,6 +1912,45 @@ pub fn render(
             }
             _ => rows,
         }
+    } else {
+        rows
+    };
+
+    // Optional stipple/pointillism pass
+    let rows = if config.stipple > 0 {
+        if !config.quiet {
+            eprint!("Applying stipple...");
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+        let cell = config.stipple as usize;
+        let white = Color::new(1.0, 1.0, 1.0);
+
+        let result: Vec<Vec<Color>> = (0..height).into_par_iter().map(|y| {
+            (0..width).map(|x| {
+                let cx = (x / cell) * cell + cell / 2;
+                let cy = (y / cell) * cell + cell / 2;
+                let scx = cx.min(width - 1);
+                let scy = cy.min(height - 1);
+                let c = rows[scy][scx];
+                let lum = 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+                // Darker pixels → larger dots
+                let radius = (1.0 - lum.clamp(0.0, 1.0)) * cell as f64 * 0.5;
+                let dx = x as f64 - cx as f64;
+                let dy = y as f64 - cy as f64;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist <= radius {
+                    c
+                } else {
+                    white
+                }
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };
