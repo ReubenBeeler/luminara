@@ -363,6 +363,8 @@ pub struct RenderConfig {
     pub posterize_channels: [u32; 3],
     /// Lens flare intensity (0.0 = off). Adds light streaks from brightest point.
     pub lens_flare: f64,
+    /// Cel-shading color bands (0 = off). Combines posterization + edge outlines for toon look.
+    pub cel_shade: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -467,6 +469,7 @@ impl Default for RenderConfig {
             color_shift: 0,
             posterize_channels: [0, 0, 0],
             lens_flare: 0.0,
+            cel_shade: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2630,6 +2633,43 @@ pub fn render(
     } else {
         None
     };
+
+    // Cel-shading: posterize + edge outline for toon look
+    let rows = if config.cel_shade >= 2 {
+        let bands = config.cel_shade as f64;
+        // Step 1: posterize colors to N bands
+        let mut result: Vec<Vec<Color>> = rows.iter().map(|row| {
+            row.iter().map(|c| {
+                let quantize = |v: f64| ((v * bands).floor() / (bands - 1.0)).clamp(0.0, 1.0);
+                Color::new(quantize(c.x), quantize(c.y), quantize(c.z))
+            }).collect()
+        }).collect();
+        // Step 2: Sobel edge detection overlay (black outlines)
+        let h = result.len();
+        let w = if h > 0 { result[0].len() } else { 0 };
+        if h > 2 && w > 2 {
+            let lum_at = |r: &[Vec<Color>], yy: usize, xx: usize| {
+                let c = &r[yy][xx];
+                c.x * 0.2126 + c.y * 0.7152 + c.z * 0.0722
+            };
+            // Compute edge magnitudes and apply black outline
+            for (y, row) in result.iter_mut().enumerate() {
+                if y == 0 || y >= h - 1 { continue; }
+                for (x, pixel) in row.iter_mut().enumerate() {
+                    if x == 0 || x >= w - 1 { continue; }
+                    let gx = -lum_at(&rows, y - 1, x - 1) + lum_at(&rows, y - 1, x + 1)
+                        - 2.0 * lum_at(&rows, y, x - 1) + 2.0 * lum_at(&rows, y, x + 1)
+                        - lum_at(&rows, y + 1, x - 1) + lum_at(&rows, y + 1, x + 1);
+                    let gy = -lum_at(&rows, y - 1, x - 1) - 2.0 * lum_at(&rows, y - 1, x) - lum_at(&rows, y - 1, x + 1)
+                        + lum_at(&rows, y + 1, x - 1) + 2.0 * lum_at(&rows, y + 1, x) + lum_at(&rows, y + 1, x + 1);
+                    if (gx * gx + gy * gy).sqrt() > 0.15 {
+                        *pixel = Color::new(0.0, 0.0, 0.0);
+                    }
+                }
+            }
+        }
+        result
+    } else { rows };
 
     // Lens flare: find brightest pixel, add radial streaks
     let rows = if config.lens_flare > 0.0 {

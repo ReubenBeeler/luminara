@@ -150,6 +150,7 @@ pub struct RenderSettings {
     pub color_shift: Option<u32>,
     pub posterize_channels: Option<[u32; 3]>,
     pub lens_flare: Option<f64>,
+    pub cel_shade: Option<u32>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -975,6 +976,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(lf) = r.lens_flare {
             render_config.lens_flare = lf;
+        }
+        if let Some(cs) = r.cel_shade {
+            render_config.cel_shade = cs;
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -2023,6 +2027,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         color_shift: 0,
         posterize_channels: [0, 0, 0],
         lens_flare: 0.0,
+        cel_shade: 0,
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,
