@@ -156,6 +156,7 @@ pub struct RenderSettings {
     pub cel_shade: Option<u32>,
     pub frame: Option<u32>,
     pub hex_pixelate: Option<u32>,
+    pub pencil: Option<u32>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -1001,6 +1002,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(hp) = r.hex_pixelate {
             render_config.hex_pixelate = hp;
+        }
+        if let Some(p) = r.pencil {
+            render_config.pencil = p;
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -2062,6 +2066,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         cel_shade: 0,
         frame: 0,
         hex_pixelate: 0,
+        pencil: 0,
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,

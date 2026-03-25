@@ -369,6 +369,8 @@ pub struct RenderConfig {
     pub frame: u32,
     /// Hexagonal pixelation cell size (0 = off). Creates honeycomb mosaic effect.
     pub hex_pixelate: u32,
+    /// Pencil drawing effect: hatching density (0 = off). Simulates pencil cross-hatching.
+    pub pencil: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -476,6 +478,7 @@ impl Default for RenderConfig {
             cel_shade: 0,
             frame: 0,
             hex_pixelate: 0,
+            pencil: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2671,6 +2674,36 @@ pub fn render(
                     if (gx * gx + gy * gy).sqrt() > 0.15 {
                         *pixel = Color::new(0.0, 0.0, 0.0);
                     }
+                }
+            }
+        }
+        result
+    } else { rows };
+
+    // Pencil drawing: cross-hatching based on luminance
+    let rows = if config.pencil > 0 {
+        let spacing = config.pencil.max(2) as usize;
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let paper = Color::new(0.95, 0.93, 0.88); // warm paper color
+        let ink = Color::new(0.1, 0.08, 0.06);     // dark pencil
+        let mut result = vec![vec![paper; w]; h];
+        for (y, row) in result.iter_mut().enumerate() {
+            for (x, pixel) in row.iter_mut().enumerate() {
+                let c = &rows[y][x];
+                let lum = c.x * 0.2126 + c.y * 0.7152 + c.z * 0.0722;
+                let darkness = 1.0 - lum.clamp(0.0, 1.0);
+                // Layer 1: diagonal hatching (45°) for mid-dark areas
+                if darkness > 0.25 && (x + y) % spacing == 0 {
+                    *pixel = ink;
+                }
+                // Layer 2: cross-hatching (135°) for darker areas
+                if darkness > 0.5 && (x + (h - y)) % spacing == 0 {
+                    *pixel = ink;
+                }
+                // Layer 3: horizontal hatching for very dark areas
+                if darkness > 0.75 && y % spacing == 0 {
+                    *pixel = ink;
                 }
             }
         }
