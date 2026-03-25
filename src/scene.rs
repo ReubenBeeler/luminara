@@ -15,7 +15,7 @@ use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
 use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Subsurface, Toon, Translucent, Transparent, Velvet};
-use crate::texture::{Brick, Camo, Checker, Cloud, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Lava, Marble, MixTexture, Noise, Rings, Rust, Spiral, Stripe, TransformedTexture, TriPlanar, Turbulence, UvChecker, Voronoi, Wavy, Wood};
+use crate::texture::{Brick, Camo, Checker, Cloud, ColorRamp, Dots, Fbm, GradientTexture, Grid, Hexgrid, ImageTexture, Lava, Marble, MixTexture, Noise, Rings, Rust, Spiral, Stripe, Terrain, TransformedTexture, TriPlanar, Turbulence, UvChecker, Voronoi, Wavy, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
 use crate::ray::Ray;
@@ -535,6 +535,10 @@ pub enum MaterialDesc {
         color2: [f64; 3],
         scale: Option<f64>,
         line_width: Option<f64>,
+    },
+    #[serde(alias = "terrain", alias = "earth")]
+    Terrain {
+        scale: Option<f64>,
     },
     #[serde(alias = "rust", alias = "patina", alias = "oxidized")]
     Rust {
@@ -1487,6 +1491,9 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 scale.unwrap_or(1.0),
                 octaves.unwrap_or(6),
             ))))
+        }
+        MaterialDesc::Terrain { scale } => {
+            Box::new(Lambertian::with_texture(Box::new(Terrain::new(scale.unwrap_or(1.0)))))
         }
         MaterialDesc::Rust { scale } => {
             Box::new(Lambertian::with_texture(Box::new(Rust::new(scale.unwrap_or(2.0)))))

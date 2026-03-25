@@ -997,6 +997,46 @@ impl Texture for Rust {
     }
 }
 
+/// Terrain texture: maps Y height to earth tones (water → sand → grass → rock → snow).
+pub struct Terrain {
+    pub scale: f64,
+}
+
+impl Terrain {
+    pub fn new(scale: f64) -> Self {
+        Self { scale }
+    }
+}
+
+impl Texture for Terrain {
+    fn value(&self, _u: f64, _v: f64, point: &Point3) -> Color {
+        let h = (point.y * self.scale).clamp(0.0, 1.0);
+        if h < 0.1 {
+            // Deep water
+            Color::new(0.05, 0.15, 0.4)
+        } else if h < 0.2 {
+            // Shallow water → sand transition
+            let t = (h - 0.1) / 0.1;
+            Color::new(0.05 + t * 0.75, 0.15 + t * 0.6, 0.4 - t * 0.1)
+        } else if h < 0.3 {
+            // Sand
+            Color::new(0.8, 0.75, 0.3)
+        } else if h < 0.6 {
+            // Grass
+            let t = (h - 0.3) / 0.3;
+            Color::new(0.15 + t * 0.1, 0.5 - t * 0.15, 0.1)
+        } else if h < 0.8 {
+            // Rock
+            let t = (h - 0.6) / 0.2;
+            Color::new(0.4 + t * 0.1, 0.35 + t * 0.1, 0.3 + t * 0.1)
+        } else {
+            // Snow
+            let t = (h - 0.8) / 0.2;
+            Color::new(0.8 + t * 0.2, 0.85 + t * 0.15, 0.9 + t * 0.1)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
