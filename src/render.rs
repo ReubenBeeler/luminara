@@ -332,6 +332,8 @@ pub struct RenderConfig {
     pub sketch: bool,
     /// Median filter radius (0 = off). Removes salt-and-pepper noise while preserving edges.
     pub median: u32,
+    /// Crosshatch spacing (0 = off). Simulates pen-and-ink cross-hatching.
+    pub crosshatch: u32,
 }
 
 impl Default for RenderConfig {
@@ -389,6 +391,7 @@ impl Default for RenderConfig {
             duo_tone: String::new(),
             sketch: false,
             median: 0,
+            crosshatch: 0,
         }
     }
 }
@@ -1907,6 +1910,31 @@ pub fn render(
                 r = posterize_ch(r);
                 g = posterize_ch(g);
                 b = posterize_ch(b);
+            }
+
+            // Crosshatch: pen-and-ink style based on luminance
+            if config.crosshatch > 0 {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                let sp = config.crosshatch as i32;
+                let x = i as i32;
+                let y = j as i32;
+
+                // Layer 1: diagonal lines (/) for lum < 0.75
+                let line1 = ((x + y) % sp == 0) && lum < 0.75;
+                // Layer 2: opposite diagonal (\) for lum < 0.50
+                let line2 = ((x - y).rem_euclid(sp) == 0) && lum < 0.50;
+                // Layer 3: horizontal for lum < 0.25
+                let line3 = (y % sp == 0) && lum < 0.25;
+
+                if line1 || line2 || line3 {
+                    r = 0;
+                    g = 0;
+                    b = 0;
+                } else {
+                    r = 255;
+                    g = 255;
+                    b = 255;
+                }
             }
 
             // Halftone: circular dots based on luminance

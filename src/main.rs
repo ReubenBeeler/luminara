@@ -92,6 +92,7 @@ struct CliArgs {
     duo_tone: Option<String>,
     sketch: bool,
     median: Option<u32>,
+    crosshatch: Option<u32>,
 }
 
 fn main() {
@@ -272,6 +273,9 @@ fn main() {
     if let Some(m) = cli.median {
         render_config.median = m;
     }
+    if let Some(ch) = cli.crosshatch {
+        render_config.crosshatch = ch;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -373,6 +377,7 @@ fn main() {
         if !render_config.duo_tone.is_empty() { pp.push("duo-tone".to_string()); }
         if render_config.sketch { pp.push("sketch".to_string()); }
         if render_config.median > 0 { pp.push(format!("median({})", render_config.median)); }
+        if render_config.crosshatch > 0 { pp.push(format!("crosshatch({})", render_config.crosshatch)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -709,6 +714,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         duo_tone: None,
         sketch: false,
         median: None,
+        crosshatch: None,
     };
     let mut i = 1;
 
@@ -978,6 +984,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.median = args[i].parse().ok();
                 }
             }
+            "--crosshatch" => {
+                i += 1;
+                if i < args.len() {
+                    cli.crosshatch = args[i].parse().ok();
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1064,6 +1076,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --duo-tone S  Two-color toning (e.g. \"0,0,64;255,200,0\")");
                 eprintln!("      --sketch      Pencil sketch effect (grayscale + edge detection)");
                 eprintln!("      --median N    Median filter radius for noise removal (e.g. 1)");
+                eprintln!("      --crosshatch N Pen-and-ink crosshatch spacing (e.g. 4)");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
