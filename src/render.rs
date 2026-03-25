@@ -299,6 +299,8 @@ pub struct RenderConfig {
     pub edge_detect: f64,
     /// Pixelate block size (0 = off, N = NxN pixel blocks for retro look).
     pub pixelate: u32,
+    /// Invert colors (false = normal, true = negative image).
+    pub invert: bool,
 }
 
 impl Default for RenderConfig {
@@ -340,6 +342,7 @@ impl Default for RenderConfig {
             sepia: 0.0,
             edge_detect: 0.0,
             pixelate: 0,
+            invert: false,
         }
     }
 }
@@ -1435,6 +1438,13 @@ pub fn render(
                 r = posterize_ch(r);
                 g = posterize_ch(g);
                 b = posterize_ch(b);
+            }
+
+            // Color inversion
+            if config.invert {
+                r = 255 - r;
+                g = 255 - g;
+                b = 255 - b;
             }
 
             // Film grain: add deterministic luminance noise

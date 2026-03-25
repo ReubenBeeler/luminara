@@ -73,6 +73,7 @@ struct CliArgs {
     sepia: Option<f64>,
     edge_detect: Option<f64>,
     pixelate: Option<u32>,
+    invert: bool,
 }
 
 fn main() {
@@ -213,6 +214,9 @@ fn main() {
     }
     if let Some(px) = cli.pixelate {
         render_config.pixelate = px;
+    }
+    if cli.invert {
+        render_config.invert = true;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -593,6 +597,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         sepia: None,
         edge_detect: None,
         pixelate: None,
+        invert: false,
     };
     let mut i = 1;
 
@@ -783,6 +788,9 @@ fn parse_args(args: &[String]) -> CliArgs {
                 if i < args.len() {
                     cli.pixelate = args[i].parse().ok();
                 }
+            }
+            "--invert" => {
+                cli.invert = true;
             }
             "--info" => {
                 cli.info_only = true;

@@ -109,6 +109,7 @@ pub struct RenderSettings {
     pub sepia: Option<f64>,
     pub edge_detect: Option<f64>,
     pub pixelate: Option<u32>,
+    pub invert: Option<bool>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -730,6 +731,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(px) = r.pixelate {
             render_config.pixelate = px;
+        }
+        if let Some(inv) = r.invert {
+            render_config.invert = inv;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1558,6 +1562,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         sepia: 0.0,
         edge_detect: 0.0,
         pixelate: 0,
+        invert: false,
     };
 
     let cam_config = CameraConfig {
