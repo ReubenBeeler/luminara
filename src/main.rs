@@ -141,6 +141,7 @@ struct CliArgs {
     cinematic: bool,
     retro: bool,
     dreamy: bool,
+    noir: bool,
 }
 
 fn main() {
@@ -471,6 +472,13 @@ fn main() {
         render_config.brightness = 0.05;
         render_config.tint = [1.0, 0.98, 1.05]; // slight purple tint
         render_config.vignette = 0.2;
+    }
+    if cli.noir {
+        render_config.saturation = 0.0; // full desaturation
+        render_config.contrast = 1.4;
+        render_config.vignette = 0.6;
+        render_config.grain = 0.05;
+        render_config.sharpen = 0.3;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -1057,6 +1065,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         cinematic: false,
         retro: false,
         dreamy: false,
+        noir: false,
     };
     let mut i = 1;
 
@@ -1413,6 +1422,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--dreamy" => {
                 cli.dreamy = true;
             }
+            "--noir" => {
+                cli.noir = true;
+            }
             "--cinematic" => {
                 cli.cinematic = true;
             }
@@ -1723,6 +1735,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --cinematic   Cinematic preset (bloom + warm tint + vignette)");
                 eprintln!("      --retro       Retro CRT preset (scanlines + pixelate + aberration)");
                 eprintln!("      --dreamy      Dreamy/ethereal preset (bloom + blur + saturation)");
+                eprintln!("      --noir        Film noir preset (B&W + high contrast + vignette)");
                 eprintln!("      --save-json F Save render statistics as JSON to file");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
