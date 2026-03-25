@@ -1,0 +1,54 @@
+# CSG Demo Scene — boolean operations on geometry
+
+[render]
+width = 800
+height = 600
+samples = 64
+max_depth = 50
+exposure = 1.0
+background = { type = "sky" }
+
+[camera]
+look_from = [6.0, 4.0, 8.0]
+look_at = [0.0, 1.0, 0.0]
+vup = [0.0, 1.0, 0.0]
+vfov = 35.0
+aperture = 0.05
+focus_dist = 10.0
+
+# Ground
+[[sphere]]
+center = [0.0, -1000.0, 0.0]
+radius = 1000.0
+material = { type = "checker", color1 = [0.9, 0.9, 0.9], color2 = [0.4, 0.4, 0.4], scale = 0.5 }
+
+# CSG Difference: sphere with spherical hole (lens shape)
+[[csg]]
+operation = "difference"
+a = { shape = "sphere", center = [-3.0, 1.0, 0.0], radius = 1.0, material = { type = "pbr", color = [0.8, 0.2, 0.1], roughness = 0.3, metallic = 0.8 } }
+b = { shape = "sphere", center = [-2.3, 1.0, 0.5], radius = 0.8, material = { type = "matte", color = [1.0, 1.0, 1.0] } }
+
+# CSG Intersection: two overlapping spheres (vesica piscis)
+[[csg]]
+operation = "intersection"
+a = { shape = "sphere", center = [0.3, 1.0, 0.0], radius = 1.0, material = { type = "dielectric", refraction_index = 1.5, tint = [0.6, 0.9, 1.0] } }
+b = { shape = "sphere", center = [-0.3, 1.0, 0.0], radius = 1.0, material = { type = "dielectric", refraction_index = 1.5, tint = [0.6, 0.9, 1.0] } }
+
+# CSG Union: two merged metallic spheres
+[[csg]]
+operation = "union"
+a = { shape = "sphere", center = [3.0, 1.0, -0.3], radius = 0.8, material = { type = "pbr", color = [0.95, 0.93, 0.88], roughness = 0.1, metallic = 1.0 } }
+b = { shape = "sphere", center = [3.0, 1.0, 0.5], radius = 0.7, material = { type = "pbr", color = [0.95, 0.93, 0.88], roughness = 0.1, metallic = 1.0 } }
+
+# A regular PBR sphere for comparison
+[[sphere]]
+center = [0.0, 1.0, 3.0]
+radius = 1.0
+material = { type = "pbr", color = [0.1, 0.4, 0.8], roughness = 0.5, metallic = 0.0 }
+
+# Light
+[[light]]
+position = [5.0, 8.0, 5.0]
+color = [1.0, 0.95, 0.9]
+intensity = 30.0
+radius = 1.0

@@ -7,13 +7,14 @@ A physically-based ray tracer written in Rust. Luminara renders photorealistic 3
 Luminara traces rays of light through a virtual scene, simulating how photons interact with surfaces to produce realistic images. It supports:
 
 - **Geometry**: Spheres, moving spheres (motion blur), ellipsoids, tori, infinite planes, disks, triangles, quads (parallelograms), cylinders, cones, capsules, axis-aligned rectangles, boxes, and OBJ triangle meshes
-- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with Beer's Law absorption, tint, and roughness), emissive (lights), blend (mix two materials)
+- **Materials**: Lambertian (diffuse), metallic (configurable fuzz), dielectric (glass with Beer's Law absorption, tint, and roughness), emissive (solid or textured lights), microfacet/PBR (Cook-Torrance GGX with roughness and metallic), blend (mix two materials)
 - **Textures**: Solid color, 3D checkerboard, UV checkerboard, stripes, gradient, rings, wood, dots, grid, Perlin marble, turbulence, and image textures (PNG/JPG)
 - **Volumetrics**: Constant-density fog/smoke with isotropic scattering
 - **Camera**: Configurable field of view, position, depth of field (aperture/focus distance)
 - **Motion blur**: Moving spheres with per-ray time sampling
-- **Rendering**: Multithreaded via Rayon, stratified sampling, ACES tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
+- **Rendering**: Multithreaded via Rayon, stratified sampling, Next Event Estimation (direct light sampling), ACES tone mapping, sRGB gamma, progress indicator with ETA, Mrays/s stats
 - **Acceleration**: BVH with Surface Area Heuristic for O(log n) ray intersection
+- **CSG**: Constructive Solid Geometry — union, intersection, and difference operations on convex primitives
 - **Backgrounds**: Sky gradient, sun+sky with directional sun disk, sunset preset, solid color, custom gradient, or black
 - **Transforms**: Translate, rotate (X/Y/Z-axis), uniform scale
 - **Output**: PNG images, PPM format, or stdout piping (`-o -`)
@@ -119,7 +120,8 @@ color = [0.8, 0.8, 0.8]
 | `lambertian` / `matte` | `color` |
 | `metal` | `color`, `fuzz` (optional, 0.0-1.0) |
 | `dielectric` | `refraction_index`, `tint` (optional), `roughness` (optional, 0.0-1.0) |
-| `emissive` | `color`, `intensity` (optional, default 1.0) |
+| `emissive` | `color`, `intensity` (optional, default 1.0), `texture` (optional, image path) |
+| `microfacet` / `pbr` | `color`, `roughness` (optional, 0.01-1.0), `metallic` (optional, 0.0-1.0) |
 | `mirror` | *(none — perfect reflector)* |
 | `glass` | *(none — standard glass, IOR 1.5)* |
 | `blend` | `material_a`, `material_b`, `ratio` (optional, default 0.5) |
@@ -144,7 +146,8 @@ color = [0.8, 0.8, 0.8]
 | `aabb` | Axis-aligned bounding boxes |
 | `bvh` | Bounding volume hierarchy acceleration |
 | `hit` | Hit records, `Hittable` trait, scene list |
-| `material` | Material trait + Lambertian, Metal, Dielectric, Emissive, Blend |
+| `material` | Material trait + Lambertian, Metal, Dielectric, Emissive, Microfacet, Blend |
+| `csg` | Constructive Solid Geometry (union, intersection, difference) |
 | `texture` | Texture trait + 12 procedural/image textures |
 | `sphere` | Sphere and MovingSphere with UV mapping |
 | `ellipsoid` | Ellipsoid with 3-axis radii |
@@ -170,7 +173,7 @@ color = [0.8, 0.8, 0.8]
 - **Pure Rust, minimal dependencies**: Only `rand`, `rayon`, `image`, `toml`, and `serde`. No graphics API, no GPU — just math and parallelism.
 - **Trait-based extensibility**: `Hittable`, `Material`, and `Texture` traits make adding new geometry, materials, and textures straightforward.
 - **BVH acceleration**: Bounded objects are organized in a bounding volume hierarchy for logarithmic ray intersection. Unbounded objects (infinite planes) are tested separately.
-- **Physically-based**: Schlick's approximation for Fresnel, Beer's Law volumetric absorption, proper refraction via Snell's law, Lambertian scattering, emissive light transport.
+- **Physically-based**: Cook-Torrance GGX microfacet BRDF, Schlick's approximation for Fresnel, Beer's Law volumetric absorption, proper refraction via Snell's law, Lambertian scattering, emissive light transport with Next Event Estimation.
 - **HDR pipeline**: ACES filmic tone mapping prevents harsh clamping of bright emissive surfaces. Stratified (jittered) sampling reduces noise.
 - **Deterministic per-row seeding**: Each row gets its own RNG seeded by row index, making renders reproducible regardless of thread scheduling.
 - **Input validation**: Guards against zero-length normals, zero-scale textures, and missing image files to prevent NaN propagation.
@@ -184,14 +187,14 @@ color = [0.8, 0.8, 0.8]
 - **everything.toml**: Comprehensive demo of every geometry, material, texture, and effect
 - **sunset.toml**: Sunset background preset scene
 - **motion.toml**: Motion blur demo with moving spheres and quad geometry
+- **csg_demo.toml**: CSG boolean operations (union, intersection, difference) with PBR materials
 
 ## What's next
 
 - Normal mapping
-- Constructive solid geometry (CSG)
-- Importance sampling for faster convergence
-- HDR environment maps
-- Texture support on more geometry types
+- Spectral rendering / wavelength-dependent dispersion
+- Adaptive sampling for faster convergence on complex scenes
+- Photon mapping for caustics
 
 ---
 
