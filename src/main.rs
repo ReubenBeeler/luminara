@@ -100,6 +100,7 @@ struct CliArgs {
     quantize: Option<u32>,
     tint: Option<[f64; 3]>,
     palette: Option<String>,
+    ascii: bool,
 }
 
 fn main() {
@@ -544,6 +545,31 @@ fn main() {
         eprintln!("Saved to {}", out.display());
     }
 
+    // ASCII art output
+    if cli.ascii {
+        const ASCII_CHARS: &[u8] = b" .:-=+*#%@";
+        let term_width: usize = 80;
+        let aspect = out_h as f64 / out_w as f64;
+        // Terminal chars are ~2x taller than wide, so halve the height
+        let term_height = ((term_width as f64 * aspect) * 0.5).round() as usize;
+        let mut ascii_art = String::with_capacity((term_width + 1) * term_height);
+        for row in 0..term_height {
+            for col in 0..term_width {
+                let px = (col as f64 / term_width as f64 * out_w as f64) as usize;
+                let py = (row as f64 / term_height as f64 * out_h as f64) as usize;
+                let idx = (py * out_w as usize + px) * 4;
+                let r = pixels[idx] as f64;
+                let g = pixels[idx + 1] as f64;
+                let b = pixels[idx + 2] as f64;
+                let lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
+                let ci = (lum * (ASCII_CHARS.len() - 1) as f64).round() as usize;
+                ascii_art.push(ASCII_CHARS[ci.min(ASCII_CHARS.len() - 1)] as char);
+            }
+            ascii_art.push('\n');
+        }
+        eprintln!("\n{ascii_art}");
+    }
+
     // Save HDR data if requested
     // Save depth pass
     if let (Some(depth_path), Some(depth_data)) = (&cli.save_depth, &result.depth_pass) {
@@ -759,6 +785,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         quantize: None,
         tint: None,
         palette: None,
+        ascii: false,
     };
     let mut i = 1;
 
@@ -1079,6 +1106,9 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.palette = Some(args[i].clone());
                 }
             }
+            "--ascii" => {
+                cli.ascii = true;
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1173,6 +1203,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --tint R,G,B  Multiply all pixels by RGB color (0-1 each)");
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
+                eprintln!("      --ascii       Print ASCII art rendering to terminal");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
