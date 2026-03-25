@@ -105,6 +105,7 @@ struct CliArgs {
     tri_tone: Option<String>,
     gradient_map: Option<String>,
     split_tone: Option<String>,
+    color_shift: Option<u32>,
     pop_art: Option<u32>,
     watercolor: Option<u32>,
     auto_levels: bool,
@@ -343,6 +344,9 @@ fn main() {
     if let Some(ref st) = cli.split_tone {
         render_config.split_tone = st.clone();
     }
+    if let Some(cs) = cli.color_shift {
+        render_config.color_shift = cs;
+    }
     if let Some(pa) = cli.pop_art {
         render_config.pop_art = pa;
     }
@@ -529,6 +533,7 @@ fn main() {
         if !render_config.tri_tone.is_empty() { pp.push("tri-tone".to_string()); }
         if !render_config.gradient_map.is_empty() { pp.push("gradient-map".to_string()); }
         if !render_config.split_tone.is_empty() { pp.push("split-tone".to_string()); }
+        if render_config.color_shift > 0 { pp.push(format!("color-shift({})", render_config.color_shift)); }
         if render_config.pop_art >= 2 { pp.push(format!("pop-art({})", render_config.pop_art)); }
         if render_config.watercolor > 0 { pp.push(format!("watercolor({})", render_config.watercolor)); }
         if render_config.auto_levels { pp.push("auto-levels".to_string()); }
@@ -950,6 +955,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tri_tone: None,
         gradient_map: None,
         split_tone: None,
+        color_shift: None,
         pop_art: None,
         watercolor: None,
         auto_levels: false,
@@ -1349,6 +1355,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.split_tone = Some(args[i].clone());
                 }
             }
+            "--color-shift" => {
+                i += 1;
+                if i < args.len() {
+                    cli.color_shift = args[i].parse().ok();
+                }
+            }
             "--pop-art" => {
                 i += 1;
                 if i < args.len() {
@@ -1479,7 +1491,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 61 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 62 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1543,6 +1555,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --tri-tone S  Three-color toning (\"R,G,B;R,G,B;R,G,B\")");
                 eprintln!("      --gradient-map S  Custom gradient color map (\"RRGGBB;RRGGBB;...\")");
                 eprintln!("      --split-tone S  Split toning (\"R,G,B;R,G,B\" shadow;highlight)");
+                eprintln!("      --color-shift N  Rotate RGB channels (1=right, 2=left)");
                 eprintln!("      --pop-art N   Warhol-style pop art color bands");
                 eprintln!("      --watercolor N  Watercolor painting effect (blur radius)");
                 eprintln!("      --auto-levels Auto-stretch histogram for full dynamic range");

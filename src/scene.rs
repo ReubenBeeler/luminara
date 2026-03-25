@@ -144,6 +144,7 @@ pub struct RenderSettings {
     pub tri_tone: Option<String>,
     pub gradient_map: Option<String>,
     pub split_tone: Option<String>,
+    pub color_shift: Option<u32>,
     pub pop_art: Option<u32>,
     pub watercolor: Option<u32>,
     pub auto_levels: Option<bool>,
@@ -944,6 +945,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(ref st) = r.split_tone {
             render_config.split_tone = st.clone();
+        }
+        if let Some(cs) = r.color_shift {
+            render_config.color_shift = cs;
         }
         if let Some(pa) = r.pop_art {
             render_config.pop_art = pa;
@@ -1967,6 +1971,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         tri_tone: String::new(),
         gradient_map: String::new(),
         split_tone: String::new(),
+        color_shift: 0,
         pop_art: 0,
         watercolor: 0,
         auto_levels: false,

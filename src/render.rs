@@ -357,6 +357,8 @@ pub struct RenderConfig {
     pub gradient_map: String,
     /// Split-tone: warm highlights / cool shadows. "R,G,B;R,G,B" (shadow;highlight colors 0-255).
     pub split_tone: String,
+    /// Color shift: rotate RGB channels by N positions (0 = off, 1 = R→G→B→R, 2 = R→B→G→R).
+    pub color_shift: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -458,6 +460,7 @@ impl Default for RenderConfig {
             tri_tone: String::new(),
             gradient_map: String::new(),
             split_tone: String::new(),
+            color_shift: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2965,6 +2968,18 @@ pub fn render(
                 r = ((r as f64 * (1.0 - blend) + tint[0] * 255.0 * blend).clamp(0.0, 255.0)) as u8;
                 g = ((g as f64 * (1.0 - blend) + tint[1] * 255.0 * blend).clamp(0.0, 255.0)) as u8;
                 b = ((b as f64 * (1.0 - blend) + tint[2] * 255.0 * blend).clamp(0.0, 255.0)) as u8;
+            }
+
+            // Color shift: rotate RGB channels
+            if config.color_shift > 0 {
+                let (nr, ng, nb) = match config.color_shift % 3 {
+                    1 => (b, r, g), // shift right: R←B, G←R, B←G
+                    2 => (g, b, r), // shift left: R←G, G←B, B←R
+                    _ => (r, g, b),
+                };
+                r = nr;
+                g = ng;
+                b = nb;
             }
 
             // Color inversion
