@@ -2698,22 +2698,21 @@ pub fn render(
         result
     } else { rows };
 
-    // Spin blur: rotational motion blur
+    // Spin blur: rotational motion blur (parallelized)
     let rows = if config.spin_blur > 0.0 {
         let h = rows.len();
         let w = if h > 0 { rows[0].len() } else { 0 };
         let cx = w as f64 / 2.0;
         let cy = h as f64 / 2.0;
         let max_angle = config.spin_blur.to_radians();
+        let max_dist = (cx * cx + cy * cy).sqrt();
         let samples = 8;
-        let mut result = vec![vec![Color::new(0.0, 0.0, 0.0); w]; h];
-        for (y, row) in result.iter_mut().enumerate() {
-            for (x, pixel) in row.iter_mut().enumerate() {
+        let result: Vec<Vec<Color>> = (0..h).into_par_iter().map(|y| {
+            (0..w).map(|x| {
                 let dx = x as f64 - cx;
                 let dy = y as f64 - cy;
                 let dist = (dx * dx + dy * dy).sqrt();
-                let max_dist = (cx * cx + cy * cy).sqrt();
-                let angle_range = max_angle * (dist / max_dist); // more blur at edges
+                let angle_range = max_angle * (dist / max_dist);
                 let base_angle = dy.atan2(dx);
                 let mut sum = Color::new(0.0, 0.0, 0.0);
                 for s in 0..samples {
@@ -2727,9 +2726,9 @@ pub fn render(
                         sum += rows[y][x];
                     }
                 }
-                *pixel = sum / samples as f64;
-            }
-        }
+                sum / samples as f64
+            }).collect()
+        }).collect();
         result
     } else { rows };
 
