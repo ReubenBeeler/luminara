@@ -1,0 +1,61 @@
+# Prism Scene — demonstrating chromatic dispersion
+
+[render]
+width = 960
+height = 540
+samples = 512
+max_depth = 50
+exposure = 1.0
+background = { type = "solid", color = [0.02, 0.02, 0.05] }
+
+[camera]
+look_from = [0.0, 2.0, 6.0]
+look_at = [0.0, 0.5, 0.0]
+vup = [0.0, 1.0, 0.0]
+vfov = 40.0
+aperture = 0.0
+focus_dist = 6.0
+
+# Ground
+[[plane]]
+point = [0.0, 0.0, 0.0]
+normal = [0.0, 1.0, 0.0]
+material = { type = "matte", color = [0.15, 0.15, 0.15] }
+
+# Dispersive glass sphere (prism effect)
+[[sphere]]
+center = [0.0, 1.0, 0.0]
+radius = 1.0
+material = { type = "dielectric", refraction_index = 1.52, dispersion = 0.04 }
+
+# Second dispersive sphere with tint
+[[sphere]]
+center = [2.5, 0.6, 1.0]
+radius = 0.6
+material = { type = "dielectric", refraction_index = 1.7, dispersion = 0.06, tint = [0.95, 0.95, 1.0] }
+
+# Non-dispersive glass sphere for comparison
+[[sphere]]
+center = [-2.5, 0.6, 1.0]
+radius = 0.6
+material = { type = "dielectric", refraction_index = 1.5 }
+
+# Bright directional light to create strong dispersion
+[[light]]
+position = [-3.0, 5.0, 3.0]
+color = [1.0, 1.0, 1.0]
+intensity = 80.0
+radius = 0.3
+
+# Fill light
+[[light]]
+position = [4.0, 3.0, 2.0]
+color = [0.8, 0.9, 1.0]
+intensity = 20.0
+radius = 0.5
+
+# Metallic sphere to reflect the rainbow
+[[sphere]]
+center = [0.0, 0.4, 2.5]
+radius = 0.4
+material = { type = "pbr", color = [0.95, 0.95, 0.95], roughness = 0.05, metallic = 1.0 }
