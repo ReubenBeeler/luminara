@@ -19,6 +19,7 @@ mod quad;
 mod ray;
 mod rect;
 mod render;
+mod rounded_box;
 mod scene;
 mod sphere;
 mod texture;

@@ -23,6 +23,7 @@ use crate::rect::{XyRect, XzRect, YzRect, make_box};
 use crate::render::{Background, LightInfo, RenderConfig};
 use crate::sphere::{MovingSphere, Sphere};
 use crate::obj;
+use crate::rounded_box::RoundedBox;
 use crate::torus::Torus;
 use crate::triangle::Triangle;
 use crate::vec3::{Color, Point3, Vec3};
@@ -74,6 +75,8 @@ pub struct SceneFile {
     pub rect_xz: Vec<RectXzDesc>,
     #[serde(default)]
     pub rect_yz: Vec<RectYzDesc>,
+    #[serde(default)]
+    pub rounded_box: Vec<RoundedBoxDesc>,
     #[serde(default)]
     pub csg: Vec<CsgDesc>,
 }
@@ -228,6 +231,14 @@ pub struct TorusDesc {
     pub material: MaterialDesc,
     pub bump_strength: Option<f64>,
     pub bump_scale: Option<f64>,
+}
+
+#[derive(Deserialize)]
+pub struct RoundedBoxDesc {
+    pub center: [f64; 3],
+    pub half_size: [f64; 3],
+    pub radius: f64,
+    pub material: MaterialDesc,
 }
 
 #[derive(Deserialize)]
@@ -943,6 +954,16 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         } else {
             world.add(obj);
         }
+    }
+
+    for rb in &scene.rounded_box {
+        let mat = build_material(&rb.material);
+        world.add(Box::new(RoundedBox::new(
+            arr_to_vec3(rb.center),
+            arr_to_vec3(rb.half_size),
+            rb.radius,
+            mat,
+        )));
     }
 
     for c in &scene.capsule {
