@@ -1,0 +1,74 @@
+# Abstract Shapes — Showcases newer SDF geometry primitives
+# Rounded box, superellipsoid, spring, and Möbius strip
+
+[render]
+width = 800
+height = 600
+samples = 128
+max_depth = 12
+background = { type = "gradient", bottom = [0.05, 0.05, 0.1], top = [0.1, 0.1, 0.2] }
+bloom = 0.15
+sharpen = 0.2
+
+[camera]
+look_from = [5, 4, 8]
+look_at = [0, 1, 0]
+vfov = 35
+aperture = 0.03
+focus_dist = 10
+
+# Ground plane
+[[plane]]
+point = [0, 0, 0]
+normal = [0, 1, 0]
+material = { type = "checker", color1 = [0.15, 0.15, 0.15], color2 = [0.08, 0.08, 0.08], scale = 1.5 }
+
+# Rounded box — iridescent
+[[rounded_box]]
+center = [-2.5, 0.8, 0]
+half_size = [0.6, 0.6, 0.6]
+radius = 0.15
+material = { type = "iridescent", thickness = 400, roughness = 0.1 }
+
+# Superellipsoid — morphed between cube and sphere (PBR gold)
+[[superellipsoid]]
+center = [0, 0.9, 0]
+scale = [0.8, 0.8, 0.8]
+e1 = 0.3
+e2 = 0.3
+material = { type = "pbr", color = [1.0, 0.84, 0.0], roughness = 0.1, metallic = 1.0 }
+
+# Torus — glass
+[[torus]]
+center = [2.5, 0.7, 0]
+major_radius = 0.6
+minor_radius = 0.2
+material = { type = "dielectric", refraction_index = 1.5, tint = [0.9, 0.95, 1.0] }
+
+# Spring — brushed metal
+[[spring]]
+center = [-1, 0, 2]
+coil_radius = 0.4
+tube_radius = 0.08
+pitch = 0.5
+turns = 4
+material = { type = "anisotropic", color = [0.9, 0.9, 0.9], roughness_u = 0.02, roughness_v = 0.4 }
+
+# Möbius strip — velvet
+[[mobius]]
+center = [1.5, 1.2, 2.5]
+radius = 0.7
+width = 0.25
+material = { type = "velvet", color = [0.4, 0.1, 0.5], sheen = 2.0 }
+
+# Key light
+[[sphere]]
+center = [5, 8, 5]
+radius = 2
+material = { type = "emissive", color = [1.0, 0.95, 0.9], intensity = 8 }
+
+# Fill light
+[[sphere]]
+center = [-4, 5, 3]
+radius = 1
+material = { type = "emissive", color = [0.6, 0.7, 1.0], intensity = 3 }
