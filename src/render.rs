@@ -323,6 +323,8 @@ pub struct RenderConfig {
     pub oil_paint: u32,
     /// False color mapping: "inferno", "viridis", "turbo", "grayscale", or empty for off.
     pub color_map: String,
+    /// Solarize threshold (negative = off, 0.0-1.0). Pixels above this luminance get inverted.
+    pub solarize: f64,
 }
 
 impl Default for RenderConfig {
@@ -376,6 +378,7 @@ impl Default for RenderConfig {
             emboss: 0.0,
             oil_paint: 0,
             color_map: String::new(),
+            solarize: -1.0,
         }
     }
 }
@@ -1793,6 +1796,16 @@ pub fn render(
                 r = (mr * 255.0) as u8;
                 g = (mg * 255.0) as u8;
                 b = (mb * 255.0) as u8;
+            }
+
+            // Solarize: invert pixels above a luminance threshold
+            if config.solarize >= 0.0 {
+                let lum = (r as f64 * 0.2126 + g as f64 * 0.7152 + b as f64 * 0.0722) / 255.0;
+                if lum > config.solarize {
+                    r = 255 - r;
+                    g = 255 - g;
+                    b = 255 - b;
+                }
             }
 
             // Color inversion
