@@ -386,6 +386,12 @@ pub enum MaterialDesc {
         color2: [f64; 3],
         scale: Option<f64>,
     },
+    /// Blackbody emitter — specify light color by temperature in Kelvin
+    #[serde(alias = "blackbody")]
+    Blackbody {
+        temperature: f64,
+        intensity: Option<f64>,
+    },
     #[serde(alias = "clearcoat")]
     Clearcoat {
         color: [f64; 3],
@@ -953,6 +959,38 @@ fn build_csg_child(child: &CsgChild) -> Box<dyn Hittable> {
     }
 }
 
+/// Convert blackbody temperature (Kelvin) to normalized RGB color.
+/// Uses Tanner Helland's approximation of the Planckian locus.
+fn blackbody_to_rgb(temp: f64) -> Color {
+    let temp = temp.clamp(1000.0, 40000.0) / 100.0;
+
+    let r = if temp <= 66.0 {
+        1.0
+    } else {
+        let t = temp - 60.0;
+        (329.698727446 * t.powf(-0.1332047592) / 255.0).clamp(0.0, 1.0)
+    };
+
+    let g = if temp <= 66.0 {
+        let t = temp;
+        (99.4708025861 * t.ln() - 161.1195681661).clamp(0.0, 255.0) / 255.0
+    } else {
+        let t = temp - 60.0;
+        (288.1221695283 * t.powf(-0.0755148492) / 255.0).clamp(0.0, 1.0)
+    };
+
+    let b = if temp >= 66.0 {
+        1.0
+    } else if temp <= 19.0 {
+        0.0
+    } else {
+        let t = temp - 10.0;
+        (138.5177312231 * t.ln() - 305.0447927307).clamp(0.0, 255.0) / 255.0
+    };
+
+    Color::new(r, g, b)
+}
+
 fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
     match desc {
         MaterialDesc::Lambertian { color } => {
@@ -1118,6 +1156,10 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
             ))))
+        }
+        MaterialDesc::Blackbody { temperature, intensity } => {
+            let color = blackbody_to_rgb(*temperature);
+            Box::new(Emissive::new(color, intensity.unwrap_or(1.0)))
         }
         MaterialDesc::Clearcoat { color, coat_gloss, coat_ior } => {
             Box::new(Clearcoat::new(
@@ -1421,6 +1463,30 @@ material = { type = "lambertian", color = [0.5, 0.5, 0.5] }
     }
 
     #[test]
+    #[test]
+    fn blackbody_produces_valid_colors() {
+        // Candle light (warm)
+        let warm = super::blackbody_to_rgb(1800.0);
+        assert!(warm.x > warm.y && warm.y > warm.z, "1800K should be warm (R>G>B)");
+
+        // Daylight (neutral white)
+        let daylight = super::blackbody_to_rgb(6500.0);
+        assert!(daylight.x > 0.5 && daylight.y > 0.5 && daylight.z > 0.5,
+            "6500K should be near white");
+
+        // Blue sky (cool)
+        let cool = super::blackbody_to_rgb(15000.0);
+        assert!(cool.z >= cool.x, "15000K should be cool (B>=R)");
+
+        // All values in range
+        for temp in [1000, 2000, 3000, 4000, 5000, 6000, 8000, 10000, 20000] {
+            let c = super::blackbody_to_rgb(temp as f64);
+            assert!(c.x >= 0.0 && c.x <= 1.0, "R out of range at {temp}K: {}", c.x);
+            assert!(c.y >= 0.0 && c.y <= 1.0, "G out of range at {temp}K: {}", c.y);
+            assert!(c.z >= 0.0 && c.z <= 1.0, "B out of range at {temp}K: {}", c.z);
+        }
+    }
+
     fn every_material_type_parses() {
         let toml = r#"
 [[sphere]]
@@ -1512,6 +1578,11 @@ material = { type = "velvet", color = [0.5, 0.1, 0.1], sheen = 1.2 }
 center = [34.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "clearcoat", color = [0.8, 0.1, 0.05], coat_gloss = 0.9 }
+
+[[sphere]]
+center = [36.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "blackbody", temperature = 3200, intensity = 5.0 }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
