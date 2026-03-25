@@ -942,6 +942,7 @@ fn apply_oil_paint(rows: &[Vec<Color>], radius: u32) -> Vec<Vec<Color>> {
     let r = radius as i32;
 
     (0..height)
+        .into_par_iter()
         .map(|j| {
             (0..width)
                 .map(|i| {
@@ -1590,6 +1591,7 @@ pub fn render(
 
         // Apply edge detection (Sobel) to get edges
         let sketch: Vec<Vec<Color>> = (0..height)
+            .into_par_iter()
             .map(|j| {
                 (0..width)
                     .map(|i| {
