@@ -101,6 +101,7 @@ struct CliArgs {
     tint: Option<[f64; 3]>,
     palette: Option<String>,
     ascii: bool,
+    fisheye: Option<f64>,
     wave: Option<f64>,
     swirl: Option<f64>,
     mosaic: Option<u32>,
@@ -315,6 +316,9 @@ fn main() {
     if let Some(ref p) = cli.palette {
         render_config.palette = p.clone();
     }
+    if let Some(fe) = cli.fisheye {
+        render_config.fisheye = fe;
+    }
     if let Some(w) = cli.wave {
         render_config.wave = w;
     }
@@ -456,6 +460,7 @@ fn main() {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
+        if render_config.fisheye.abs() > 1e-6 { pp.push(format!("fisheye({:.2})", render_config.fisheye)); }
         if render_config.wave > 0.0 { pp.push(format!("wave({:.0})", render_config.wave)); }
         if render_config.swirl.abs() > 1e-6 { pp.push(format!("swirl({:.1})", render_config.swirl)); }
         if render_config.mosaic > 0 { pp.push(format!("mosaic({})", render_config.mosaic)); }
@@ -848,6 +853,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         tint: None,
         palette: None,
         ascii: false,
+        fisheye: None,
         wave: None,
         swirl: None,
         mosaic: None,
@@ -1193,6 +1199,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.rotate = args[i].parse().ok();
                 }
             }
+            "--fisheye" => {
+                i += 1;
+                if i < args.len() {
+                    cli.fisheye = args[i].parse().ok();
+                }
+            }
             "--wave" => {
                 i += 1;
                 if i < args.len() {
@@ -1278,7 +1290,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 47 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 50 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1338,6 +1350,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
                 eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --ascii       Print ASCII art rendering to terminal");
+                eprintln!("      --fisheye N   Barrel distortion (positive) or pincushion (negative)");
                 eprintln!("      --wave N      Wave/ripple distortion amplitude in pixels");
                 eprintln!("      --swirl N     Swirl/twist distortion (e.g. 2.0, negative for CCW)");
                 eprintln!("      --mosaic N    Voronoi stained-glass mosaic (cell size in px)");
