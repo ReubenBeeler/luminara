@@ -604,8 +604,19 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
 
     // Objects
     let mut world = HittableList::new();
+    let mut lights = Vec::new();
 
     for s in &scene.sphere {
+        // Track emissive spheres for NEE
+        if let MaterialDesc::Emissive { color, intensity, .. } = &s.material {
+            let emission_color = Color::new(color[0], color[1], color[2]);
+            let int = intensity.unwrap_or(1.0);
+            lights.push(LightInfo {
+                center: arr_to_vec3(s.center),
+                radius: s.radius,
+                emission: emission_color * int,
+            });
+        }
         let mat = build_material(&s.material);
         let sphere: Box<dyn Hittable> = Box::new(Sphere::new(arr_to_vec3(s.center), s.radius, mat));
         if let Some(strength) = s.bump_strength {
@@ -667,7 +678,6 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
     }
 
-    let mut lights = Vec::new();
     for l in &scene.light {
         let color = l.color.map(|c| Color::new(c[0], c[1], c[2])).unwrap_or(Color::new(1.0, 1.0, 1.0));
         let intensity = l.intensity.unwrap_or(10.0);
