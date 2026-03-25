@@ -76,6 +76,7 @@ struct CliArgs {
     invert: bool,
     scanlines: Option<f64>,
     threshold: Option<f64>,
+    blur: Option<f64>,
 }
 
 fn main() {
@@ -225,6 +226,9 @@ fn main() {
     }
     if let Some(th) = cli.threshold {
         render_config.threshold = th;
+    }
+    if let Some(bl) = cli.blur {
+        render_config.blur = bl;
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -608,6 +612,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         invert: false,
         scanlines: None,
         threshold: None,
+        blur: None,
     };
     let mut i = 1;
 
@@ -812,6 +817,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.threshold = args[i].parse().ok();
+                }
+            }
+            "--blur" => {
+                i += 1;
+                if i < args.len() {
+                    cli.blur = args[i].parse().ok();
                 }
             }
             "--info" => {

@@ -305,6 +305,8 @@ pub struct RenderConfig {
     pub scanlines: f64,
     /// Black-and-white threshold (negative = off, 0.0-1.0 = luminance threshold).
     pub threshold: f64,
+    /// Gaussian blur radius (0 = off). Softens the entire image.
+    pub blur: f64,
 }
 
 impl Default for RenderConfig {
@@ -349,6 +351,7 @@ impl Default for RenderConfig {
             invert: false,
             scanlines: 0.0,
             threshold: -1.0,
+            blur: 0.0,
         }
     }
 }
@@ -738,6 +741,56 @@ fn apply_edge_detect(rows: &[Vec<Color>], strength: f64) -> Vec<Vec<Color>> {
                 .collect()
         })
         .collect()
+}
+
+/// Separable Gaussian blur in HDR space.
+fn apply_blur(rows: &[Vec<Color>], sigma: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 || sigma < 0.5 {
+        return rows.to_vec();
+    }
+    let width = rows[0].len();
+    let radius = (sigma * 3.0).ceil() as i64;
+
+    // Build 1D Gaussian kernel
+    let mut kernel = Vec::with_capacity((2 * radius + 1) as usize);
+    let mut sum = 0.0;
+    for i in -radius..=radius {
+        let w = (-0.5 * (i as f64 / sigma).powi(2)).exp();
+        kernel.push(w);
+        sum += w;
+    }
+    for w in &mut kernel {
+        *w /= sum;
+    }
+
+    // Horizontal pass
+    let mut temp: Vec<Vec<Color>> = vec![vec![Color::ZERO; width]; height];
+    for (j, row) in temp.iter_mut().enumerate() {
+        for (i, pixel) in row.iter_mut().enumerate() {
+            let mut c = Color::ZERO;
+            for (k, &w) in kernel.iter().enumerate() {
+                let x = (i as i64 + k as i64 - radius).clamp(0, width as i64 - 1) as usize;
+                c += rows[j][x] * w;
+            }
+            *pixel = c;
+        }
+    }
+
+    // Vertical pass
+    let mut result: Vec<Vec<Color>> = vec![vec![Color::ZERO; width]; height];
+    for (j, row) in result.iter_mut().enumerate() {
+        for (i, pixel) in row.iter_mut().enumerate() {
+            let mut c = Color::ZERO;
+            for (k, &w) in kernel.iter().enumerate() {
+                let y = (j as i64 + k as i64 - radius).clamp(0, height as i64 - 1) as usize;
+                c += temp[y][i] * w;
+            }
+            *pixel = c;
+        }
+    }
+
+    result
 }
 
 /// Pixelate: average NxN blocks for a retro pixel-art effect.
@@ -1233,6 +1286,20 @@ pub fn render(
             eprintln!(" done");
         }
         sharpened
+    } else {
+        rows
+    };
+
+    // Optional Gaussian blur pass
+    let rows = if config.blur > 0.0 {
+        if !config.quiet {
+            eprint!("Blurring...");
+        }
+        let blurred = apply_blur(&rows, config.blur);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        blurred
     } else {
         rows
     };
