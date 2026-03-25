@@ -11,6 +11,11 @@ pub struct Camera {
     u: Vec3,
     v: Vec3,
     lens_radius: f64,
+    panorama: bool,
+    // Basis vectors for panorama mode
+    forward: Vec3,
+    right: Vec3,
+    up: Vec3,
 }
 
 pub struct CameraConfig {
@@ -21,6 +26,7 @@ pub struct CameraConfig {
     pub aspect_ratio: f64,
     pub aperture: f64,
     pub focus_dist: f64,
+    pub panorama: bool,
 }
 
 impl Default for CameraConfig {
@@ -33,6 +39,7 @@ impl Default for CameraConfig {
             aspect_ratio: 16.0 / 9.0,
             aperture: 0.0,
             focus_dist: 1.0,
+            panorama: false,
         }
     }
 }
@@ -61,19 +68,37 @@ impl Camera {
             u,
             v,
             lens_radius: config.aperture / 2.0,
+            panorama: config.panorama,
+            forward: -w,
+            right: u,
+            up: v,
         }
     }
 
+    pub fn set_panorama(&mut self, panorama: bool) {
+        self.panorama = panorama;
+    }
+
     pub fn get_ray(&self, s: f64, t: f64, rng: &mut impl Rng) -> Ray {
-        let rd = Vec3::random_in_unit_disk(rng) * self.lens_radius;
-        let offset = self.u * rd.x + self.v * rd.y;
-        Ray::with_time(
-            self.origin + offset,
-            self.lower_left_corner + self.horizontal * s + self.vertical * t
-                - self.origin
-                - offset,
-            rng.random::<f64>(),
-        )
+        if self.panorama {
+            // Equirectangular panoramic: s maps to longitude, t maps to latitude
+            let theta = std::f64::consts::PI * (1.0 - t); // latitude: 0=top(pi) to 1=bottom(0)
+            let phi = 2.0 * std::f64::consts::PI * s - std::f64::consts::PI; // longitude: -pi to pi
+            let dir = self.forward * (theta.sin() * phi.cos())
+                + self.right * (theta.sin() * phi.sin())
+                + self.up * theta.cos();
+            Ray::with_time(self.origin, dir.unit(), rng.random::<f64>())
+        } else {
+            let rd = Vec3::random_in_unit_disk(rng) * self.lens_radius;
+            let offset = self.u * rd.x + self.v * rd.y;
+            Ray::with_time(
+                self.origin + offset,
+                self.lower_left_corner + self.horizontal * s + self.vertical * t
+                    - self.origin
+                    - offset,
+                rng.random::<f64>(),
+            )
+        }
     }
 }
 
@@ -94,6 +119,7 @@ mod tests {
             aspect_ratio: 2.0,
             aperture: 0.0,
             focus_dist: 1.0,
+            panorama: false,
         };
         let camera = Camera::new(config);
         let mut rng = SmallRng::seed_from_u64(0);
@@ -140,6 +166,7 @@ mod tests {
             aspect_ratio: 1.0,
             aperture: 0.0,
             focus_dist: 1.0,
+            panorama: false,
         };
         let camera = Camera::new(config);
         let mut rng = SmallRng::seed_from_u64(99);

@@ -194,6 +194,7 @@ pub struct CameraSettings {
     pub vfov: Option<f64>,
     pub aperture: Option<f64>,
     pub focus_dist: Option<f64>,
+    pub panorama: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -1025,6 +1026,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(fd) = c.focus_dist {
             cam_config.focus_dist = fd;
+        }
+        if c.panorama == Some(true) {
+            cam_config.panorama = true;
         }
     }
     let camera = Camera::new(cam_config);
@@ -1944,6 +1948,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         aspect_ratio: render_config.width as f64 / render_config.height as f64,
         aperture: 0.1,
         focus_dist: 10.0,
+        panorama: false,
     };
     let camera = Camera::new(cam_config);
 

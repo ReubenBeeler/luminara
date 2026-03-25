@@ -113,6 +113,7 @@ struct CliArgs {
     warm: bool,
     cool: bool,
     rotate: Option<u32>,
+    panorama: bool,
 }
 
 fn main() {
@@ -142,7 +143,7 @@ fn main() {
 
     let start = Instant::now();
 
-    let (mut render_config, camera, world) = match &cli.scene {
+    let (mut render_config, mut camera, world) = match &cli.scene {
         Some(path) => {
             let content = match std::fs::read_to_string(path) {
                 Ok(c) => c,
@@ -352,6 +353,9 @@ fn main() {
     }
     if let Some(r) = cli.rotate {
         render_config.rotate = r;
+    }
+    if cli.panorama {
+        camera.set_panorama(true);
     }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
@@ -870,6 +874,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         warm: false,
         cool: false,
         rotate: None,
+        panorama: false,
     };
     let mut i = 1;
 
@@ -1205,6 +1210,9 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.rotate = args[i].parse().ok();
                 }
             }
+            "--panorama" | "--pano" => {
+                cli.panorama = true;
+            }
             "--night-vision" | "--nv" => {
                 cli.night_vision = true;
             }
@@ -1371,6 +1379,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --warm        Warm white balance preset");
                 eprintln!("      --cool        Cool white balance preset");
                 eprintln!("      --rotate N    Rotate output image (90, 180, 270 degrees)");
+                eprintln!("      --panorama    360° equirectangular panoramic camera");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
