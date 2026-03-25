@@ -92,6 +92,7 @@ pub struct RenderSettings {
     pub vignette: Option<f64>,
     pub grain: Option<f64>,
     pub saturation: Option<f64>,
+    pub contrast: Option<f64>,
     pub tone_map: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
@@ -578,6 +579,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(saturation) = r.saturation {
             render_config.saturation = saturation;
+        }
+        if let Some(contrast) = r.contrast {
+            render_config.contrast = contrast;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1249,6 +1253,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         vignette: 0.0,
         grain: 0.0,
         saturation: 1.0,
+        contrast: 1.0,
     };
 
     let cam_config = CameraConfig {

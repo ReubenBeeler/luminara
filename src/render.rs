@@ -184,6 +184,8 @@ pub struct RenderConfig {
     pub grain: f64,
     /// Saturation adjustment (1.0 = normal, 0.0 = grayscale, >1.0 = boosted).
     pub saturation: f64,
+    /// Contrast adjustment (1.0 = normal, <1 = lower contrast, >1 = higher).
+    pub contrast: f64,
 }
 
 impl Default for RenderConfig {
@@ -206,6 +208,7 @@ impl Default for RenderConfig {
             vignette: 0.0,
             grain: 0.0,
             saturation: 1.0,
+            contrast: 1.0,
         }
     }
 }
@@ -748,6 +751,13 @@ pub fn render(
             let mut r = linear_to_srgb(tone_fn(cr));
             let mut g = linear_to_srgb(tone_fn(cg));
             let mut b = linear_to_srgb(tone_fn(cb));
+
+            // Contrast: pivot around middle gray (128) in sRGB space
+            if (config.contrast - 1.0).abs() > 1e-6 {
+                r = ((((r as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+                g = ((((g as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+                b = ((((b as f64 / 255.0) - 0.5) * config.contrast + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+            }
 
             // Film grain: add deterministic luminance noise
             if config.grain > 0.0 {
