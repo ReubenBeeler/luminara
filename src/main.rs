@@ -97,6 +97,7 @@ struct CliArgs {
     depth_fog: Option<f64>,
     channel_swap: Option<String>,
     mirror: Option<String>,
+    quantize: Option<u32>,
 }
 
 fn main() {
@@ -292,6 +293,9 @@ fn main() {
     if let Some(ref m) = cli.mirror {
         render_config.mirror = m.clone();
     }
+    if let Some(q) = cli.quantize {
+        render_config.quantize = q;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -398,6 +402,7 @@ fn main() {
         if render_config.depth_fog > 0.0 { pp.push(format!("depth-fog({:.2})", render_config.depth_fog)); }
         if !render_config.channel_swap.is_empty() { pp.push(format!("channel-swap({})", render_config.channel_swap)); }
         if !render_config.mirror.is_empty() { pp.push(format!("mirror({})", render_config.mirror)); }
+        if render_config.quantize >= 2 { pp.push(format!("quantize({})", render_config.quantize)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -739,6 +744,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         depth_fog: None,
         channel_swap: None,
         mirror: None,
+        quantize: None,
     };
     let mut i = 1;
 
@@ -1038,6 +1044,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.mirror = Some(args[i].clone());
                 }
             }
+            "--quantize" => {
+                i += 1;
+                if i < args.len() {
+                    cli.quantize = args[i].parse().ok();
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1073,7 +1085,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 36 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 37 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1128,6 +1140,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --glitch N    Digital glitch effect intensity (e.g. 0.5)");
                 eprintln!("      --depth-fog N Atmospheric depth fog density (e.g. 0.1)");
                 eprintln!("      --channel-swap S Swap RGB channels: rbg, grb, gbr, brg, bgr");
+                eprintln!("      --quantize N  Reduce to N colors via median-cut quantization");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

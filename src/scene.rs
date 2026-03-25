@@ -138,6 +138,7 @@ pub struct RenderSettings {
     pub median: Option<u32>,
     pub crosshatch: Option<u32>,
     pub glitch: Option<f64>,
+    pub quantize: Option<u32>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -903,6 +904,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(gl) = r.glitch {
             render_config.glitch = gl;
+        }
+        if let Some(q) = r.quantize {
+            render_config.quantize = q;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1869,6 +1873,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         depth_fog_color: [0.8, 0.85, 0.9],
         channel_swap: String::new(),
         mirror: String::new(),
+        quantize: 0,
     };
 
     let cam_config = CameraConfig {

@@ -344,6 +344,8 @@ pub struct RenderConfig {
     pub channel_swap: String,
     /// Mirror mode: "h" (horizontal), "v" (vertical), "hv" (both), or empty for off.
     pub mirror: String,
+    /// Color quantization: reduce to N colors (0 = off). Median-cut algorithm.
+    pub quantize: u32,
 }
 
 impl Default for RenderConfig {
@@ -407,6 +409,7 @@ impl Default for RenderConfig {
             depth_fog_color: [0.8, 0.85, 0.9],
             channel_swap: String::new(),
             mirror: String::new(),
+            quantize: 0,
         }
     }
 }
@@ -1057,6 +1060,59 @@ fn apply_median(rows: &[Vec<Color>], radius: u32) -> Vec<Vec<Color>> {
         .collect()
 }
 
+/// Simple median-cut color quantization. Returns a palette of N representative colors.
+fn median_cut_palette(pixels: &[[u8; 3]], n: usize) -> Vec<[u8; 3]> {
+    if pixels.is_empty() || n == 0 {
+        return vec![[128, 128, 128]];
+    }
+
+    let mut buckets: Vec<Vec<[u8; 3]>> = vec![pixels.to_vec()];
+
+    while buckets.len() < n {
+        // Find bucket with largest range in any channel
+        let mut best_idx = 0;
+        let mut best_range = 0u32;
+        let mut best_channel = 0usize;
+
+        for (idx, bucket) in buckets.iter().enumerate() {
+            if bucket.len() < 2 { continue; }
+            for ch in 0..3 {
+                let min = bucket.iter().map(|p| p[ch]).min().unwrap() as u32;
+                let max = bucket.iter().map(|p| p[ch]).max().unwrap() as u32;
+                let range = max - min;
+                if range > best_range {
+                    best_range = range;
+                    best_idx = idx;
+                    best_channel = ch;
+                }
+            }
+        }
+
+        if best_range == 0 { break; }
+
+        // Split the best bucket at median
+        let mut bucket = buckets.remove(best_idx);
+        bucket.sort_by_key(|p| p[best_channel]);
+        let mid = bucket.len() / 2;
+        let right = bucket.split_off(mid);
+        buckets.push(bucket);
+        buckets.push(right);
+    }
+
+    // Compute average color for each bucket
+    buckets.iter().map(|b| {
+        if b.is_empty() { return [128, 128, 128]; }
+        let (mut sr, mut sg, mut sb) = (0u64, 0u64, 0u64);
+        for p in b {
+            sr += p[0] as u64;
+            sg += p[1] as u64;
+            sb += p[2] as u64;
+        }
+        let n = b.len() as u64;
+        [(sr / n) as u8, (sg / n) as u8, (sb / n) as u8]
+    }).collect()
+}
+
 fn apply_color_map(t: f64, name: &str) -> (f64, f64, f64) {
     let t = t.clamp(0.0, 1.0);
     match name {
@@ -1632,6 +1688,57 @@ pub fn render(
             eprintln!(" done");
         }
         embossed
+    } else {
+        rows
+    };
+
+    // Optional color quantization pass (median-cut)
+    let rows = if config.quantize >= 2 {
+        if !config.quiet {
+            eprint!("Quantizing to {} colors...", config.quantize);
+        }
+        let height = rows.len();
+        let width = if height > 0 { rows[0].len() } else { 0 };
+
+        // Collect all pixels
+        let mut pixels_rgb: Vec<[u8; 3]> = Vec::with_capacity(height * width);
+        for row in &rows {
+            for c in row {
+                pixels_rgb.push([
+                    (c.x.clamp(0.0, 1.0) * 255.0) as u8,
+                    (c.y.clamp(0.0, 1.0) * 255.0) as u8,
+                    (c.z.clamp(0.0, 1.0) * 255.0) as u8,
+                ]);
+            }
+        }
+
+        // Simple median-cut: recursively split color buckets
+        let palette = median_cut_palette(&pixels_rgb, config.quantize as usize);
+
+        // Map each pixel to nearest palette color
+        let result: Vec<Vec<Color>> = rows.iter()
+            .map(|row| row.iter()
+                .map(|c| {
+                    let r = (c.x.clamp(0.0, 1.0) * 255.0) as u8;
+                    let g = (c.y.clamp(0.0, 1.0) * 255.0) as u8;
+                    let b = (c.z.clamp(0.0, 1.0) * 255.0) as u8;
+                    let best = palette.iter()
+                        .min_by_key(|p| {
+                            let dr = r as i32 - p[0] as i32;
+                            let dg = g as i32 - p[1] as i32;
+                            let db = b as i32 - p[2] as i32;
+                            (dr*dr + dg*dg + db*db) as u32
+                        })
+                        .unwrap();
+                    Color::new(best[0] as f64 / 255.0, best[1] as f64 / 255.0, best[2] as f64 / 255.0)
+                })
+                .collect())
+            .collect();
+
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        result
     } else {
         rows
     };
