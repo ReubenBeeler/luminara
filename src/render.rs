@@ -14,10 +14,22 @@ use crate::ray::Ray;
 use crate::vec3::{Color, Point3, Vec3};
 
 /// Information about a light source for direct light sampling (NEE).
-pub struct LightInfo {
-    pub center: Point3,
-    pub radius: f64,
-    pub emission: Color,
+pub enum LightInfo {
+    Sphere {
+        center: Point3,
+        radius: f64,
+        emission: Color,
+    },
+    Rect {
+        /// Corner of the rectangle
+        origin: Point3,
+        /// Two edge vectors defining the rectangle
+        u: Vec3,
+        v: Vec3,
+        /// Normal of the rectangle
+        normal: Vec3,
+        emission: Color,
+    },
 }
 
 /// Background environment for rays that miss all objects.
@@ -216,30 +228,44 @@ fn sample_direct_light(
     let light_idx = light_idx.min(lights.len() - 1);
     let light = &lights[light_idx];
 
-    // Skip if hit point is inside the light sphere
-    let to_center = light.center - *hit_point;
-    if to_center.length_squared() < light.radius * light.radius {
-        return Color::ZERO;
-    }
-
-    // Sample a random point on the light sphere using rejection sampling
-    let mut lx;
-    let mut ly;
-    let mut lz;
-    loop {
-        lx = rng.next_f64() * 2.0 - 1.0;
-        ly = rng.next_f64() * 2.0 - 1.0;
-        lz = rng.next_f64() * 2.0 - 1.0;
-        if lx * lx + ly * ly + lz * lz < 1.0 {
-            break;
+    // Sample a point on the selected light
+    let (light_point, light_normal, area, emission) = match light {
+        LightInfo::Sphere { center, radius, emission } => {
+            // Skip if hit point is inside the light sphere
+            let to_center = *center - *hit_point;
+            if to_center.length_squared() < radius * radius {
+                return Color::ZERO;
+            }
+            // Sample random point on sphere surface
+            let mut lx;
+            let mut ly;
+            let mut lz;
+            loop {
+                lx = rng.next_f64() * 2.0 - 1.0;
+                ly = rng.next_f64() * 2.0 - 1.0;
+                lz = rng.next_f64() * 2.0 - 1.0;
+                if lx * lx + ly * ly + lz * lz < 1.0 {
+                    break;
+                }
+            }
+            let len = (lx * lx + ly * ly + lz * lz).sqrt();
+            let p = Point3::new(
+                center.x + radius * lx / len,
+                center.y + radius * ly / len,
+                center.z + radius * lz / len,
+            );
+            let n = (p - *center) / *radius;
+            let a = 4.0 * std::f64::consts::PI * radius * radius;
+            (p, n, a, *emission)
         }
-    }
-    let len = (lx * lx + ly * ly + lz * lz).sqrt();
-    let light_point = Point3::new(
-        light.center.x + light.radius * lx / len,
-        light.center.y + light.radius * ly / len,
-        light.center.z + light.radius * lz / len,
-    );
+        LightInfo::Rect { origin, u, v, normal: n, emission } => {
+            let s = rng.next_f64();
+            let t = rng.next_f64();
+            let p = *origin + *u * s + *v * t;
+            let a = u.cross(*v).length();
+            (p, *n, a, *emission)
+        }
+    };
 
     let to_light = light_point - *hit_point;
     let dist_sq = to_light.length_squared();
@@ -252,27 +278,20 @@ fn sample_direct_light(
         return Color::ZERO;
     }
 
-    // Cosine at the light surface (light normal points outward from center)
-    let light_normal = (light_point - light.center) / light.radius;
-    let cos_theta_light = (-dir).dot(light_normal);
-    if cos_theta_light <= 0.0 {
-        return Color::ZERO; // Back face of light
-    }
-
-    // Shadow ray: check if path to light is unoccluded
-    let shadow_ray = crate::ray::Ray::new(*hit_point, dir);
-    if let Some(shadow_hit) = world.hit(&shadow_ray, 0.001, dist - 0.001) {
-        // Something blocks the light
-        let _ = shadow_hit;
+    // Cosine at the light surface
+    let cos_theta_light = (-dir).dot(light_normal).abs();
+    if cos_theta_light <= 0.001 {
         return Color::ZERO;
     }
 
-    // Light area: 4 * pi * r^2
-    let area = 4.0 * std::f64::consts::PI * light.radius * light.radius;
+    // Shadow ray
+    let shadow_ray = crate::ray::Ray::new(*hit_point, dir);
+    if world.hit(&shadow_ray, 0.001, dist - 0.001).is_some() {
+        return Color::ZERO;
+    }
 
-    // Lambertian BRDF = albedo / pi
-    // Monte Carlo estimate: emission * (albedo/pi) * cos_theta * cos_theta_light * area / dist^2 * N_lights
-    light.emission.hadamard(*albedo)
+    // Monte Carlo: emission * (albedo/pi) * cos_theta * cos_theta_light * area / dist^2 * N_lights
+    emission.hadamard(*albedo)
         * (cos_theta * cos_theta_light * area * lights.len() as f64
             / (std::f64::consts::PI * dist_sq))
 }
@@ -656,7 +675,7 @@ mod tests {
             Box::new(crate::material::Emissive::new(Color::new(1.0, 1.0, 1.0), 10.0)),
         )));
 
-        let lights = vec![LightInfo {
+        let lights = vec![LightInfo::Sphere {
             center: Point3::new(0.0, 5.0, 0.0),
             radius: 1.0,
             emission: Color::new(10.0, 10.0, 10.0),
@@ -723,7 +742,7 @@ mod tests {
             Box::new(crate::material::Emissive::new(Color::new(1.0, 1.0, 1.0), 10.0)),
         )));
 
-        let lights = vec![LightInfo {
+        let lights = vec![LightInfo::Sphere {
             center: Point3::new(0.0, 5.0, 0.0),
             radius: 0.5,
             emission: Color::new(10.0, 10.0, 10.0),

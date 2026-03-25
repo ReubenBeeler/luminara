@@ -611,7 +611,7 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         if let MaterialDesc::Emissive { color, intensity, .. } = &s.material {
             let emission_color = Color::new(color[0], color[1], color[2]);
             let int = intensity.unwrap_or(1.0);
-            lights.push(LightInfo {
+            lights.push(LightInfo::Sphere {
                 center: arr_to_vec3(s.center),
                 radius: s.radius,
                 emission: emission_color * int,
@@ -688,7 +688,7 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             radius,
             Box::new(Emissive::new(color, intensity)),
         )));
-        lights.push(LightInfo {
+        lights.push(LightInfo::Sphere {
             center,
             radius,
             emission: color * intensity,
@@ -840,6 +840,18 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     }
 
     for r in &scene.rect_xz {
+        // Track emissive XZ rects for NEE
+        if let MaterialDesc::Emissive { color, intensity, .. } = &r.material {
+            let emission_color = Color::new(color[0], color[1], color[2]);
+            let int = intensity.unwrap_or(1.0);
+            lights.push(LightInfo::Rect {
+                origin: Point3::new(r.x[0], r.k, r.z[0]),
+                u: Vec3::new(r.x[1] - r.x[0], 0.0, 0.0),
+                v: Vec3::new(0.0, 0.0, r.z[1] - r.z[0]),
+                normal: Vec3::new(0.0, -1.0, 0.0),
+                emission: emission_color * int,
+            });
+        }
         let mat = build_material(&r.material);
         world.add(Box::new(XzRect::new(r.x[0], r.x[1], r.z[0], r.z[1], r.k, mat)));
     }
