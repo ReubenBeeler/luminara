@@ -70,6 +70,7 @@ struct CliArgs {
     pixel_filter: Option<String>,
     save_depth: Option<PathBuf>,
     save_normals: Option<PathBuf>,
+    save_albedo: Option<PathBuf>,
     posterize: Option<u32>,
     sepia: Option<f64>,
     edge_detect: Option<f64>,
@@ -245,6 +246,9 @@ fn main() {
     if cli.save_normals.is_some() {
         render_config.save_normals = true;
     }
+    if cli.save_albedo.is_some() {
+        render_config.save_albedo = true;
+    }
     if cli.adaptive {
         render_config.adaptive = true;
     }
@@ -349,6 +353,7 @@ fn main() {
         if render_config.save_hdr { eprintln!("HDR output: enabled"); }
         if render_config.save_depth { eprintln!("Depth pass: enabled"); }
         if render_config.save_normals { eprintln!("Normal pass: enabled"); }
+        if render_config.save_albedo { eprintln!("Albedo pass: enabled"); }
 
         std::process::exit(0);
     }
@@ -502,6 +507,24 @@ fn main() {
         }
     }
 
+    // Save albedo pass
+    if let (Some(albedo_path), Some(albedo_data)) = (&cli.save_albedo, &result.albedo_pass) {
+        let albedo_pixels: Vec<u8> = albedo_data
+            .chunks(3)
+            .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 255])
+            .collect();
+        match image::RgbaImage::from_raw(out_w, out_h, albedo_pixels) {
+            Some(img) => {
+                if let Err(e) = img.save(albedo_path) {
+                    eprintln!("Error: failed to save albedo pass '{}': {e}", albedo_path.display());
+                } else {
+                    eprintln!("Saved albedo pass to {}", albedo_path.display());
+                }
+            }
+            None => eprintln!("Error: albedo pass buffer size mismatch"),
+        }
+    }
+
     if let (Some(hdr_path), Some(hdr_data)) = (&cli.save_hdr, &result.hdr_data) {
         let ext = hdr_path.extension().and_then(|e| e.to_str()).unwrap_or("");
         match ext {
@@ -630,6 +653,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         pixel_filter: None,
         save_depth: None,
         save_normals: None,
+        save_albedo: None,
         posterize: None,
         sepia: None,
         edge_detect: None,
@@ -754,6 +778,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                 i += 1;
                 if i < args.len() {
                     cli.save_normals = Some(PathBuf::from(&args[i]));
+                }
+            }
+            "--save-albedo" => {
+                i += 1;
+                if i < args.len() {
+                    cli.save_albedo = Some(PathBuf::from(&args[i]));
                 }
             }
             "--lens-distortion" | "--distortion" => {
@@ -929,6 +959,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --filter F    Pixel filter: box, triangle, gaussian, mitchell");
                 eprintln!("      --save-depth F   Save depth pass to image file");
                 eprintln!("      --save-normals F Save normal pass to image file");
+                eprintln!("      --save-albedo F Save albedo (base color) pass to image file");
                 eprintln!("      --distortion N  Lens distortion (+barrel, -pincushion, e.g. 0.3)");
                 eprintln!("      --firefly N   Remove firefly outliers (threshold, e.g. 5.0)");
                 eprintln!("      --ca N        Chromatic aberration strength (e.g. 0.005)");

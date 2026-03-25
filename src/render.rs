@@ -281,6 +281,8 @@ pub struct RenderConfig {
     pub save_depth: bool,
     /// Generate normal pass output.
     pub save_normals: bool,
+    /// Generate albedo (base color) pass output.
+    pub save_albedo: bool,
     /// Firefly removal threshold (0.0 = off). Higher = more aggressive.
     /// Replaces pixels whose luminance exceeds neighbors by this factor.
     pub firefly_filter: f64,
@@ -351,6 +353,7 @@ impl Default for RenderConfig {
             lens_distortion: 0.0,
             save_depth: false,
             save_normals: false,
+            save_albedo: false,
             adaptive: false,
             adaptive_threshold: 0.03,
             time_limit: 0.0,
@@ -1128,6 +1131,8 @@ pub struct RenderResult {
     pub depth_pass: Option<Vec<f32>>,
     /// Normal pass: world-space normals as [R, G, B] per pixel.
     pub normal_pass: Option<Vec<u8>>,
+    /// Albedo pass: base material color as [R, G, B] per pixel.
+    pub albedo_pass: Option<Vec<u8>>,
     /// Total rays traced (primary + secondary bounces).
     pub total_rays: u64,
     /// Render time in seconds (excluding post-processing).
@@ -1704,20 +1709,23 @@ pub fn render(
         }
     }
 
-    // Generate AOV passes (depth, normals) with single-ray-per-pixel, parallelized
-    let (depth_pass, normal_pass) = if config.save_depth || config.save_normals {
+    // Generate AOV passes (depth, normals, albedo) with single-ray-per-pixel, parallelized
+    let (depth_pass, normal_pass, albedo_pass) = if config.save_depth || config.save_normals || config.save_albedo {
         if !config.quiet {
             eprint!("Generating AOV passes...");
         }
 
+        let need_albedo = config.save_albedo;
+
         // Per-row parallel AOV generation
-        let aov_rows: Vec<(Vec<f32>, Vec<u8>)> = (0..height)
+        let aov_rows: Vec<(Vec<f32>, Vec<u8>, Vec<u8>)> = (0..height)
             .into_par_iter()
             .map(|j| {
                 let global_j = j + crop_y;
                 let y = (full_height - 1 - global_j) as f64;
                 let mut row_depth = vec![0.0f32; width];
                 let mut row_normals = vec![0u8; width * 3];
+                let mut row_albedo = vec![0u8; width * 3];
 
                 for i in 0..width {
                     let global_i = i + crop_x;
@@ -1733,19 +1741,40 @@ pub fn render(
                         row_normals[i * 3] = ((hit.normal.x * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
                         row_normals[i * 3 + 1] = ((hit.normal.y * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
                         row_normals[i * 3 + 2] = ((hit.normal.z * 0.5 + 0.5) * 255.0).clamp(0.0, 255.0) as u8;
+
+                        if need_albedo {
+                            // Get albedo by calling scatter — the attenuation is the surface color
+                            if let Some(scatter) = hit.material.scatter(&ray, &hit, &mut rng) {
+                                row_albedo[i * 3] = (scatter.attenuation.x.clamp(0.0, 1.0) * 255.0) as u8;
+                                row_albedo[i * 3 + 1] = (scatter.attenuation.y.clamp(0.0, 1.0) * 255.0) as u8;
+                                row_albedo[i * 3 + 2] = (scatter.attenuation.z.clamp(0.0, 1.0) * 255.0) as u8;
+                            } else {
+                                // Emissive materials don't scatter — use emitted color
+                                let e = hit.material.emitted(hit.u, hit.v, &hit.point);
+                                let max_e = e.x.max(e.y.max(e.z)).max(1.0);
+                                row_albedo[i * 3] = (e.x / max_e * 255.0).clamp(0.0, 255.0) as u8;
+                                row_albedo[i * 3 + 1] = (e.y / max_e * 255.0).clamp(0.0, 255.0) as u8;
+                                row_albedo[i * 3 + 2] = (e.z / max_e * 255.0).clamp(0.0, 255.0) as u8;
+                            }
+                        }
                     }
                 }
-                (row_depth, row_normals)
+                (row_depth, row_normals, row_albedo)
             })
             .collect();
 
         let depth_buf = if config.save_depth {
-            Some(aov_rows.iter().flat_map(|(d, _)| d.iter().copied()).collect())
+            Some(aov_rows.iter().flat_map(|(d, _, _)| d.iter().copied()).collect())
         } else {
             None
         };
         let normal_buf = if config.save_normals {
-            Some(aov_rows.iter().flat_map(|(_, n)| n.iter().copied()).collect())
+            Some(aov_rows.iter().flat_map(|(_, n, _)| n.iter().copied()).collect())
+        } else {
+            None
+        };
+        let albedo_buf = if config.save_albedo {
+            Some(aov_rows.iter().flat_map(|(_, _, a)| a.iter().copied()).collect())
         } else {
             None
         };
@@ -1753,12 +1782,12 @@ pub fn render(
         if !config.quiet {
             eprintln!(" done");
         }
-        (depth_buf, normal_buf)
+        (depth_buf, normal_buf, albedo_buf)
     } else {
-        (None, None)
+        (None, None, None)
     };
 
-    RenderResult { pixels, hdr_data, depth_pass, normal_pass, total_rays: final_total_rays, render_time_secs }
+    RenderResult { pixels, hdr_data, depth_pass, normal_pass, albedo_pass, total_rays: final_total_rays, render_time_secs }
 }
 
 impl Background {

@@ -1678,6 +1678,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         lens_distortion: 0.0,
         save_depth: false,
         save_normals: false,
+        save_albedo: false,
         adaptive: false,
         adaptive_threshold: 0.03,
         time_limit: 0.0,
