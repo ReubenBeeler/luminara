@@ -135,6 +135,9 @@ pub struct RenderSettings {
     pub solarize: Option<f64>,
     pub duo_tone: Option<String>,
     pub sketch: Option<bool>,
+    pub median: Option<u32>,
+    pub crosshatch: Option<u32>,
+    pub glitch: Option<f64>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -891,6 +894,15 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if r.sketch == Some(true) {
             render_config.sketch = true;
+        }
+        if let Some(m) = r.median {
+            render_config.median = m;
+        }
+        if let Some(ch) = r.crosshatch {
+            render_config.crosshatch = ch;
+        }
+        if let Some(gl) = r.glitch {
+            render_config.glitch = gl;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
