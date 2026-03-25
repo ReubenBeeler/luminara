@@ -447,16 +447,34 @@ fn main() {
     }
 
     if let (Some(hdr_path), Some(hdr_data)) = (&cli.save_hdr, &result.hdr_data) {
-        if let Err(e) = write_radiance_hdr(
-            hdr_path,
-            out_w,
-            out_h,
-            hdr_data,
-        ) {
-            eprintln!("Error: failed to save HDR '{}': {e}", hdr_path.display());
-            std::process::exit(1);
+        let ext = hdr_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        match ext {
+            "exr" => {
+                // Use image crate's EXR writer
+                let rgb32f = image::Rgb32FImage::from_raw(out_w, out_h, hdr_data.clone());
+                match rgb32f {
+                    Some(img) => {
+                        if let Err(e) = img.save(hdr_path) {
+                            eprintln!("Error: failed to save EXR '{}': {e}", hdr_path.display());
+                            std::process::exit(1);
+                        }
+                        eprintln!("Saved EXR to {}", hdr_path.display());
+                    }
+                    None => {
+                        eprintln!("Error: HDR data size mismatch for EXR output");
+                        std::process::exit(1);
+                    }
+                }
+            }
+            _ => {
+                // Default: Radiance HDR format
+                if let Err(e) = write_radiance_hdr(hdr_path, out_w, out_h, hdr_data) {
+                    eprintln!("Error: failed to save HDR '{}': {e}", hdr_path.display());
+                    std::process::exit(1);
+                }
+                eprintln!("Saved HDR to {}", hdr_path.display());
+            }
         }
-        eprintln!("Saved HDR to {}", hdr_path.display());
     }
 }
 
