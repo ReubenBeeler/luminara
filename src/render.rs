@@ -539,8 +539,8 @@ fn apply_lens_distortion(rows: &[Vec<Color>], k: f64) -> Vec<Vec<Color>> {
 
     let mut result = vec![vec![Color::ZERO; width]; height];
 
-    for j in 0..height {
-        for i in 0..width {
+    for (j, row) in result.iter_mut().enumerate() {
+        for (i, pixel) in row.iter_mut().enumerate() {
             let dx = (i as f64 + 0.5 - cx) / max_r;
             let dy = (j as f64 + 0.5 - cy) / max_r;
             let r2 = dx * dx + dy * dy;
@@ -553,7 +553,7 @@ fn apply_lens_distortion(rows: &[Vec<Color>], k: f64) -> Vec<Vec<Color>> {
             let r = sample_channel_bilinear(rows, src_x, src_y, width, height, 0);
             let g = sample_channel_bilinear(rows, src_x, src_y, width, height, 1);
             let b = sample_channel_bilinear(rows, src_x, src_y, width, height, 2);
-            result[j][i] = Color::new(r, g, b);
+            *pixel = Color::new(r, g, b);
         }
     }
     result
