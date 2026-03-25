@@ -919,3 +919,24 @@ impl Texture for TransformedTexture {
         self.inner.value(tu, tv, point)
     }
 }
+
+/// Blends two textures with a constant mix factor.
+pub struct MixTexture {
+    pub a: Box<dyn Texture>,
+    pub b: Box<dyn Texture>,
+    pub factor: f64,
+}
+
+impl MixTexture {
+    pub fn new(a: Box<dyn Texture>, b: Box<dyn Texture>, factor: f64) -> Self {
+        Self { a, b, factor: factor.clamp(0.0, 1.0) }
+    }
+}
+
+impl Texture for MixTexture {
+    fn value(&self, u: f64, v: f64, point: &Point3) -> Color {
+        let ca = self.a.value(u, v, point);
+        let cb = self.b.value(u, v, point);
+        ca * (1.0 - self.factor) + cb * self.factor
+    }
+}
