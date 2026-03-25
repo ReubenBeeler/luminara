@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -267,6 +267,8 @@ pub struct RenderConfig {
     /// Adaptive sampling noise threshold (0.01 = aggressive, 0.1 = conservative).
     /// Pixels with variance below this stop early.
     pub adaptive_threshold: f64,
+    /// Maximum render time in seconds (0 = no limit). Render stops when exceeded.
+    pub time_limit: f64,
 }
 
 impl Default for RenderConfig {
@@ -302,6 +304,7 @@ impl Default for RenderConfig {
             save_normals: false,
             adaptive: false,
             adaptive_threshold: 0.03,
+            time_limit: 0.0,
         }
     }
 }
@@ -851,11 +854,19 @@ pub fn render(
     // For adaptive sampling: minimum samples before checking variance
     let adaptive_min_samples: u32 = if config.adaptive { (actual_spp / 4).max(16) } else { 0 };
     let adaptive_threshold = config.adaptive_threshold;
+    let time_limit = config.time_limit;
+    let time_expired = Arc::new(AtomicBool::new(false));
     let start_time = Instant::now();
 
     let rows: Vec<Vec<Color>> = (0..height)
         .into_par_iter()
         .map(|j| {
+            // Check time limit (check every row, not every pixel for performance)
+            if time_limit > 0.0 && start_time.elapsed().as_secs_f64() > time_limit {
+                time_expired.store(true, Ordering::Relaxed);
+            }
+            let expired = time_expired.load(Ordering::Relaxed);
+
             let global_j = j + crop_y;
             let mut rng = SmallRng::seed_from_u64(global_j as u64 * config.seed);
             let y = (full_height - 1 - global_j) as f64;
@@ -864,6 +875,17 @@ pub fn render(
             let row: Vec<Color> = (0..width)
                 .map(|i| {
                     let global_i = i + crop_x;
+
+                    // If time limit exceeded, use minimal sampling (1 spp)
+                    if expired {
+                        let u_coord = (global_i as f64 + 0.5) / (full_width - 1) as f64;
+                        let v_coord = (y + 0.5) / (full_height - 1) as f64;
+                        let ray = camera.get_ray(u_coord, v_coord, &mut rng);
+                        let sample = ray_color(&ray, world, lights, &config.background, &mut rng, config.max_depth, false);
+                        row_rays += 1;
+                        let luminance = 0.2126 * sample.x + 0.7152 * sample.y + 0.0722 * sample.z;
+                        return if luminance > 100.0 { sample * (100.0 / luminance) } else { sample };
+                    }
 
                     if config.adaptive {
                         // Adaptive sampling: use Welford's online algorithm to track

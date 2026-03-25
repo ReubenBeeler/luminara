@@ -61,6 +61,7 @@ struct CliArgs {
     gamma: Option<f64>,
     adaptive: bool,
     adaptive_threshold: Option<f64>,
+    time_limit: Option<f64>,
     firefly_filter: Option<f64>,
     chromatic_aberration: Option<f64>,
     pixel_filter: Option<String>,
@@ -179,6 +180,9 @@ fn main() {
     }
     if cli.adaptive {
         render_config.adaptive = true;
+    }
+    if let Some(tl) = cli.time_limit {
+        render_config.time_limit = tl;
     }
     if let Some(threshold) = cli.adaptive_threshold {
         render_config.adaptive_threshold = threshold;
@@ -518,6 +522,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         gamma: None,
         adaptive: false,
         adaptive_threshold: None,
+        time_limit: None,
         firefly_filter: None,
         chromatic_aberration: None,
         pixel_filter: None,
@@ -654,6 +659,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             "--adaptive" => {
                 cli.adaptive = true;
             }
+            "--time-limit" | "--max-time" => {
+                i += 1;
+                if i < args.len() {
+                    cli.time_limit = args[i].parse().ok();
+                }
+            }
             "--adaptive-threshold" => {
                 i += 1;
                 if i < args.len() {
@@ -741,6 +752,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --save-normals F Save normal pass to image file");
                 eprintln!("      --firefly N   Remove firefly outliers (threshold, e.g. 5.0)");
                 eprintln!("      --ca N        Chromatic aberration strength (e.g. 0.005)");
+                eprintln!("      --time-limit N  Max render time in seconds");
                 eprintln!("      --adaptive    Adaptive sampling: fewer samples on smooth areas");
                 eprintln!("      --adaptive-threshold N  Noise threshold (default 0.03)");
                 eprintln!("      --gamma N     Custom gamma (0=sRGB default, 2.2=simple)");

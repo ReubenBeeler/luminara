@@ -1419,6 +1419,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         save_normals: false,
         adaptive: false,
         adaptive_threshold: 0.03,
+        time_limit: 0.0,
     };
 
     let cam_config = CameraConfig {
