@@ -104,6 +104,7 @@ struct CliArgs {
     radial_blur: Option<f64>,
     border: Option<u32>,
     border_color: Option<[f64; 3]>,
+    resize: Option<[u32; 2]>,
 }
 
 fn main() {
@@ -317,6 +318,9 @@ fn main() {
     if let Some(bc) = cli.border_color {
         render_config.border_color = bc;
     }
+    if let Some(r) = cli.resize {
+        render_config.resize = r;
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -430,6 +434,7 @@ fn main() {
         if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
         if render_config.radial_blur > 0.0 { pp.push(format!("radial-blur({:.1})", render_config.radial_blur)); }
         if render_config.border > 0 { pp.push(format!("border({}px)", render_config.border)); }
+        if render_config.resize[0] > 0 || render_config.resize[1] > 0 { pp.push(format!("resize({}x{})", render_config.resize[0], render_config.resize[1])); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -512,6 +517,15 @@ fn main() {
 
     let result = render::render(&render_config, &camera, &world, &world.lights);
     let pixels = result.pixels;
+
+    // Adjust output dimensions if resize was applied
+    let (out_w, out_h) = if render_config.resize[0] > 0 || render_config.resize[1] > 0 {
+        let rw = if render_config.resize[0] > 0 { render_config.resize[0] } else { out_w };
+        let rh = if render_config.resize[1] > 0 { render_config.resize[1] } else { out_h };
+        (rw, rh)
+    } else {
+        (out_w, out_h)
+    };
 
     let elapsed = start.elapsed();
     let secs = elapsed.as_secs_f64();
@@ -803,6 +817,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         radial_blur: None,
         border: None,
         border_color: None,
+        resize: None,
     };
     let mut i = 1;
 
@@ -1147,6 +1162,17 @@ fn parse_args(args: &[String]) -> CliArgs {
                     }
                 }
             }
+            "--resize" => {
+                i += 1;
+                if i < args.len() {
+                    let parts: Vec<&str> = args[i].split('x').collect();
+                    if parts.len() == 2 && parts[0].parse::<u32>().is_ok() && parts[1].parse::<u32>().is_ok() {
+                        let w: u32 = parts[0].parse().unwrap();
+                        let h: u32 = parts[1].parse().unwrap();
+                        cli.resize = Some([w, h]);
+                    }
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1182,7 +1208,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 41 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 42 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1245,6 +1271,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --radial-blur N  Zoom blur from center (e.g. 0.5)");
                 eprintln!("      --border N    Add N-pixel border frame");
                 eprintln!("      --border-color R,G,B  Border color (0-1 each, default: black)");
+                eprintln!("      --resize WxH  Resize output (bilinear), e.g. 1920x1080");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");

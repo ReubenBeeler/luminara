@@ -144,6 +144,7 @@ pub struct RenderSettings {
     pub radial_blur: Option<f64>,
     pub border: Option<u32>,
     pub border_color: Option<[f64; 3]>,
+    pub resize: Option<[u32; 2]>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -927,6 +928,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(bc) = r.border_color {
             render_config.border_color = bc;
+        }
+        if let Some(rs) = r.resize {
+            render_config.resize = rs;
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1899,6 +1903,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         radial_blur: 0.0,
         border: 0,
         border_color: [0.0, 0.0, 0.0],
+        resize: [0, 0],
     };
 
     let cam_config = CameraConfig {

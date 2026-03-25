@@ -356,6 +356,8 @@ pub struct RenderConfig {
     pub border: u32,
     /// Border color [R, G, B] in 0..1 range.
     pub border_color: [f64; 3],
+    /// Output resize: [width, height]. 0 = keep original dimension.
+    pub resize: [u32; 2],
 }
 
 impl Default for RenderConfig {
@@ -425,6 +427,7 @@ impl Default for RenderConfig {
             radial_blur: 0.0,
             border: 0,
             border_color: [0.0, 0.0, 0.0],
+            resize: [0, 0],
         }
     }
 }
@@ -1868,6 +1871,44 @@ pub fn render(
                     *pixel = bc;
                 }
             }
+        }
+        result
+    } else {
+        rows
+    };
+
+    // Optional resize pass (bilinear interpolation)
+    let rows = if config.resize[0] > 0 || config.resize[1] > 0 {
+        let src_h = rows.len();
+        let src_w = if src_h > 0 { rows[0].len() } else { 0 };
+        let dst_w = if config.resize[0] > 0 { config.resize[0] as usize } else { src_w };
+        let dst_h = if config.resize[1] > 0 { config.resize[1] as usize } else { src_h };
+        if !config.quiet {
+            eprint!("Resizing to {}x{}...", dst_w, dst_h);
+        }
+
+        let result: Vec<Vec<Color>> = (0..dst_h).into_par_iter().map(|dy| {
+            (0..dst_w).map(|dx| {
+                let sx = dx as f64 * (src_w - 1) as f64 / (dst_w - 1).max(1) as f64;
+                let sy = dy as f64 * (src_h - 1) as f64 / (dst_h - 1).max(1) as f64;
+                let x0 = sx.floor() as usize;
+                let y0 = sy.floor() as usize;
+                let x1 = (x0 + 1).min(src_w - 1);
+                let y1 = (y0 + 1).min(src_h - 1);
+                let fx = sx - x0 as f64;
+                let fy = sy - y0 as f64;
+                let c00 = rows[y0][x0];
+                let c10 = rows[y0][x1];
+                let c01 = rows[y1][x0];
+                let c11 = rows[y1][x1];
+                let top = c00 * (1.0 - fx) + c10 * fx;
+                let bot = c01 * (1.0 - fx) + c11 * fx;
+                top * (1.0 - fy) + bot * fy
+            }).collect()
+        }).collect();
+
+        if !config.quiet {
+            eprintln!(" done");
         }
         result
     } else {
