@@ -246,7 +246,7 @@ impl Material for Emissive {
 // --- Microfacet (Cook-Torrance GGX) ---
 
 pub struct Microfacet {
-    pub albedo: Color,
+    pub albedo: Box<dyn Texture>,
     pub roughness: f64,
     pub metallic: f64,
 }
@@ -254,7 +254,15 @@ pub struct Microfacet {
 impl Microfacet {
     pub fn new(albedo: Color, roughness: f64, metallic: f64) -> Self {
         Self {
-            albedo,
+            albedo: Box::new(SolidColor::new(albedo)),
+            roughness: roughness.clamp(0.01, 1.0),
+            metallic: metallic.clamp(0.0, 1.0),
+        }
+    }
+
+    pub fn with_texture(texture: Box<dyn Texture>, roughness: f64, metallic: f64) -> Self {
+        Self {
+            albedo: texture,
             roughness: roughness.clamp(0.01, 1.0),
             metallic: metallic.clamp(0.0, 1.0),
         }
@@ -321,12 +329,13 @@ impl Material for Microfacet {
         let alpha = self.roughness * self.roughness;
         let v = (-ray.direction).unit();
         let n = hit.normal;
+        let albedo = self.albedo.value(hit.u, hit.v, &hit.point);
 
         let n_dot_v = n.dot(v).max(0.001);
 
         // F0: base reflectance (0.04 for dielectrics, albedo for metals)
         let f0 = Color::new(0.04, 0.04, 0.04) * (1.0 - self.metallic)
-            + self.albedo * self.metallic;
+            + albedo * self.metallic;
 
         // Decide: specular or diffuse sampling based on Fresnel
         let fresnel_weight = Self::fresnel(n_dot_v, f0);
@@ -371,7 +380,7 @@ impl Material for Microfacet {
             // Diffuse contribution: (1 - F) * (1 - metallic) * albedo / pi
             // Weighted by 1 / (1 - specular_prob) for correct MC weighting
             let k_d = (Color::new(1.0, 1.0, 1.0) - fresnel_weight) * (1.0 - self.metallic);
-            let diffuse_attenuation = k_d.hadamard(self.albedo) / (1.0 - specular_prob);
+            let diffuse_attenuation = k_d.hadamard(albedo) / (1.0 - specular_prob);
 
             Some(Scatter {
                 ray: Ray::with_time(hit.point, scatter_dir, ray.time),

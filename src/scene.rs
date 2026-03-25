@@ -343,6 +343,7 @@ pub enum MaterialDesc {
         color: [f64; 3],
         roughness: Option<f64>,
         metallic: Option<f64>,
+        texture: Option<String>,
     },
     #[serde(alias = "checker")]
     Checker {
@@ -920,12 +921,20 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 ))
             }
         }
-        MaterialDesc::Microfacet { color, roughness, metallic } => {
-            Box::new(Microfacet::new(
-                Color::new(color[0], color[1], color[2]),
-                roughness.unwrap_or(0.5),
-                metallic.unwrap_or(0.0),
-            ))
+        MaterialDesc::Microfacet { color, roughness, metallic, texture } => {
+            let r = roughness.unwrap_or(0.5);
+            let m = metallic.unwrap_or(0.0);
+            if let Some(file) = texture {
+                let tex = ImageTexture::load(file)
+                    .unwrap_or_else(|e| panic!("Failed to load PBR texture '{file}': {e}"));
+                Box::new(Microfacet::with_texture(Box::new(tex), r, m))
+            } else {
+                Box::new(Microfacet::new(
+                    Color::new(color[0], color[1], color[2]),
+                    r,
+                    m,
+                ))
+            }
         }
         MaterialDesc::Checker { color1, color2, scale } => {
             Box::new(Lambertian::with_texture(Box::new(Checker::new(
