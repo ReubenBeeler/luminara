@@ -375,6 +375,8 @@ pub struct RenderConfig {
     pub dot_matrix: u32,
     /// Perlin noise overlay intensity (0.0 = off). Adds procedural noise texture.
     pub noise_overlay: f64,
+    /// CMYK color halftone dot size (0 = off). Simulates color printing with rotated screens.
+    pub color_halftone: u32,
     /// Pop art: number of color bands for Warhol-style effect (0 = off).
     pub pop_art: u32,
     /// Watercolor painting effect radius (0 = off).
@@ -485,6 +487,7 @@ impl Default for RenderConfig {
             pencil: 0,
             dot_matrix: 0,
             noise_overlay: 0.0,
+            color_halftone: 0,
             pop_art: 0,
             watercolor: 0,
             auto_levels: false,
@@ -2681,6 +2684,59 @@ pub fn render(
                         *pixel = Color::new(0.0, 0.0, 0.0);
                     }
                 }
+            }
+        }
+        result
+    } else { rows };
+
+    // CMYK color halftone with rotated screens
+    let rows = if config.color_halftone >= 2 {
+        let cell = config.color_halftone as f64;
+        let h = rows.len();
+        let w = if h > 0 { rows[0].len() } else { 0 };
+        let mut result = vec![vec![Color::new(1.0, 1.0, 1.0); w]; h];
+        // CMYK screen angles (in radians): C=15°, M=75°, Y=0°, K=45°
+        let angles = [15.0_f64.to_radians(), 75.0_f64.to_radians(), 0.0_f64.to_radians(), 45.0_f64.to_radians()];
+        for (y, row) in result.iter_mut().enumerate() {
+            for (x, pixel) in row.iter_mut().enumerate() {
+                let src = &rows[y][x];
+                // Convert to CMYK
+                let c_val = 1.0 - src.x.clamp(0.0, 1.0);
+                let m_val = 1.0 - src.y.clamp(0.0, 1.0);
+                let y_val = 1.0 - src.z.clamp(0.0, 1.0);
+                let k_val = c_val.min(m_val).min(y_val);
+                let cmyk = [
+                    if k_val < 1.0 { (c_val - k_val) / (1.0 - k_val) } else { 0.0 },
+                    if k_val < 1.0 { (m_val - k_val) / (1.0 - k_val) } else { 0.0 },
+                    if k_val < 1.0 { (y_val - k_val) / (1.0 - k_val) } else { 0.0 },
+                    k_val,
+                ];
+                // For each channel, check if this pixel falls within a halftone dot
+                let mut r = 1.0_f64;
+                let mut g = 1.0_f64;
+                let mut b = 1.0_f64;
+                for (ch, &angle) in angles.iter().enumerate() {
+                    let cos_a = angle.cos();
+                    let sin_a = angle.sin();
+                    let rx = x as f64 * cos_a + y as f64 * sin_a;
+                    let ry = -(x as f64) * sin_a + y as f64 * cos_a;
+                    let fx = (rx / cell).fract().abs();
+                    let fy = (ry / cell).fract().abs();
+                    let dx = fx - 0.5;
+                    let dy = fy - 0.5;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    let dot_r = cmyk[ch].sqrt() * 0.5; // dot radius proportional to channel value
+                    if dist < dot_r {
+                        match ch {
+                            0 => { r -= cmyk[ch]; g -= cmyk[ch] * 0.1; b -= 0.0; } // Cyan subtracts red
+                            1 => { r -= cmyk[ch] * 0.1; g -= cmyk[ch]; b -= 0.0; } // Magenta subtracts green
+                            2 => { r -= 0.0; g -= 0.0; b -= cmyk[ch]; } // Yellow subtracts blue
+                            3 => { r -= cmyk[ch]; g -= cmyk[ch]; b -= cmyk[ch]; } // Key (black)
+                            _ => {}
+                        }
+                    }
+                }
+                *pixel = Color::new(r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0));
             }
         }
         result
