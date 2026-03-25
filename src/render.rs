@@ -192,6 +192,8 @@ pub struct RenderConfig {
     pub sharpen: f64,
     /// Hue rotation in degrees (0 = no change, 180 = complementary colors).
     pub hue_shift: f64,
+    /// Enable ordered dithering to reduce banding in 8-bit output.
+    pub dither: bool,
 }
 
 impl Default for RenderConfig {
@@ -218,6 +220,7 @@ impl Default for RenderConfig {
             white_balance: 0.0,
             sharpen: 0.0,
             hue_shift: 0.0,
+            dither: false,
         }
     }
 }
@@ -840,9 +843,28 @@ pub fn render(
                 cb = lum + (cb - lum) * config.saturation;
             }
 
-            let mut r = linear_to_srgb(tone_fn(cr));
-            let mut g = linear_to_srgb(tone_fn(cg));
-            let mut b = linear_to_srgb(tone_fn(cb));
+            // Apply tone mapping and gamma correction
+            let rf = tone_fn(cr);
+            let gf = tone_fn(cg);
+            let bf = tone_fn(cb);
+
+            // Optional ordered dithering before 8-bit quantization
+            let dither_offset = if config.dither {
+                // 4x4 Bayer matrix normalized to [-0.5, 0.5] / 255
+                const BAYER4: [[f64; 4]; 4] = [
+                    [ 0.0/16.0,  8.0/16.0,  2.0/16.0, 10.0/16.0],
+                    [12.0/16.0,  4.0/16.0, 14.0/16.0,  6.0/16.0],
+                    [ 3.0/16.0, 11.0/16.0,  1.0/16.0,  9.0/16.0],
+                    [15.0/16.0,  7.0/16.0, 13.0/16.0,  5.0/16.0],
+                ];
+                (BAYER4[j % 4][i % 4] - 0.5) / 255.0
+            } else {
+                0.0
+            };
+
+            let mut r = linear_to_srgb_dithered(rf, dither_offset);
+            let mut g = linear_to_srgb_dithered(gf, dither_offset);
+            let mut b = linear_to_srgb_dithered(bf, dither_offset);
 
             // Contrast: pivot around middle gray (128) in sRGB space
             if (config.contrast - 1.0).abs() > 1e-6 {
@@ -923,14 +945,20 @@ fn filmic_tonemap(x: f64) -> f64 {
 }
 
 /// Convert linear [0,1] to sRGB byte using the official piecewise transfer function.
+#[cfg(test)]
 fn linear_to_srgb(x: f64) -> u8 {
+    linear_to_srgb_dithered(x, 0.0)
+}
+
+/// Convert linear [0,1] to sRGB byte with optional dither offset.
+fn linear_to_srgb_dithered(x: f64, dither: f64) -> u8 {
     let x = x.clamp(0.0, 1.0);
     let s = if x <= 0.0031308 {
         12.92 * x
     } else {
         1.055 * x.powf(1.0 / 2.4) - 0.055
     };
-    (s.clamp(0.0, 0.999) * 256.0) as u8
+    ((s + dither).clamp(0.0, 0.999) * 256.0) as u8
 }
 
 #[cfg(test)]
