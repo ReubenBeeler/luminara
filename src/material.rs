@@ -504,6 +504,56 @@ impl Material for Iridescent {
     }
 }
 
+// --- Toon (cel-shading / non-photorealistic) ---
+
+/// Toon/cel-shading material that quantizes shading into discrete bands.
+/// Creates a cartoon-like appearance with sharp light/shadow transitions.
+pub struct Toon {
+    pub color: Color,
+    /// Number of shading bands (2 = simple light/shadow, 4+ = smoother steps)
+    pub bands: u32,
+    /// Specular highlight size (0.0 = no specular, higher = smaller/sharper)
+    pub specular: f64,
+}
+
+impl Toon {
+    pub fn new(color: Color, bands: u32, specular: f64) -> Self {
+        Self {
+            color,
+            bands: bands.max(2),
+            specular: specular.max(0.0),
+        }
+    }
+}
+
+impl Material for Toon {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        let mut rng_adapter = RngAdapter(rng);
+        let mut scatter_dir = hit.normal + Vec3::random_unit_vector(&mut rng_adapter);
+        if scatter_dir.near_zero() {
+            scatter_dir = hit.normal;
+        }
+
+        // Quantize the brightness into discrete bands
+        let n_dot_l = scatter_dir.unit().dot(hit.normal).max(0.0);
+        let band = (n_dot_l * self.bands as f64).floor() / (self.bands - 1) as f64;
+        let quantized = band.clamp(0.0, 1.0);
+
+        // Simple specular highlight check (Blinn-Phong style)
+        let view_dir = (-ray.direction).unit();
+        let half_vec = (view_dir + scatter_dir.unit()).unit();
+        let spec = half_vec.dot(hit.normal).max(0.0).powf(self.specular * 100.0);
+        let spec_band = if spec > 0.5 { 0.3 } else { 0.0 };
+
+        let attenuation = self.color * (quantized + spec_band);
+
+        Some(Scatter {
+            ray: Ray::with_time(hit.point, scatter_dir, ray.time),
+            attenuation,
+        })
+    }
+}
+
 // --- Anisotropic (brushed metal / directional roughness) ---
 
 /// Anisotropic material that simulates brushed metal, hair, and silk.

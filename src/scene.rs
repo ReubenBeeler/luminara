@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Translucent, Velvet};
+use crate::material::{Anisotropic, Blend, Clearcoat, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Toon, Translucent, Velvet};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -386,6 +386,12 @@ pub enum MaterialDesc {
         color1: [f64; 3],
         color2: [f64; 3],
         scale: Option<f64>,
+    },
+    #[serde(alias = "toon", alias = "cel")]
+    Toon {
+        color: [f64; 3],
+        bands: Option<u32>,
+        specular: Option<f64>,
     },
     #[serde(alias = "anisotropic", alias = "brushed")]
     Anisotropic {
@@ -1204,6 +1210,13 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 scale.unwrap_or(1.0),
             ))))
         }
+        MaterialDesc::Toon { color, bands, specular } => {
+            Box::new(Toon::new(
+                Color::new(color[0], color[1], color[2]),
+                bands.unwrap_or(3),
+                specular.unwrap_or(0.5),
+            ))
+        }
         MaterialDesc::Anisotropic { color, roughness_u, roughness_v, tangent_axis } => {
             Box::new(Anisotropic::new(
                 Color::new(color[0], color[1], color[2]),
@@ -1644,6 +1657,11 @@ material = { type = "blackbody", temperature = 3200, intensity = 5.0 }
 center = [38.0, 0.0, 0.0]
 radius = 1.0
 material = { type = "anisotropic", color = [0.8, 0.8, 0.85], roughness_u = 0.05, roughness_v = 0.4 }
+
+[[sphere]]
+center = [40.0, 0.0, 0.0]
+radius = 1.0
+material = { type = "toon", color = [0.2, 0.5, 0.9], bands = 4, specular = 0.8 }
 "#;
         let result = load_scene(toml);
         assert!(result.is_ok(), "Every material type should parse: {:?}", result.err());
