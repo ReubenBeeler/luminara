@@ -42,6 +42,7 @@ struct CliArgs {
     exposure: Option<f64>,
     auto_exposure: bool,
     tone_map: Option<String>,
+    preview: bool,
     quiet: bool,
     info_only: bool,
 }
@@ -95,6 +96,13 @@ fn main() {
         render_config.exposure = e;
     }
     render_config.quiet = cli.quiet;
+    if cli.preview {
+        // Preview mode: 1/4 resolution, 4 samples, reduced depth
+        render_config.width = (render_config.width / 4).max(1);
+        render_config.height = (render_config.height / 4).max(1);
+        render_config.samples_per_pixel = render_config.samples_per_pixel.min(4);
+        render_config.max_depth = render_config.max_depth.min(10);
+    }
     if cli.auto_exposure {
         render_config.auto_exposure = true;
     }
@@ -205,6 +213,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         exposure: None,
         auto_exposure: false,
         tone_map: None,
+        preview: false,
         quiet: false,
         info_only: false,
     };
@@ -238,6 +247,9 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "--auto-exposure" => {
                 cli.auto_exposure = true;
+            }
+            "-p" | "--preview" => {
+                cli.preview = true;
             }
             "--tone-map" => {
                 i += 1;
@@ -293,6 +305,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("  -e, --exposure    Exposure multiplier (default: 1.0)");
                 eprintln!("      --auto-exposure  Automatically compute exposure from scene luminance");
                 eprintln!("      --tone-map TM    Tone mapping: aces, reinhard, filmic, none (default: aces)");
+                eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
                 eprintln!("  -q, --quiet       Suppress progress output");
                 eprintln!("      --info        Show scene info without rendering");
                 eprintln!("  -V, --version     Show version");
