@@ -336,6 +336,8 @@ pub struct CylinderDesc {
     pub material: MaterialDesc,
     pub bump_strength: Option<f64>,
     pub bump_scale: Option<f64>,
+    pub normal_map: Option<String>,
+    pub normal_map_strength: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -357,6 +359,8 @@ pub struct QuadDesc {
     pub u: [f64; 3],
     pub v: [f64; 3],
     pub material: MaterialDesc,
+    pub normal_map: Option<String>,
+    pub normal_map_strength: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -1162,7 +1166,7 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
     for c in &scene.cylinder {
         let mat = build_material(&c.material);
         let center = arr_to_vec3(c.center);
-        let obj: Box<dyn Hittable> = Box::new(Cylinder::new(
+        let mut obj: Box<dyn Hittable> = Box::new(Cylinder::new(
             center,
             c.radius,
             center.y,
@@ -1171,7 +1175,14 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         ));
         if let Some(strength) = c.bump_strength {
             let scale = c.bump_scale.unwrap_or(4.0);
-            world.add(Box::new(BumpMap::new(obj, strength, scale)));
+            obj = Box::new(BumpMap::new(obj, strength, scale));
+        }
+        if let Some(ref nmap_path) = c.normal_map {
+            let strength = c.normal_map_strength.unwrap_or(1.0);
+            match crate::normal_map::NormalMap::load(obj, nmap_path, strength) {
+                Ok(nm) => { world.add(Box::new(nm)); }
+                Err(e) => eprintln!("Warning: {e}"),
+            }
         } else {
             world.add(obj);
         }
@@ -1218,7 +1229,16 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
             _ => {}
         }
         let mat = build_material(&q.material);
-        world.add(Box::new(Quad::new(origin, u_vec, v_vec, mat)));
+        let obj: Box<dyn Hittable> = Box::new(Quad::new(origin, u_vec, v_vec, mat));
+        if let Some(ref nmap_path) = q.normal_map {
+            let strength = q.normal_map_strength.unwrap_or(1.0);
+            match crate::normal_map::NormalMap::load(obj, nmap_path, strength) {
+                Ok(nm) => { world.add(Box::new(nm)); }
+                Err(e) => eprintln!("Warning: {e}"),
+            }
+        } else {
+            world.add(obj);
+        }
     }
 
     for m in &scene.mesh {
