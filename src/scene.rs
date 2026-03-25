@@ -14,7 +14,7 @@ use crate::disk::Disk;
 use crate::ellipsoid::Ellipsoid;
 use crate::hemisphere::Hemisphere;
 use crate::hit::{HitRecord, Hittable, HittableList};
-use crate::material::{Blend, Dielectric, Emissive, Lambertian, Metal, Microfacet, Translucent};
+use crate::material::{Blend, Dielectric, Emissive, Iridescent, Lambertian, Metal, Microfacet, Translucent};
 use crate::texture::{Checker, Dots, GradientTexture, Grid, ImageTexture, Marble, Rings, Stripe, Turbulence, UvChecker, Voronoi, Wood};
 use crate::plane::Plane;
 use crate::quad::Quad;
@@ -384,6 +384,13 @@ pub enum MaterialDesc {
         color1: [f64; 3],
         color2: [f64; 3],
         scale: Option<f64>,
+    },
+    #[serde(alias = "iridescent")]
+    Iridescent {
+        color: Option<[f64; 3]>,
+        thickness: Option<f64>,
+        film_ior: Option<f64>,
+        roughness: Option<f64>,
     },
     #[serde(alias = "translucent")]
     Translucent {
@@ -1096,6 +1103,15 @@ fn build_material(desc: &MaterialDesc) -> Box<dyn crate::material::Material> {
                 Color::new(color2[0], color2[1], color2[2]),
                 scale.unwrap_or(1.0),
             ))))
+        }
+        MaterialDesc::Iridescent { color, thickness, film_ior, roughness } => {
+            let c = color.unwrap_or([0.9, 0.9, 0.9]);
+            Box::new(Iridescent::new(
+                Color::new(c[0], c[1], c[2]),
+                thickness.unwrap_or(400.0),
+                film_ior.unwrap_or(1.4),
+                roughness.unwrap_or(0.05),
+            ))
         }
         MaterialDesc::Translucent { color, translucency, scatter_width } => {
             Box::new(Translucent::new(

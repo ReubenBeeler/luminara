@@ -420,6 +420,90 @@ impl Material for Blend {
     }
 }
 
+// --- Iridescent (thin-film interference) ---
+
+/// Iridescent material that simulates thin-film interference effects
+/// seen in soap bubbles, oil slicks, and beetle shells. Color shifts
+/// based on viewing angle due to constructive/destructive interference.
+pub struct Iridescent {
+    /// Base reflectivity
+    pub base_color: Color,
+    /// Film thickness in nanometers (controls which wavelengths interfere)
+    pub thickness: f64,
+    /// Film refractive index
+    pub film_ior: f64,
+    /// Roughness of the reflection
+    pub roughness: f64,
+}
+
+impl Iridescent {
+    pub fn new(base_color: Color, thickness: f64, film_ior: f64, roughness: f64) -> Self {
+        Self {
+            base_color,
+            thickness: thickness.max(100.0),
+            film_ior: film_ior.max(1.0),
+            roughness: roughness.clamp(0.0, 1.0),
+        }
+    }
+
+    /// Compute thin-film interference color for a given angle.
+    /// Uses simplified model: phase difference -> spectral color.
+    fn thin_film_color(cos_theta: f64, thickness: f64, film_ior: f64) -> Color {
+        // Snell's law: angle inside film
+        let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+        let sin_theta_film = sin_theta / film_ior;
+        let cos_theta_film = (1.0 - sin_theta_film * sin_theta_film).max(0.0).sqrt();
+
+        // Optical path difference (2 * thickness * n * cos(theta_film))
+        let opd = 2.0 * thickness * film_ior * cos_theta_film;
+
+        // Approximate spectral response for RGB wavelengths (nm)
+        let wavelengths = [650.0, 532.0, 450.0]; // R, G, B
+        let mut color = [0.0f64; 3];
+        for (i, &wl) in wavelengths.iter().enumerate() {
+            // Phase difference
+            let phase = 2.0 * std::f64::consts::PI * opd / wl;
+            // Reflectance from interference (simplified)
+            let r = (phase / 2.0).sin().powi(2);
+            color[i] = r;
+        }
+
+        Color::new(color[0], color[1], color[2])
+    }
+}
+
+impl Material for Iridescent {
+    fn is_specular(&self) -> bool {
+        true
+    }
+
+    fn scatter(&self, ray: &Ray, hit: &HitRecord, rng: &mut dyn RngCore) -> Option<Scatter> {
+        let unit_dir = ray.direction.unit();
+        let cos_theta = (-unit_dir).dot(hit.normal).abs().min(1.0);
+
+        // Compute thin-film interference color
+        let film_color = Self::thin_film_color(cos_theta, self.thickness, self.film_ior);
+
+        // Blend with base color
+        let attenuation = self.base_color.hadamard(film_color);
+
+        // Reflect with optional roughness
+        let mut direction = unit_dir.reflect(hit.normal);
+        if self.roughness > 0.0 {
+            let mut rng_adapter = RngAdapter(rng);
+            direction += Vec3::random_in_unit_sphere(&mut rng_adapter) * self.roughness;
+            if direction.dot(hit.normal) <= 0.0 {
+                return None; // Absorbed
+            }
+        }
+
+        Some(Scatter {
+            ray: Ray::with_time(hit.point, direction, ray.time),
+            attenuation,
+        })
+    }
+}
+
 // --- Translucent (subsurface scattering approximation) ---
 
 /// Translucent material that allows light to pass through and scatter
@@ -777,6 +861,26 @@ mod tests {
         assert!(got_red_only, "Dispersion should produce red-only samples");
         assert!(got_green_only, "Dispersion should produce green-only samples");
         assert!(got_blue_only, "Dispersion should produce blue-only samples");
+    }
+
+    #[test]
+    fn iridescent_color_varies_with_angle() {
+        let mat = Iridescent::new(Color::new(1.0, 1.0, 1.0), 400.0, 1.4, 0.0);
+        // Normal incidence
+        let c1 = Iridescent::thin_film_color(1.0, 400.0, 1.4);
+        // Grazing angle
+        let c2 = Iridescent::thin_film_color(0.3, 400.0, 1.4);
+        // Colors should differ (that's the whole point of iridescence)
+        let diff = (c1.x - c2.x).abs() + (c1.y - c2.y).abs() + (c1.z - c2.z).abs();
+        assert!(diff > 0.01, "Iridescent colors should vary with angle, diff = {diff}");
+
+        // Test scattering works
+        let hit = make_hit_record(&mat);
+        let incoming = Ray::new(Point3::new(0.0, 1.0, 0.0), Vec3::new(0.0, -1.0, 0.0));
+        let mut rng = SmallRng::seed_from_u64(42);
+        let scatter = mat.scatter(&incoming, &hit, &mut rng).unwrap();
+        assert!(scatter.ray.direction.length() > 1e-6);
+        assert!(scatter.attenuation.x >= 0.0);
     }
 
     #[test]
