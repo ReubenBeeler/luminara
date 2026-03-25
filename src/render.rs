@@ -186,6 +186,8 @@ pub struct RenderConfig {
     pub saturation: f64,
     /// Contrast adjustment (1.0 = normal, <1 = lower contrast, >1 = higher).
     pub contrast: f64,
+    /// White balance temperature shift (0 = neutral, negative = cooler/blue, positive = warmer/orange).
+    pub white_balance: f64,
 }
 
 impl Default for RenderConfig {
@@ -209,6 +211,7 @@ impl Default for RenderConfig {
             grain: 0.0,
             saturation: 1.0,
             contrast: 1.0,
+            white_balance: 0.0,
         }
     }
 }
@@ -739,6 +742,16 @@ pub fn render(
             let (mut cr, mut cg, mut cb) = (color.x * exposure * vignette_factor,
                                               color.y * exposure * vignette_factor,
                                               color.z * exposure * vignette_factor);
+
+            // White balance: shift color temperature in HDR space
+            if config.white_balance.abs() > 1e-6 {
+                let wb = config.white_balance;
+                // Warm: boost red, reduce blue. Cool: boost blue, reduce red.
+                cr *= 1.0 + wb * 0.1;
+                cb *= 1.0 - wb * 0.1;
+                // Slight green adjustment for natural look
+                cg *= 1.0 + wb * 0.02;
+            }
 
             // Saturation adjustment in HDR space (before tone mapping)
             if (config.saturation - 1.0).abs() > 1e-6 {
