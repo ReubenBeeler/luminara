@@ -315,6 +315,8 @@ pub struct RenderConfig {
     pub grade_highlights: [f64; 3],
     /// Halftone dot size (0 = off). Simulates newspaper halftone printing.
     pub halftone: u32,
+    /// Emboss filter intensity (0.0 = off). Creates raised/engraved look.
+    pub emboss: f64,
 }
 
 impl Default for RenderConfig {
@@ -364,6 +366,7 @@ impl Default for RenderConfig {
             grade_shadows: [1.0, 1.0, 1.0],
             grade_highlights: [1.0, 1.0, 1.0],
             halftone: 0,
+            emboss: 0.0,
         }
     }
 }
@@ -871,6 +874,42 @@ fn apply_pixelate(rows: &[Vec<Color>], block: u32) -> Vec<Vec<Color>> {
         }
     }
     result
+}
+
+/// Emboss filter: creates a raised/engraved 3D appearance.
+fn apply_emboss(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+
+    rows.iter()
+        .enumerate()
+        .map(|(j, row)| {
+            row.iter()
+                .enumerate()
+                .map(|(i, orig)| {
+                    if j == 0 || i == 0 || j >= height - 1 || i >= width - 1 {
+                        return *orig;
+                    }
+                    // Emboss kernel: [-2, -1, 0; -1, 1, 1; 0, 1, 2]
+                    let tl = rows[j - 1][i - 1];
+                    let tc = rows[j - 1][i];
+                    let ml = rows[j][i - 1];
+                    let mr = rows[j][i + 1];
+                    let bc = rows[j + 1][i];
+                    let br = rows[j + 1][i + 1];
+
+                    let diff = (mr + bc + br * 2.0) - (tl * 2.0 + tc + ml);
+                    let gray = Color::new(0.5, 0.5, 0.5);
+                    let embossed = gray + diff * intensity * 0.25;
+                    // Blend with original
+                    *orig * (1.0 - intensity.min(1.0)) + embossed * intensity.min(1.0)
+                })
+                .collect()
+        })
+        .collect()
 }
 
 /// Build an orthonormal basis from a given direction (Frisvad's method).
@@ -1396,6 +1435,20 @@ pub fn render(
             eprintln!(" done");
         }
         edged
+    } else {
+        rows
+    };
+
+    // Optional emboss pass
+    let rows = if config.emboss > 0.0 {
+        if !config.quiet {
+            eprint!("Embossing...");
+        }
+        let embossed = apply_emboss(&rows, config.emboss);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        embossed
     } else {
         rows
     };
