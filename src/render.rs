@@ -3278,4 +3278,64 @@ mod tests {
         let center = result[5][5];
         assert!((center.x - c.x).abs() < 0.01);
     }
+
+    #[test]
+    fn median_cut_palette_single_color() {
+        let pixels = vec![[128, 128, 128]; 100];
+        let palette = median_cut_palette(&pixels, 4);
+        // With uniform input, all buckets converge to the same color
+        assert!(!palette.is_empty());
+        assert_eq!(palette[0], [128, 128, 128]);
+    }
+
+    #[test]
+    fn median_cut_palette_two_colors() {
+        let mut pixels = vec![[0, 0, 0]; 50];
+        pixels.extend(vec![[255, 255, 255]; 50]);
+        let palette = median_cut_palette(&pixels, 2);
+        assert_eq!(palette.len(), 2);
+        // Should produce one dark and one light color
+        let has_dark = palette.iter().any(|p| p[0] < 128);
+        let has_light = palette.iter().any(|p| p[0] >= 128);
+        assert!(has_dark && has_light);
+    }
+
+    #[test]
+    fn median_cut_palette_empty() {
+        let palette = median_cut_palette(&[], 4);
+        assert!(!palette.is_empty());
+    }
+
+    #[test]
+    fn named_palette_known() {
+        assert!(named_palette("gameboy").is_some());
+        assert!(named_palette("cga").is_some());
+        assert!(named_palette("nes").is_some());
+        assert!(named_palette("cyberpunk").is_some());
+        assert_eq!(named_palette("gameboy").unwrap().len(), 4);
+    }
+
+    #[test]
+    fn named_palette_unknown() {
+        assert!(named_palette("doesnotexist").is_none());
+    }
+
+    #[test]
+    fn apply_color_map_thermal_range() {
+        let (r, g, b) = apply_color_map(0.0, "thermal");
+        assert!(r >= 0.0 && g >= 0.0 && b >= 0.0);
+        let (r, g, b) = apply_color_map(1.0, "thermal");
+        assert!(r <= 1.0 && g <= 1.0 && b <= 1.0);
+    }
+
+    #[test]
+    fn apply_color_map_neon_range() {
+        for i in 0..=10 {
+            let t = i as f64 / 10.0;
+            let (r, g, b) = apply_color_map(t, "neon");
+            assert!(r >= 0.0 && r <= 1.0, "neon r out of range at t={t}");
+            assert!(g >= 0.0 && g <= 1.0, "neon g out of range at t={t}");
+            assert!(b >= 0.0 && b <= 1.0, "neon b out of range at t={t}");
+        }
+    }
 }
