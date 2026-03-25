@@ -95,6 +95,7 @@ struct CliArgs {
     crosshatch: Option<u32>,
     glitch: Option<f64>,
     depth_fog: Option<f64>,
+    fog_color: Option<[f64; 3]>,
     channel_swap: Option<String>,
     mirror: Option<String>,
     quantize: Option<u32>,
@@ -304,6 +305,9 @@ fn main() {
     }
     if let Some(df) = cli.depth_fog {
         render_config.depth_fog = df;
+    }
+    if let Some(fc) = cli.fog_color {
+        render_config.depth_fog_color = fc;
     }
     if let Some(ref cs) = cli.channel_swap {
         render_config.channel_swap = cs.clone();
@@ -868,6 +872,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         crosshatch: None,
         glitch: None,
         depth_fog: None,
+        fog_color: None,
         channel_swap: None,
         mirror: None,
         quantize: None,
@@ -1170,6 +1175,15 @@ fn parse_args(args: &[String]) -> CliArgs {
                     cli.glitch = args[i].parse().ok();
                 }
             }
+            "--fog-color" => {
+                i += 1;
+                if i < args.len() {
+                    let parts: Vec<f64> = args[i].split(',').filter_map(|s| s.trim().parse().ok()).collect();
+                    if parts.len() == 3 {
+                        cli.fog_color = Some([parts[0], parts[1], parts[2]]);
+                    }
+                }
+            }
             "--depth-fog" => {
                 i += 1;
                 if i < args.len() {
@@ -1390,6 +1404,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --crosshatch N Pen-and-ink crosshatch spacing (e.g. 4)");
                 eprintln!("      --glitch N    Digital glitch effect intensity (e.g. 0.5)");
                 eprintln!("      --depth-fog N Atmospheric depth fog density (e.g. 0.1)");
+                eprintln!("      --fog-color R,G,B  Fog color (0-1 each, default: 0.8,0.85,0.9)");
                 eprintln!("      --channel-swap S Swap RGB channels: rbg, grb, gbr, brg, bgr");
                 eprintln!("      --quantize N  Reduce to N colors via median-cut quantization");
                 eprintln!("      --tint R,G,B  Multiply all pixels by RGB color (0-1 each)");
