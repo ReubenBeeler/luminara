@@ -1,0 +1,92 @@
+# Materials Showcase — demonstrates iridescent, translucent, and cinematic effects
+# Render with: cargo run --release -- scenes/materials_showcase.toml -s 200
+
+[render]
+width = 960
+height = 540
+samples = 100
+max_depth = 50
+bloom = 0.2
+vignette = 0.3
+auto_exposure = true
+background = { type = "gradient", bottom = [0.05, 0.05, 0.1], top = [0.02, 0.02, 0.08] }
+
+[camera]
+look_from = [0, 3, 8]
+look_at = [0, 0.5, 0]
+vfov = 35
+aperture = 0.08
+focus_dist = 8.0
+
+# Floor — dark checker
+[[object]]
+type = "plane"
+point = [0, 0, 0]
+normal = [0, 1, 0]
+material = { type = "checker", color1 = [0.15, 0.15, 0.15], color2 = [0.08, 0.08, 0.08], scale = 1.0 }
+
+# Back wall (subtle)
+[[object]]
+type = "rect"
+origin = [-6, 0, -3]
+u = [12, 0, 0]
+v = [0, 8, 0]
+material = { type = "lambertian", color = [0.1, 0.1, 0.12] }
+
+# Large warm area light above
+[[object]]
+type = "rect"
+origin = [-2, 5.99, -1]
+u = [4, 0, 0]
+v = [0, 0, 3]
+material = { type = "emissive", color = [1.0, 0.95, 0.85], intensity = 8.0 }
+
+# --- Iridescent sphere (soap bubble) ---
+[[object]]
+type = "sphere"
+center = [-2.5, 1.0, 0]
+radius = 1.0
+material = { type = "iridescent", color = [0.95, 0.95, 1.0], thickness = 380, film_ior = 1.33, roughness = 0.02 }
+
+# --- Translucent sphere (jade) ---
+[[object]]
+type = "sphere"
+center = [0, 1.0, 0.5]
+radius = 1.0
+material = { type = "translucent", color = [0.3, 0.7, 0.35], translucency = 0.6, scatter_width = 0.9 }
+
+# --- Iridescent sphere (oil slick / beetle) ---
+[[object]]
+type = "sphere"
+center = [2.5, 1.0, 0]
+radius = 1.0
+material = { type = "iridescent", color = [0.2, 0.2, 0.3], thickness = 550, film_ior = 1.5, roughness = 0.0 }
+
+# --- Small emissive accent sphere ---
+[[object]]
+type = "sphere"
+center = [-1.0, 0.3, 2.5]
+radius = 0.3
+material = { type = "emissive", color = [0.4, 0.6, 1.0], intensity = 12.0 }
+
+# --- Translucent wax candle-like cylinder ---
+[[object]]
+type = "cylinder"
+center = [1.2, 0.5, 2.0]
+radius = 0.25
+height = 1.0
+material = { type = "translucent", color = [0.95, 0.9, 0.75], translucency = 0.4, scatter_width = 0.7 }
+
+# --- Glass sphere for comparison ---
+[[object]]
+type = "sphere"
+center = [4.0, 0.6, 2.0]
+radius = 0.6
+material = { type = "glass" }
+
+# --- Metal sphere for contrast ---
+[[object]]
+type = "sphere"
+center = [-4.0, 0.6, 2.0]
+radius = 0.6
+material = { type = "metal", color = [0.95, 0.85, 0.6], fuzz = 0.05 }
