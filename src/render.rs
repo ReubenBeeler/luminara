@@ -348,6 +348,8 @@ pub struct RenderConfig {
     pub quantize: u32,
     /// Color tint: multiply all pixels by this RGB color [R, G, B] in 0..1 range.
     pub tint: [f64; 3],
+    /// Named color palette for quantization (overrides --quantize).
+    pub palette: String,
 }
 
 impl Default for RenderConfig {
@@ -413,6 +415,7 @@ impl Default for RenderConfig {
             mirror: String::new(),
             quantize: 0,
             tint: [1.0, 1.0, 1.0],
+            palette: String::new(),
         }
     }
 }
@@ -1116,6 +1119,42 @@ fn median_cut_palette(pixels: &[[u8; 3]], n: usize) -> Vec<[u8; 3]> {
     }).collect()
 }
 
+fn named_palette(name: &str) -> Option<Vec<[u8; 3]>> {
+    match name {
+        "gameboy" => Some(vec![
+            [15, 56, 15], [48, 98, 48], [139, 172, 15], [155, 188, 15],
+        ]),
+        "cga" => Some(vec![
+            [0, 0, 0], [85, 255, 255], [255, 85, 255], [255, 255, 255],
+        ]),
+        "nes" => Some(vec![
+            [0, 0, 0], [124, 124, 124], [188, 188, 188], [252, 252, 252],
+            [168, 16, 0], [228, 92, 16], [248, 216, 120], [88, 168, 0],
+            [0, 120, 0], [0, 168, 68], [0, 88, 248], [88, 216, 84],
+            [104, 68, 252], [248, 120, 88], [216, 0, 204], [248, 184, 0],
+        ]),
+        "pastel" => Some(vec![
+            [255, 179, 186], [255, 223, 186], [255, 255, 186], [186, 255, 201],
+            [186, 225, 255], [218, 186, 255], [255, 186, 243], [255, 255, 255],
+        ]),
+        "grayscale4" => Some(vec![
+            [0, 0, 0], [85, 85, 85], [170, 170, 170], [255, 255, 255],
+        ]),
+        "sunset" => Some(vec![
+            [25, 10, 40], [80, 20, 60], [160, 50, 40], [220, 100, 30],
+            [240, 160, 50], [250, 210, 120], [255, 240, 200],
+        ]),
+        "cyberpunk" => Some(vec![
+            [10, 0, 20], [30, 0, 60], [100, 0, 150], [200, 0, 255],
+            [255, 0, 100], [0, 255, 200], [255, 255, 0], [255, 255, 255],
+        ]),
+        "sepia4" => Some(vec![
+            [60, 40, 25], [130, 100, 65], [190, 160, 110], [240, 220, 180],
+        ]),
+        _ => None,
+    }
+}
+
 fn apply_color_map(t: f64, name: &str) -> (f64, f64, f64) {
     let t = t.clamp(0.0, 1.0);
     match name {
@@ -1695,28 +1734,33 @@ pub fn render(
         rows
     };
 
-    // Optional color quantization pass (median-cut)
-    let rows = if config.quantize >= 2 {
-        if !config.quiet {
-            eprint!("Quantizing to {} colors...", config.quantize);
-        }
-        let height = rows.len();
-        let width = if height > 0 { rows[0].len() } else { 0 };
-
-        // Collect all pixels
-        let mut pixels_rgb: Vec<[u8; 3]> = Vec::with_capacity(height * width);
-        for row in &rows {
-            for c in row {
-                pixels_rgb.push([
-                    (c.x.clamp(0.0, 1.0) * 255.0) as u8,
-                    (c.y.clamp(0.0, 1.0) * 255.0) as u8,
-                    (c.z.clamp(0.0, 1.0) * 255.0) as u8,
-                ]);
+    // Optional color quantization pass (named palette or median-cut)
+    let use_palette = !config.palette.is_empty() && named_palette(&config.palette).is_some();
+    let rows = if use_palette || config.quantize >= 2 {
+        let palette = if let Some(p) = named_palette(&config.palette) {
+            if !config.quiet {
+                eprint!("Applying {} palette ({} colors)...", config.palette, p.len());
             }
-        }
+            p
+        } else {
+            if !config.quiet {
+                eprint!("Quantizing to {} colors...", config.quantize);
+            }
+            let height = rows.len();
+            let width = if height > 0 { rows[0].len() } else { 0 };
 
-        // Simple median-cut: recursively split color buckets
-        let palette = median_cut_palette(&pixels_rgb, config.quantize as usize);
+            let mut pixels_rgb: Vec<[u8; 3]> = Vec::with_capacity(height * width);
+            for row in &rows {
+                for c in row {
+                    pixels_rgb.push([
+                        (c.x.clamp(0.0, 1.0) * 255.0) as u8,
+                        (c.y.clamp(0.0, 1.0) * 255.0) as u8,
+                        (c.z.clamp(0.0, 1.0) * 255.0) as u8,
+                    ]);
+                }
+            }
+            median_cut_palette(&pixels_rgb, config.quantize as usize)
+        };
 
         // Map each pixel to nearest palette color
         let result: Vec<Vec<Color>> = rows.iter()

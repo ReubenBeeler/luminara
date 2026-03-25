@@ -140,6 +140,7 @@ pub struct RenderSettings {
     pub glitch: Option<f64>,
     pub quantize: Option<u32>,
     pub tint: Option<[f64; 3]>,
+    pub palette: Option<String>,
     pub background: Option<BackgroundDesc>,
 }
 
@@ -911,6 +912,9 @@ pub fn load_scene(toml_str: &str) -> Result<(RenderConfig, Camera, SceneWorld), 
         }
         if let Some(t) = r.tint {
             render_config.tint = t;
+        }
+        if let Some(ref p) = r.palette {
+            render_config.palette = p.clone();
         }
         if let Some(ref tm) = r.tone_map {
             render_config.tone_map = match tm.as_str() {
@@ -1879,6 +1883,7 @@ pub fn demo_scene() -> (RenderConfig, Camera, SceneWorld) {
         mirror: String::new(),
         quantize: 0,
         tint: [1.0, 1.0, 1.0],
+        palette: String::new(),
     };
 
     let cam_config = CameraConfig {

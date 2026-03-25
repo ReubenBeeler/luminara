@@ -99,6 +99,7 @@ struct CliArgs {
     mirror: Option<String>,
     quantize: Option<u32>,
     tint: Option<[f64; 3]>,
+    palette: Option<String>,
 }
 
 fn main() {
@@ -300,6 +301,9 @@ fn main() {
     if let Some(t) = cli.tint {
         render_config.tint = t;
     }
+    if let Some(ref p) = cli.palette {
+        render_config.palette = p.clone();
+    }
     if cli.save_depth.is_some() {
         render_config.save_depth = true;
     }
@@ -410,6 +414,7 @@ fn main() {
         if render_config.tint[0] < 1.0 || render_config.tint[1] < 1.0 || render_config.tint[2] < 1.0 {
             pp.push(format!("tint({:.2},{:.2},{:.2})", render_config.tint[0], render_config.tint[1], render_config.tint[2]));
         }
+        if !render_config.palette.is_empty() { pp.push(format!("palette({})", render_config.palette)); }
         if render_config.posterize >= 2 { pp.push(format!("posterize({})", render_config.posterize)); }
         if render_config.sepia > 0.0 { pp.push(format!("sepia({:.1})", render_config.sepia)); }
         if render_config.threshold >= 0.0 { pp.push(format!("threshold({:.2})", render_config.threshold)); }
@@ -753,6 +758,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         mirror: None,
         quantize: None,
         tint: None,
+        palette: None,
     };
     let mut i = 1;
 
@@ -1067,6 +1073,12 @@ fn parse_args(args: &[String]) -> CliArgs {
                     }
                 }
             }
+            "--palette" => {
+                i += 1;
+                if i < args.len() {
+                    cli.palette = Some(args[i].clone());
+                }
+            }
             "--info" => {
                 cli.info_only = true;
             }
@@ -1102,7 +1114,7 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "-V" | "--version" => {
                 eprintln!("Luminara {} — a physically-based ray tracer", env!("CARGO_PKG_VERSION"));
-                eprintln!("  14 materials, 29 textures, 30 geometry types, 38 post-processing effects");
+                eprintln!("  14 materials, 29 textures, 30 geometry types, 39 post-processing effects");
                 std::process::exit(0);
             }
             "-h" | "--help" => {
@@ -1159,6 +1171,8 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --channel-swap S Swap RGB channels: rbg, grb, gbr, brg, bgr");
                 eprintln!("      --quantize N  Reduce to N colors via median-cut quantization");
                 eprintln!("      --tint R,G,B  Multiply all pixels by RGB color (0-1 each)");
+                eprintln!("      --palette S   Named color palette: gameboy, cga, nes, pastel,");
+                eprintln!("                    grayscale4, sunset, cyberpunk, sepia4");
                 eprintln!("      --list-scenes List available scene files");
                 eprintln!("  -V, --version     Show version");
                 eprintln!("  -h, --help        Show this help");
