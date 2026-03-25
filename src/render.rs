@@ -176,6 +176,8 @@ pub struct RenderConfig {
     pub save_hdr: bool,
     /// Optional crop region: (x, y, width, height) in pixels
     pub crop: Option<(u32, u32, u32, u32)>,
+    /// Bloom intensity (0.0 = off). Adds glow around bright areas.
+    pub bloom: f64,
 }
 
 impl Default for RenderConfig {
@@ -194,6 +196,7 @@ impl Default for RenderConfig {
             denoise: false,
             save_hdr: false,
             crop: None,
+            bloom: 0.0,
         }
     }
 }
@@ -283,6 +286,76 @@ fn bilateral_denoise(rows: &[Vec<Color>]) -> Vec<Vec<Color>> {
     });
 
     result
+}
+
+/// Apply bloom (glow) post-processing to HDR image data.
+/// Extracts bright pixels above a luminance threshold, applies a multi-pass
+/// Gaussian blur, then blends the result back into the original image.
+fn apply_bloom(rows: &[Vec<Color>], intensity: f64) -> Vec<Vec<Color>> {
+    let height = rows.len();
+    if height == 0 {
+        return vec![];
+    }
+    let width = rows[0].len();
+    let threshold = 1.0; // Extract pixels brighter than 1.0 (pre-tonemapping)
+
+    // Step 1: Extract bright pixels
+    let mut bright: Vec<Vec<Color>> = rows
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|c| {
+                    let lum = 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+                    if lum > threshold {
+                        *c - Color::new(threshold, threshold, threshold)
+                    } else {
+                        Color::ZERO
+                    }
+                })
+                .collect()
+        })
+        .collect();
+
+    // Step 2: Multi-pass downscale + blur for wide glow
+    // We do 4 passes of a 5-tap Gaussian blur, which approximates a large kernel
+    let kernel = [0.06136, 0.24477, 0.38774, 0.24477, 0.06136];
+    for _ in 0..4 {
+        // Horizontal pass
+        let mut temp = vec![vec![Color::ZERO; width]; height];
+        for y in 0..height {
+            for x in 0..width {
+                let mut sum = Color::ZERO;
+                for (k, &w) in kernel.iter().enumerate() {
+                    let sx = (x as i64 + k as i64 - 2).clamp(0, width as i64 - 1) as usize;
+                    sum += bright[y][sx] * w;
+                }
+                temp[y][x] = sum;
+            }
+        }
+        // Vertical pass
+        for y in 0..height {
+            for x in 0..width {
+                let mut sum = Color::ZERO;
+                for (k, &w) in kernel.iter().enumerate() {
+                    let sy = (y as i64 + k as i64 - 2).clamp(0, height as i64 - 1) as usize;
+                    sum += temp[sy][x] * w;
+                }
+                bright[y][x] = sum;
+            }
+        }
+    }
+
+    // Step 3: Blend bloom back into original
+    rows.iter()
+        .zip(bright.iter())
+        .map(|(orig_row, bloom_row)| {
+            orig_row
+                .iter()
+                .zip(bloom_row.iter())
+                .map(|(orig, bloom)| *orig + *bloom * intensity)
+                .collect()
+        })
+        .collect()
 }
 
 /// Build an orthonormal basis from a given direction (Frisvad's method).
@@ -581,6 +654,20 @@ pub fn render(
             eprintln!(" done");
         }
         denoised
+    } else {
+        rows
+    };
+
+    // Optional bloom pass (operates on HDR data before tone mapping)
+    let rows = if config.bloom > 0.0 {
+        if !config.quiet {
+            eprint!("Applying bloom...");
+        }
+        let bloomed = apply_bloom(&rows, config.bloom);
+        if !config.quiet {
+            eprintln!(" done");
+        }
+        bloomed
     } else {
         rows
     };

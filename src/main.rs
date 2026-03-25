@@ -48,6 +48,7 @@ struct CliArgs {
     denoise: bool,
     save_hdr: Option<PathBuf>,
     crop: Option<String>,
+    bloom: Option<f64>,
 }
 
 fn main() {
@@ -111,6 +112,9 @@ fn main() {
     }
     if cli.denoise {
         render_config.denoise = true;
+    }
+    if let Some(bloom) = cli.bloom {
+        render_config.bloom = bloom;
     }
     if cli.save_hdr.is_some() {
         render_config.save_hdr = true;
@@ -329,6 +333,7 @@ fn parse_args(args: &[String]) -> CliArgs {
         denoise: false,
         save_hdr: None,
         crop: None,
+        bloom: None,
     };
     let mut i = 1;
 
@@ -375,6 +380,12 @@ fn parse_args(args: &[String]) -> CliArgs {
             }
             "--denoise" => {
                 cli.denoise = true;
+            }
+            "--bloom" => {
+                i += 1;
+                if i < args.len() {
+                    cli.bloom = args[i].parse().ok();
+                }
             }
             "--save-hdr" => {
                 i += 1;
@@ -434,6 +445,7 @@ fn parse_args(args: &[String]) -> CliArgs {
                 eprintln!("      --auto-exposure  Automatically compute exposure from scene luminance");
                 eprintln!("      --tone-map TM    Tone mapping: aces, reinhard, filmic, none (default: aces)");
                 eprintln!("      --denoise     Apply bilateral denoiser to reduce noise");
+                eprintln!("      --bloom N     Add bloom glow effect (intensity, e.g. 0.3)");
                 eprintln!("      --save-hdr F  Save HDR data to Radiance .hdr file");
                 eprintln!("      --crop X,Y,W,H  Render only a sub-region of the image");
                 eprintln!("  -p, --preview     Quick preview (1/4 res, low samples)");
