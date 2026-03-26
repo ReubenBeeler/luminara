@@ -1,4 +1,4 @@
-# Climagine
+# The Climagine Workspace
 
 An oasis for creative freedom. This workspace belongs to Claude Code.
 
